@@ -1,29 +1,70 @@
 # Oremus
 
-Oremus is an original, full-stack social network built with an Express MVC application, MongoDB/Mongoose, Redis, FastAPI, Socket.IO, and Tailwind CSS. It includes real authentication, profiles, posts, six reactions, threaded comments, groups with moderated join requests, direct messages, notifications, cross-entity search, and personalized feed ranking.
+Oremus is a full-stack social network built with Express, MongoDB, Redis, FastAPI, Socket.IO and Tailwind CSS. People can post text, photos and videos, react and comment, add friends and follow people, join groups, chat in real time, share 24-hour stories, search, and get live notifications.
 
-## Run locally with Docker
+## Table of contents
 
-1. Copy `.env.example` to `.env` and replace both JWT secrets with independent random values of at least 32 characters.
-2. Start the stack:
+**In this file**
+
+- [Quick start with Docker](#quick-start-with-docker)
+- [Run the source locally](#run-the-source-locally)
+- [Commands](#commands)
+- [Project structure](#project-structure)
+- [Known limits](#known-limits)
+
+**Documentation** (in [`docs/`](docs/README.md))
+
+| Topic | Page |
+|---|---|
+| Start here | [Overview](docs/OVERVIEW.md) · [Development guide](docs/DEVELOPMENT.md) · [Architecture](docs/ARCHITECTURE.md) |
+| Data | [Data model](docs/DATA_MODEL.md) |
+| Security | [Authentication and security](docs/AUTHENTICATION.md) |
+| Features | [Posts and feed](docs/POSTS_AND_FEED.md) · [Media uploads and compression](docs/MEDIA.md) · [People and relationships](docs/SOCIAL_GRAPH.md) · [Groups](docs/GROUPS.md) · [Messaging and notifications](docs/MESSAGING_AND_NOTIFICATIONS.md) · [Stories](docs/STORIES.md) · [Search and places](docs/SEARCH_AND_PLACES.md) |
+| User interface | [Frontend](docs/FRONTEND.md) |
+| Reference | [API reference](docs/API_REFERENCE.md) |
+| Operations | [Deployment and operations](docs/DEPLOYMENT.md) |
+
+## At a glance
+
+```mermaid
+flowchart LR
+  Browser((Browser)) -- "HTML, JSON, WebSocket" --> Web["web<br/>Express + Socket.IO"]
+  Web --> Mongo[("MongoDB")]
+  Web --> Redis[("Redis")]
+  Web -- search --> Api["api<br/>FastAPI"]
+  Api --> Mongo
+  Api --> Redis
+  Media["media worker<br/>ffmpeg"] --> Mongo
+  Media --> Redis
+```
+
+## Quick start with Docker
+
+1. Copy `.env.example` to `.env` and replace both JWT secrets with two different random values of at least 32 characters.
+2. Start everything:
 
    ```powershell
    docker compose up --build -d
    ```
 
-3. Seed realistic local data:
+3. Create indexes and sample data:
 
    ```powershell
+   docker compose exec web node dist/scripts/migrate.js
    docker compose exec web node dist/scripts/seed.js
    ```
 
-4. Open [http://localhost:3000](http://localhost:3000). Sign in with `maya@example.com` / `CircleSpace123`.
+4. Open [http://localhost:3000](http://localhost:3000) and sign in with `maya@example.com` / `CircleSpace123`.
 
-FastAPI OpenAPI documentation is available at [http://localhost:8001/docs](http://localhost:8001/docs). The web health endpoint is `/health`; FastAPI uses `/health`. Authenticated developers can inspect Redis cache hit/miss counts at `/api/dev/cache`.
+Useful URLs:
 
-## Run services directly
+- FastAPI docs: [http://localhost:8001/docs](http://localhost:8001/docs)
+- Health: `/health` on both services
+- Cache statistics (signed in): `/api/dev/cache`
 
-MongoDB and Redis must be available locally first.
+## Run the source locally
+
+MongoDB and Redis must be running (for example `docker compose up -d mongo redis`).
 
 ```powershell
 Copy-Item .env.example .env
@@ -34,20 +75,20 @@ npm run seed
 npm run dev
 ```
 
-Video compression runs in a separate worker and needs `ffmpeg` on the PATH (Docker's `media` service includes it):
-
-```powershell
-npm --workspace @oremus/web run dev:worker
-```
-
-Without the worker, videos still post and play from the original upload; they are compressed once it runs.
-
-In another terminal:
+In a second terminal, start the search API:
 
 ```powershell
 Set-Location apps/api
 python -m uvicorn app.main:app --reload --port 8001
 ```
+
+Optional third terminal, the video compression worker (needs `ffmpeg` on the PATH):
+
+```powershell
+npm --workspace @oremus/web run dev:worker
+```
+
+Without the worker, videos still upload and play; they are compressed once it runs. The full step-by-step guide is in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ## Commands
 
@@ -60,28 +101,23 @@ python -m pytest -q apps/api/tests
 docker compose config --quiet
 ```
 
-`npm --workspace @oremus/web run migrate` synchronizes declared MongoDB indexes and constraints. Migrations are intentionally index-oriented because document shape is backwards-compatible and validated at both Zod and Mongoose boundaries.
+`npm --workspace @oremus/web run migrate` syncs MongoDB indexes and runs one-time data migrations. It is safe to run many times.
 
-## Architecture decisions
+## Project structure
 
-- **Mongoose instead of a relational ORM:** the direct request specified MongoDB. Mongoose supplies schema validation, indexes, lifecycle hooks, references, and an ODM query layer while retaining document-friendly embedding for profiles, media, and conversation membership.
-- **Express owns transactional product behavior:** authentication, users, posts, groups, messaging, notifications, uploads, authorization, and server-rendered pages stay in the MVC application.
-- **FastAPI owns ranking and search:** it applies a transparent recency/relationship/engagement ranking and performs cached, cross-collection search. Express falls back to chronological order if ranking is temporarily unavailable.
-- **Redis is operational:** it backs feed/profile/group/search caches, prefix invalidation, auth and creation rate limits, access-token denylisting, cache diagnostics, and the Socket.IO pub/sub adapter.
-- **Security:** bcrypt password hashes, short-lived access JWTs, rotating refresh JWTs stored as hashes, replay-family revocation, HTTP-only SameSite cookies, CSRF tokens, Helmet CSP, validation, sanitization, generated upload names, MIME/size limits, ownership checks, and redacted structured logs.
-- **UI:** Facebook-style layout (sticky header with centre tabs, left shortcuts, right contacts rail, bottom mobile navigation), indigo brand on a neutral `#f0f2f5` canvas, Red Hat Display/Text type, an inline SVG icon sprite with six reaction emoji (`src/views/partials/icons.ejs`), and generated SVG artwork in `public/assets/img`. Tokens live in `tailwind.config.js`; component classes in `src/views-or-client/styles.css`.
-- **Stories:** 24-hour photo or text stories (`Story`, `StoryView` models, `services/story.service.ts`). Audience is `public` or `followers` (per-user default in settings). The viewer at `/stories` records views, five reactions, and replies that land in Messages; authors see viewers and keep everything in `/stories/archive`.
+```text
+apps/web/     Express app: routes, services, models, EJS views, client script, media worker
+apps/api/     FastAPI search and ranking service
+docs/         Documentation
+```
 
-Project documentation:
+See [Overview](docs/OVERVIEW.md#repository-layout) for the full tree.
 
-- [Development setup and commands](docs/DEVELOPMENT.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Documentation index](docs/README.md)
+## Known limits
 
-## Intentional production integrations left to the deployer
+- Uploads are stored on a local volume. Use S3-compatible storage before running several web servers.
+- Password reset shows its link only in development; production needs an email provider.
+- Search uses simple case-insensitive matching. For large data, swap the FastAPI internals for Atlas Search or OpenSearch without changing the web app.
+- Presence, typing indicators, ads and machine-learning recommendations are out of scope.
 
-- Uploads use a validated local volume. Replace it with S3-compatible object storage before horizontal production deployment.
-- Password reset returns its token only in development; production should connect the service to a transactional email provider.
-- MongoDB text indexes provide the initial search implementation. At larger scale, swap the FastAPI search internals for Atlas Search/OpenSearch without changing the Express boundary.
-- Presence, typing indicators, video, ads, and algorithmic ML recommendations are outside the core product scope.
-
+More detail in [Deployment and operations](docs/DEPLOYMENT.md#production-checklist).

@@ -1,92 +1,230 @@
-# Oremus architecture
+# Architecture
 
-## Service flow
+This page explains how the pieces of Oremus fit together: the services, the layers inside the web app, the order of middleware, how caching works and what runs in the background.
+
+## Services
+
+Oremus runs as five containers (see `docker-compose.yml`).
 
 ```mermaid
 flowchart LR
-  Browser[Responsive EJS + TypeScript client] --> Web[Express MVC + Socket.IO]
-  Web --> Mongo[(MongoDB)]
-  Web --> Redis[(Redis)]
-  Web --> API[FastAPI ranking/search]
-  API --> Mongo
-  API --> Redis
-  Redis <--> Socket[Socket.IO Redis adapter]
-  Socket <--> Web
+  User((Browser))
+  subgraph App
+    Web["web<br/>Express + Socket.IO<br/>port 3000"]
+    Media["media<br/>video worker<br/>(ffmpeg)"]
+    Api["api<br/>FastAPI search<br/>port 8001"]
+  end
+  Mongo[("mongo<br/>MongoDB 8")]
+  Redis[("redis<br/>Redis 7")]
+  Uploads[/"uploads volume"/]
+
+  User -- "HTTP + WebSocket" --> Web
+  Web -- "search requests" --> Api
+  Web --> Mongo
+  Web --> Redis
+  Api --> Mongo
+  Api --> Redis
+  Media --> Mongo
+  Media --> Redis
+  Web --- Uploads
+  Media --- Uploads
 ```
 
-Express controllers only translate HTTP. Services own business rules, Mongoose models own persistence constraints, Zod validators own request shapes, middleware owns cross-cutting auth/CSRF/rate-limit/upload concerns, and sockets own live delivery.
+| Service | Code | Job |
+|---|---|---|
+| `web` | `apps/web/src/server.ts` | Renders pages, serves the JSON API, handles uploads, runs Socket.IO |
+| `media` | `apps/web/src/media-worker.ts` | Takes video jobs from Redis and compresses them with ffmpeg |
+| `api` | `apps/api/app/main.py` | Search across users, posts and groups; optional feed ranking endpoint |
+| `mongo` | MongoDB 8 | Main database |
+| `redis` | Redis 7 | Cache, rate limits, token denylist, Socket.IO pub/sub, video job queue |
 
-## Media pipeline
+`web` and `media` are built from the same Dockerfile. The `media` stage only adds ffmpeg and starts a different entry file. They share the `uploads` volume so the worker can read and write the same files.
 
-Uploads are re-encoded before viewers see them for long. Images are compressed inline by `compressUploadedImages` (sharp): EXIF rotation applied, metadata stripped, long edge capped at 2048px, WebP quality 80, with a lossless WebP fallback when lossy output would be larger (flat graphics). Videos are too slow for the request path: the post is saved with the original file and `status: 'processing'`, and a job is pushed to the Redis list `media:video:jobs`. The `media` service (`src/media-worker.ts`, same image plus ffmpeg) moves jobs to `media:video:active`, transcodes to H.264/AAC MP4 (long edge ≤1280px, CRF 23, ≤4 Mbps, ≤30 fps, metadata stripped, faststart), extracts a poster frame, and swaps the media entry only if it still points at the original. The original is scheduled in the `media:trash` sorted set and deleted 15 minutes later so already-rendered pages keep working. A failed transcode marks the media `failed` and keeps serving the original. Run a single worker instance; on start it requeues jobs left active by a crash.
+## Layers inside the web app
 
-## Document model
-
-MongoDB embeds values that are read and updated with their parent: `Profile` inside `User`, `PostMedia` inside `Post`, and conversation member IDs inside `Conversation`. High-cardinality or independently updated relationships use collections.
+Each layer has one job. A request flows from top to bottom.
 
 ```mermaid
-erDiagram
-  USER ||--|| PROFILE : embeds
-  USER ||--o{ FOLLOW : follows
-  USER ||--o{ FRIENDSHIP : connects
-  USER ||--o{ POST : authors
-  POST ||--o{ POST_MEDIA : embeds
-  POST ||--o{ REACTION : receives
-  POST ||--o{ COMMENT : receives
-  COMMENT ||--o{ COMMENT : replies
-  GROUP ||--o{ GROUP_MEMBER : contains
-  GROUP ||--o{ GROUP_JOIN_REQUEST : receives
-  GROUP ||--o{ GROUP_POST : maps
-  POST ||--o| GROUP_POST : belongs
-  CONVERSATION ||--o{ CONVERSATION_MEMBER : embeds
-  CONVERSATION ||--o{ MESSAGE : contains
-  USER ||--o{ NOTIFICATION : receives
-  USER ||--o{ REFRESH_TOKEN : owns
-  USER ||--o{ AUDIT_LOG : acts
+flowchart TB
+  R["routes/*.ts<br/>URL → middleware → controller"]
+  M["middleware/*.ts<br/>auth, CSRF, rate limit, upload, errors"]
+  V["validators/index.ts<br/>Zod schemas"]
+  C["controllers/*.ts<br/>read request, call service, send response"]
+  S["services/*.ts<br/>business rules and permissions"]
+  D["models/index.ts<br/>Mongoose schemas and indexes"]
+  X["sockets/index.ts<br/>live events"]
+  R --> M --> C
+  C --> V
+  C --> S
+  S --> D
+  S --> X
 ```
 
-Compound unique indexes protect follow pairs, canonical friendship pairs, user/post reactions, memberships, and active identity fields. Friendships move from `pending` to `accepted`; accepting creates or promotes the private conversation. TTL removes expired refresh records. Posts and comments use `deletedAt` soft deletion.
+| Layer | Rule of thumb |
+|---|---|
+| Routes | Only wiring. No logic. |
+| Middleware | Things every request needs: who is the user, is the CSRF token valid, too many requests, files, errors. |
+| Controllers | Thin. Parse input with Zod, call one service, return `{ ok: true, data }` or render a view. |
+| Services | All rules live here: who can see a post, who can approve a member, what happens when you block someone. |
+| Models | Data shape, defaults, enums and indexes. |
+| Sockets | Push events to users. Services call `emitUserEvent()` and never touch Socket.IO directly. |
 
-Follow remains independent of friendship. Home posts sort by followed authors first, newest follow first, then newest post within each author, before pagination. Take a break saves private `SocialPreference` settings: hide an author's home posts/stories or restrict follower-only content shared with them; public content remains accessible and friendship/chat stay intact. `Block` denies profile/content/social/chat access in both directions, removes friendship and bilateral follows, and retains message history. Unblocking does not restore those relationships. The existing-chat friendship backfill runs only once, preventing migrations from resurrecting removed relationships.
+## Middleware order
 
-## Route map
+The order in `apps/web/src/app.ts` matters. For example, the CSRF check runs before any route, and errors are handled last.
 
-| Surface | Routes | Responsibility |
-|---|---|---|
-| Pages | `/`, `/login`, `/register`, `/reset-password` | Authentication and ranked home feed |
-| People | `/profile/:username`, `PATCH /api/profile`, `POST /api/users/:id/friendship` | Profiles plus friend request/accept/cancel/decline/unfriend state |
-| Social actions | `/profile/:username?q=...`, `/api/users/:id/follow`, `/api/users/:id/break`, `/api/users/:id/block` | Profile search, independent follow, private break settings, block/unblock |
-| Posts | `/posts/:id`, `/api/posts/*` | Create/edit/delete, media, reactions, comments/replies |
-| Groups | `/groups`, `/groups/:slug`, `/api/groups/*`, `/api/group-requests/*` | Discovery, membership, moderation, group posting |
-| Messaging | `/messages/:conversationId`, `/api/conversations/*` | Friends-only conversation history and real-time messages |
-| Activity | `/notifications`, `/api/notifications/*` | Notification inbox and read state |
-| Discovery | `/search`, `/api/search`, FastAPI `/v1/search` | Users, posts, groups |
-| Ranking | MongoDB home-feed aggregation; FastAPI `/v1/feed/rank` | Home follow-recency priority; optional ranking endpoint |
-| Operations | `/health`, FastAPI `/health`, `/api/dev/cache` | Readiness and cache diagnostics |
+```mermaid
+flowchart TB
+  A["helmet (security headers + CSP)"] --> B["compression"]
+  B --> C["pino-http (request logs)"]
+  C --> D["requestContext (x-request-id)"]
+  D --> E["cookieParser"]
+  E --> F["theme cookie → res.locals.theme"]
+  F --> G["express.json / urlencoded (1 MB limit)"]
+  G --> H["static: /assets, /uploads"]
+  H --> I["csrfToken (issue cookie)"]
+  I --> J["GET /health"]
+  J --> K["requireCsrf (check non-GET requests)"]
+  K --> L1["/auth routes"]
+  K --> L2["/api routes (requireAuth)"]
+  K --> L3["page routes (optionalAuth + navState)"]
+  L1 --> N["notFound"]
+  L2 --> N
+  L3 --> N
+  N --> O["errorHandler"]
+```
 
-## Cache policy
+## Life of an API request
 
-| Data | Key | TTL | Invalidation |
+Example: creating a post with two photos.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant B as Browser
+  participant MW as Middleware
+  participant C as Controller
+  participant S as post.service
+  participant DB as MongoDB
+  participant R as Redis
+  B->>MW: POST /api/posts (multipart, x-csrf-token)
+  MW->>MW: requireCsrf, requireAuth, rateLimit("post")
+  MW->>MW: multer saves files, enforcePostMediaSize, compressUploadedImages
+  MW->>C: req.body + req.files
+  C->>C: postSchema.parse(req.body)
+  C->>S: createPost(userId, input, files)
+  S->>DB: check group membership (if group post)
+  S->>DB: Post.create(...)
+  S->>R: queue video jobs (if any video)
+  S->>R: invalidate feed/search/profile cache
+  S-->>C: post
+  C-->>B: 201 { ok: true, data: { post } }
+```
+
+## Responses and errors
+
+Every JSON response has the same shape, so the client handles them in one place.
+
+```json
+{ "ok": true, "data": { "post": { } } }
+```
+
+```json
+{ "ok": false, "error": { "code": "POST_FORBIDDEN", "message": "This post is not available to you." }, "requestId": "..." }
+```
+
+- Services throw `AppError(status, message, code)` from `utils/errors.ts`.
+- Zod errors become `422 VALIDATION_ERROR` with the first readable message.
+- Multer errors (file too large) become `413` or `422`.
+- Anything unexpected becomes `500` with a generic message; the real error is logged with the request id.
+- For page requests (not `/api` or `/auth`), the same handler renders `views/error.ejs` instead of JSON.
+
+## Caching
+
+Redis caches expensive reads for a short time. Writes delete the matching keys so users see fresh data quickly.
+
+| Data | Key | TTL | Deleted when |
 |---|---|---:|---|
-| Home feed | `feed:{user}:{page}:{limit}` | 45s | post, reaction, comment, follow, membership |
-| Profile summary | `profile:{user}` | 120s | profile or follow change |
-| Group metadata | `group:{group}` | 180s | group/membership changes plus short TTL |
-| Search | `search:{sha256(query)}:{limit}` | 30s | social/content mutations plus TTL |
+| Home feed page | `feed:{user}:{page}:{limit}` | 45 s | post, reaction, comment, follow, membership change |
+| Profile summary | `profile:{user}` | 120 s | profile or follow change |
+| Group details | `group:{group}` | 180 s | group or membership change |
+| Search results (FastAPI) | `search:{sha256(query)}:{limit}` | 30 s | social or content change |
+| Place search | `places:v2:...` | 24 h | never (expires only) |
 
-Cache accesses increment `cache:stats` hit/miss counters. Broad feed invalidation favors correctness for this first production slice; at scale, replace it with follower-set fanout keys.
+```mermaid
+flowchart LR
+  Read["Read request"] --> Hit{"Key in Redis?"}
+  Hit -- yes --> Return["Return cached value<br/>(hits++)"]
+  Hit -- no --> Query["Query MongoDB<br/>(misses++)"] --> Save["SET key with TTL"] --> Return
+  Write["Write request"] --> Invalidate["invalidateSocialCaches()<br/>delete feed:*, search:*, profile:{id}"]
+```
+
+Hit and miss counts are stored in the `cache:stats` hash. Signed-in developers can see them at `/api/dev/cache`.
+
+Invalidation is intentionally broad (all `feed:*` keys). This is simple and always correct for a small app. At a larger scale, replace it with per-follower keys.
+
+## Rate limits
+
+`middleware/rate-limit.ts` counts requests per user (or per IP when signed out) in Redis with `INCR` + `EXPIRE`.
+
+| Scope | Limit | Window |
+|---|---:|---|
+| `auth` (register, login) | 10 | 15 min |
+| `refresh` | 30 | 15 min |
+| `reset` / `reset-confirm` | 5 / 8 | 1 h |
+| `post` | 20 | 1 h |
+| `comment` | 60 | 1 h |
+| `message` (chat and story replies) | 120 | 1 min |
+| `story` | 30 | 1 h |
+| `group` (create) | 5 | 1 h |
+| `group-invite` | 60 | 1 h |
+| `profile-photo` | 30 | 1 h |
+| `places` | 60 | 1 min |
+
+When the limit is passed the API returns `429 RATE_LIMITED`.
+
+## Background work
+
+| Work | Where | Trigger |
+|---|---|---|
+| Video compression | `media` worker | Redis list `media:video:jobs` |
+| Deleting replaced video originals | `media` worker | Redis sorted set `media:trash`, 15 min after the swap |
+| Expiring refresh tokens | MongoDB TTL index | `expiresAt` on `RefreshToken` |
+| Expiring stories | Query filter | Stories with `expiresAt` in the past are simply not returned |
+
+See [Media](MEDIA.md) for the full video pipeline.
+
+## Real-time delivery
+
+Socket.IO uses a Redis adapter, so several `web` instances can send events to the same user. Every connected user joins a room called `user:{id}`. See [Messaging and notifications](MESSAGING_AND_NOTIFICATIONS.md).
 
 ## Verification matrix
 
 | Acceptance path | Proof |
 |---|---|
 | Password/auth validation | Vitest auth policy tests + API validation |
-| Refresh replay handling | hashed refresh records, family revocation branch |
-| Post ownership | shared permission test + service guard |
-| Six reaction types | table-driven Vitest coverage |
-| Group approval | admin/moderator service guard + upserted membership |
-| Message delivery | persisted message + recipient user Socket.IO room emit |
-| Friendship-gated chat | canonical pair state + service, page, API and socket authorization checks |
-| Notification delivery | persisted notification + user Socket.IO room emit |
-| Redis behavior | explicit cache/invalidation service + diagnostic endpoint |
-| Responsive UI | desktop grid, mobile bottom navigation, semantic forms/focus states |
+| Refresh replay handling | Hashed refresh records, family revocation branch |
+| Post ownership | Shared permission test + service guard |
+| Six reaction types | Table-driven Vitest coverage |
+| Group approval | Admin/moderator service guard + upserted membership |
+| Message delivery | Persisted message + recipient user Socket.IO room emit |
+| Friendship-gated chat | Canonical pair state + service, page, API and socket checks |
+| Notification delivery | Persisted notification + user Socket.IO room emit |
+| Media compression | Vitest image tests (resize, WebP, EXIF strip, animation) + ffmpeg argument tests |
+| Redis behaviour | Explicit cache/invalidation service + diagnostic endpoint |
+| Responsive UI | Desktop grid, mobile bottom navigation, semantic forms/focus states |
 
+## Design decisions
+
+- **MongoDB with Mongoose.** Documents fit social data well. Values read together are embedded (`profile` in `User`, `media` in `Post`), while large or independent relationships get their own collection (follows, reactions, comments, memberships).
+- **Server-rendered pages.** EJS gives a fast first load and works without a client framework. One bundled script adds the interactive parts.
+- **FastAPI for search.** Search is a separate service so it can later move to Atlas Search or OpenSearch without changing the web app.
+- **Redis is part of the core.** It is used for caching, rate limiting, logout (token denylist), live events and the video queue.
+- **Soft delete.** Posts, comments, stories and users use `deletedAt` instead of being removed, so mistakes can be undone and references stay valid.
+
+## Known limits
+
+- Uploads are stored on a local disk volume. Use S3-compatible storage before running several web servers.
+- Password reset returns the token only in development. Production needs an email provider.
+- Search uses case-insensitive regex. For large data, switch to a real search engine.
+- The video worker should run as a single instance.

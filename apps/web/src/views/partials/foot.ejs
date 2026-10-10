@@ -99,7 +99,7 @@
         </div>
         <div class="relative mt-3">
           <label class="sr-only" for="composer-content">Post text</label>
-          <textarea id="composer-content" name="content" maxlength="5000" rows="4" class="w-full resize-none border-0 bg-transparent p-0 pr-10 text-2xl leading-snug placeholder:text-subtle focus:outline-none focus:ring-0" placeholder="What's on your mind, <%= firstName(currentUser.displayName) %>?"></textarea>
+          <textarea id="composer-content" name="content" maxlength="5000" rows="4" class="field-bare w-full resize-none p-0 pr-10 text-2xl leading-snug placeholder:text-subtle" placeholder="What's on your mind, <%= firstName(currentUser.displayName) %>?"></textarea>
           <button type="button" class="icon-btn-ghost absolute bottom-0 right-0" data-emoji-for="#composer-content" aria-label="Insert emoji" title="Emoji"><svg class="icon"><use href="#i-smile"/></svg></button>
         </div>
         <div class="mt-2 grid hidden max-h-[22rem] grid-cols-2 gap-1 overflow-y-auto rounded-lg border border-line p-1" data-composer-previews></div>
@@ -167,7 +167,7 @@
     <div class="relative border-b border-line px-4 py-3 text-center"><h2 id="edit-post-title" class="text-xl font-bold">Edit post</h2><button type="button" class="icon-btn absolute right-3 top-2" data-close-dialog="edit-post-dialog" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button></div>
     <div class="p-4">
       <label class="sr-only" for="edit-post-content">Post text</label>
-      <textarea class="w-full resize-none border-0 p-0 text-xl leading-snug focus:outline-none focus:ring-0" id="edit-post-content" name="content" rows="5" maxlength="5000"></textarea>
+      <textarea class="field-bare w-full resize-none p-0 text-xl leading-snug" id="edit-post-content" name="content" rows="5" maxlength="5000"></textarea>
       <div class="mt-3 grid max-h-[22rem] grid-cols-2 gap-1 overflow-y-auto rounded-lg border border-line p-1 empty:hidden" data-edit-media></div>
       <p class="mt-2 text-[0.8125rem] text-muted">Use the buttons on each photo or video to replace or remove it. Photos up to 8 MB, videos up to 200 MB.</p>
       <p class="form-error mt-3 hidden" data-form-error role="alert"></p>

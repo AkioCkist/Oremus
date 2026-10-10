@@ -65,6 +65,9 @@
   .helper { @apply mt-1.5 text-xs text-muted; }
   .input { @apply h-11 rounded-lg border border-strong bg-surface px-3.5 text-15 text-ink placeholder:text-subtle focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100; }
   textarea.input { @apply h-auto py-2.5; }
+  /* Borderless writing areas (composer, inline tag input): the surrounding dialog already shows focus,
+     so no ring and a real `outline: none` — a transparent outline still paints in some browsers and contrast modes. */
+  .field-bare, .field-bare:focus, .field-bare:focus-visible { @apply border-0 bg-transparent; outline: none !important; box-shadow: none !important; }
   select.input { @apply pr-8; }
   .input-icon { @apply relative; }
   .input-icon > .icon { @apply pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted; }

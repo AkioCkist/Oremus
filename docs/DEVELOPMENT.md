@@ -1,15 +1,16 @@
-# Hướng dẫn setup và phát triển Oremus
+# Development guide
 
-Tài liệu này dành cho developer thiết lập project lần đầu, chạy môi trường phát triển và sử dụng các lệnh thường gặp.
+How to set up Oremus for the first time, run it, and use the everyday commands.
 
-## 1. Yêu cầu hệ thống
+## 1. Requirements
 
-- Git.
-- Node.js 22 trở lên và npm.
-- Python 3.13 trở lên.
-- Docker Desktop có Docker Compose.
+- Git
+- Node.js 22 or newer, with npm
+- Python 3.13 or newer
+- Docker Desktop with Docker Compose
+- ffmpeg (only if you run the video worker outside Docker)
 
-Kiểm tra phiên bản:
+Check versions:
 
 ```powershell
 node --version
@@ -17,112 +18,126 @@ npm --version
 python --version
 docker --version
 docker compose version
+ffmpeg -version
 ```
 
-## 2. Cấu hình môi trường
+## 2. Environment variables
 
-Chạy từ thư mục gốc của repository:
+From the repository root:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-Mở `.env` và thay `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` bằng hai chuỗi bí mật khác nhau, mỗi chuỗi dài ít nhất 32 ký tự. Có thể tạo một giá trị ngẫu nhiên bằng PowerShell:
+Open `.env` and replace `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` with two **different** secrets of at least 32 characters. You can generate one with PowerShell (run it twice):
 
 ```powershell
 [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(48))
 ```
 
-Chạy lệnh hai lần và dùng hai kết quả khác nhau.
+All variables are explained in [Deployment](DEPLOYMENT.md#environment-variables).
 
-Các cổng mặc định:
+Default ports:
 
-| Service | URL/cổng |
-| --- | --- |
+| Service | URL / port |
+|---|---|
 | Express web | `http://localhost:3000` |
 | FastAPI | `http://localhost:8001` |
-| FastAPI OpenAPI | `http://localhost:8001/docs` |
+| FastAPI interactive docs | `http://localhost:8001/docs` |
 | MongoDB | `localhost:27017` |
 | Redis | `localhost:6379` |
 
-## 3. Cách A: chạy toàn bộ bằng Docker
+## 3. Option A: run everything with Docker
 
-Đây là cách nhanh nhất để chạy đầy đủ hệ thống giống môi trường đóng gói.
+The quickest way to get the full system running.
 
-### Khởi động
+```mermaid
+flowchart LR
+  A["docker compose up --build -d"] --> B["migrate"] --> C["seed"] --> D["open localhost:3000"]
+```
 
 ```powershell
 docker compose up --build -d
 docker compose ps
-```
-
-Chạy migration và tạo dữ liệu mẫu:
-
-```powershell
 docker compose exec web node dist/scripts/migrate.js
 docker compose exec web node dist/scripts/seed.js
 ```
 
-Mở `http://localhost:3000`. Tài khoản mẫu:
+Open `http://localhost:3000` and sign in with the sample account:
 
 - Email: `maya@example.com`
-- Mật khẩu: `CircleSpace123`
+- Password: `CircleSpace123`
 
-### Xem log
+### Logs
 
 ```powershell
 docker compose logs -f web
+docker compose logs -f media
 docker compose logs -f api
 ```
 
-Nhấn `Ctrl+C` để dừng theo dõi log; container vẫn tiếp tục chạy.
+Press `Ctrl+C` to stop following; containers keep running.
 
-### Áp dụng thay đổi source code
+### Applying code changes
 
-Docker Compose hiện tại không bind-mount source code. Sau khi sửa code, cần build lại service liên quan:
+Compose does not mount the source code. After changing code, rebuild the service:
 
 ```powershell
-docker compose up -d --build web
+docker compose up -d --build web media
 docker compose up -d --build api
 ```
 
-### Dừng hệ thống
+### Stopping
 
 ```powershell
 docker compose down
 ```
 
-Lệnh trên giữ lại dữ liệu MongoDB, Redis và uploads. Chỉ dùng lệnh sau khi thực sự muốn xóa toàn bộ dữ liệu local:
+This keeps MongoDB, Redis and uploaded files. To delete **all** local data as well (cannot be undone):
 
 ```powershell
 docker compose down -v
 ```
 
-## 4. Cách B: chạy source local để phát triển
+## 4. Option B: run the source locally
 
-Cách này phù hợp khi cần backend tự reload trong lúc sửa code. MongoDB và Redis vẫn chạy bằng Docker.
+Best while developing: the server reloads when you save. MongoDB and Redis still run in Docker.
 
-### Bước 1: chạy hạ tầng
-
-Nếu trước đó đã chạy toàn bộ stack Docker, dừng hai application container để tránh trùng cổng:
-
-```powershell
-docker compose stop web api
+```mermaid
+flowchart TB
+  subgraph Docker
+    Mongo[(MongoDB)]
+    Redis[(Redis)]
+  end
+  subgraph Terminals["Your terminals"]
+    T1["Terminal 1: FastAPI (uvicorn --reload)"]
+    T2["Terminal 2: npm run dev (Express, tsx watch)"]
+    T3["Terminal 3 (optional): video worker"]
+  end
+  T1 --> Mongo
+  T1 --> Redis
+  T2 --> Mongo
+  T2 --> Redis
+  T3 --> Mongo
+  T3 --> Redis
 ```
 
-Sau đó chạy MongoDB và Redis:
+### Step 1: start the databases
+
+If the full Docker stack is running, stop the app containers first so ports do not clash:
 
 ```powershell
+docker compose stop web media api
 docker compose up -d mongo redis
 ```
 
-### Bước 2: cài dependency Node.js
+### Step 2: install Node dependencies
 
 ```powershell
 npm install
 ```
 
-### Bước 3: tạo Python virtual environment
+### Step 3: create a Python virtual environment
 
 ```powershell
 python -m venv .venv
@@ -131,57 +146,62 @@ python -m pip install --upgrade pip
 python -m pip install -r apps/api/requirements.txt
 ```
 
-Nếu PowerShell chặn script activate, có thể gọi trực tiếp Python trong virtual environment bằng `.\.venv\Scripts\python.exe`.
+If PowerShell blocks the activate script, call `.\.venv\Scripts\python.exe` directly.
 
-### Bước 4: chuẩn bị dữ liệu
+### Step 4: prepare data
 
 ```powershell
 npm --workspace @oremus/web run migrate
 npm run seed
 ```
 
-### Bước 5: chạy FastAPI
-
-Mở terminal thứ nhất:
+### Step 5: start FastAPI (terminal 1)
 
 ```powershell
 Set-Location apps/api
 python -m uvicorn app.main:app --reload --port 8001
 ```
 
-### Bước 6: chạy Express web
-
-Mở terminal thứ hai tại thư mục gốc:
+### Step 6: start the web app (terminal 2)
 
 ```powershell
 npm run dev
 ```
 
-`tsx` sẽ theo dõi thay đổi TypeScript phía server. Khi sửa `apps/web/src/views-or-client/app.ts` hoặc stylesheet, chạy lại lệnh build tương ứng:
+`tsx` restarts the server when TypeScript changes. Client code and styles are built once at start; after editing `apps/web/src/views-or-client/app.ts` or `styles.css`, rebuild:
 
 ```powershell
 npm --workspace @oremus/web run build:client
 npm --workspace @oremus/web run build:css
 ```
 
-## 5. Các lệnh dành cho developer
+### Step 7 (optional): start the video worker (terminal 3)
 
-Chạy từ thư mục gốc:
+```powershell
+npm --workspace @oremus/web run dev:worker
+```
 
-| Mục đích | Lệnh |
-| --- | --- |
-| Chạy Express ở chế độ dev | `npm run dev` |
-| Build web production | `npm run build` |
-| Type-check TypeScript | `npm run typecheck` |
-| Lint source code | `npm run lint` |
-| Chạy test web | `npm test` |
-| Chạy test FastAPI | `python -m pytest -q apps/api/tests` |
-| Chạy migration MongoDB | `npm --workspace @oremus/web run migrate` |
-| Tạo dữ liệu mẫu | `npm run seed` |
-| Kiểm tra Docker Compose | `docker compose config --quiet` |
-| Xem trạng thái container | `docker compose ps` |
+Without it, videos still upload and play, but they are not compressed. See [Media](MEDIA.md).
 
-Trước khi bàn giao code, nên chạy:
+## 5. Commands
+
+Run from the repository root:
+
+| Purpose | Command |
+|---|---|
+| Run Express in dev mode | `npm run dev` |
+| Run the video worker in dev mode | `npm --workspace @oremus/web run dev:worker` |
+| Production build | `npm run build` |
+| Type-check | `npm run typecheck` |
+| Lint | `npm run lint` |
+| Web tests | `npm test` |
+| FastAPI tests | `python -m pytest -q apps/api/tests` |
+| MongoDB indexes + migrations | `npm --workspace @oremus/web run migrate` |
+| Sample data | `npm run seed` |
+| Check Docker Compose file | `docker compose config --quiet` |
+| Container status | `docker compose ps` |
+
+Before handing over code, run:
 
 ```powershell
 npm run typecheck
@@ -192,48 +212,63 @@ python -m pytest -q apps/api/tests
 docker compose config --quiet
 ```
 
-## 6. Cấu trúc chính
+## 6. Tests
 
-```text
-apps/
-  web/                 Express, EJS, Socket.IO, Mongoose, Tailwind
-  api/                 FastAPI ranking và search
-docs/                   Tài liệu project
-docker-compose.yml      MongoDB, Redis, FastAPI và Express
-.env.example            Mẫu biến môi trường
+| Suite | File | Covers |
+|---|---|---|
+| Core | `tests/core.test.ts` | Password policy, post/reaction validation, ownership, friendship states |
+| Page auth | `tests/page-auth.test.ts` | Protected pages redirect, API returns 401, validation messages |
+| Social | `tests/social.test.ts` | Friend controls HTML, block authorization |
+| Stories and posts | `tests/story.test.ts` | Story audience and tray order, view helpers, profile and group validation, feelings, post media layout |
+| Media | `tests/media.test.ts` | Image resize, WebP, EXIF removal, rotation, animation, ffmpeg arguments |
+| Ranking | `apps/api/tests/test_ranking.py` | Feed scoring formula |
+
+## 7. Where to add things
+
+```mermaid
+flowchart LR
+  Need["New feature"] --> Model["1. Model field or collection<br/>models/index.ts"]
+  Model --> Validator["2. Zod schema<br/>validators/index.ts"]
+  Validator --> Service["3. Business rule<br/>services/*.service.ts"]
+  Service --> Controller["4. Thin handler<br/>controllers/*.ts"]
+  Controller --> Route["5. Route + middleware<br/>routes/*.ts"]
+  Route --> View["6. Markup<br/>views/*.ejs"]
+  View --> Client["7. Interactivity<br/>views-or-client/app.ts"]
+  Client --> Test["8. Test<br/>tests/*.test.ts"]
+  Test --> Docs["9. Update docs/"]
 ```
 
-Xem thêm [ARCHITECTURE.md](ARCHITECTURE.md) để hiểu data model, route map và cache behavior.
+## 8. Troubleshooting
 
-## 7. Xử lý lỗi thường gặp
+### Docker still shows the old version
 
-### Sửa code nhưng Docker vẫn hiển thị phiên bản cũ
-
-Build và khởi động lại container tương ứng:
+Rebuild and restart the service, then reload the page:
 
 ```powershell
 docker compose up -d --build web
 ```
 
-Sau đó tải lại trang trong trình duyệt.
+### Port 3000 or 8001 is already in use
 
-### Cổng 3000 hoặc 8001 đang được sử dụng
+Change `WEB_PORT` or `API_PORT` in `.env` and restart Docker Compose.
 
-Đổi `WEB_PORT` hoặc `API_PORT` trong `.env`, rồi khởi động lại Docker Compose.
-
-### Web không kết nối được MongoDB hoặc Redis
+### The web app cannot connect to MongoDB or Redis
 
 ```powershell
 docker compose ps
 docker compose logs --tail 100 mongo redis web
 ```
 
-Khi chạy web local, đảm bảo `MONGODB_URI` và `REDIS_URL` trong `.env` trỏ tới `localhost`, không phải hostname nội bộ Docker.
+When running the web app locally, `MONGODB_URI` and `REDIS_URL` in `.env` must point to `localhost`, not to Docker host names.
 
-### Form báo hết hạn
+### "Your form expired"
 
-Tải lại trang để nhận CSRF token mới rồi gửi lại form.
+Reload the page to get a new CSRF token and submit again.
 
-### Dữ liệu mẫu bị trùng
+### Videos stay "Optimizing video…"
 
-Script seed sử dụng upsert nên có thể chạy lại an toàn. Nếu cần môi trường hoàn toàn sạch, dừng stack và xóa volume theo hướng dẫn ở phần Docker; thao tác này xóa toàn bộ dữ liệu local.
+The video worker is not running. Start it (Docker `media` service or `dev:worker`) and check its logs.
+
+### Duplicate sample data
+
+The seed script uses upserts, so it is safe to run again. For a completely clean database, stop the stack and remove the volumes as shown above (this deletes all local data).
