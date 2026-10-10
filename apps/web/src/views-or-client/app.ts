@@ -2005,8 +2005,6 @@ messageForm?.addEventListener('submit', async (event) => {
 
 if (typeof io === 'function' && me.id) {
   const socket = io();
-  const activeConversation = $('[data-conversation]')?.dataset.conversation;
-  if (activeConversation) socket.emit('conversation:join', activeConversation);
   socket.on('friendship:changed', (relation: any) => {
     syncFriendState(relation.userId, relation.state);
     syncFollowState(relation.userId, relation.following);

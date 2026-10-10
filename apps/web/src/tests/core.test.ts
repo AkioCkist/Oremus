@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { loginSchema, registerSchema, postSchema, reactionSchema } from '../validators/index.js';
 import { assertOwner } from '../services/permissions.js';
 import { friendshipPair, stateFromFriendship } from '../services/friendship.service.js';
+import { conversationMemberFilter } from '../services/message.service.js';
 
 describe('authentication policy', () => {
   it('requires a strong password during registration', () => {
@@ -51,5 +52,13 @@ describe('friendship state', () => {
     expect(stateFromFriendship('bob', 'alice', pending)).toBe('incoming');
     expect(stateFromFriendship('alice', 'bob', { ...pending, status: 'accepted' })).toBe('friends');
     expect(stateFromFriendship('alice', 'bob')).toBe('none');
+  });
+});
+
+describe('bounded conversation lookup', () => {
+  it('filters conversations to the signed-in user and current friends in MongoDB', () => {
+    expect(conversationMemberFilter('me', new Set(['friend-a', 'friend-b']))).toEqual({
+      $and: [{ memberIds: 'me' }, { memberIds: { $in: ['friend-a', 'friend-b'] } }]
+    });
   });
 });

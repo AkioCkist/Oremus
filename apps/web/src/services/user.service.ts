@@ -193,13 +193,14 @@ export async function deletePhoto(userId: string, url: string) {
   profile.avatarHistory = (profile.avatarHistory || []).filter((item: string) => item !== url);
   profile.coverHistory = (profile.coverHistory || []).filter((item: string) => item !== url);
   await user!.save();
-  const posts = await Post.find({ authorId: userId, deletedAt: null, 'media.url': url });
-  let postsDeleted = 0;
-  for (const post of posts) {
-    post.media = post.media.filter((media: any) => media.url !== url);
-    if (!post.content && !post.media.length && !post.feeling && !post.place) { post.deletedAt = new Date(); postsDeleted++; }
-    await post.save();
-  }
+  const base = { authorId: userId, deletedAt: null, 'media.url': url };
+  const now = new Date();
+  const deleted = await Post.updateMany({
+    ...base,
+    content: '', feeling: null, place: null,
+    media: { $not: { $elemMatch: { url: { $ne: url } } } }
+  }, { $pull: { media: { url } }, $set: { deletedAt: now } });
+  const updated = await Post.updateMany(base, { $pull: { media: { url } } });
   await invalidateSocialCaches([userId], { search: true });
-  return { postsUpdated: posts.length - postsDeleted, postsDeleted };
+  return { postsUpdated: updated.modifiedCount, postsDeleted: deleted.modifiedCount };
 }

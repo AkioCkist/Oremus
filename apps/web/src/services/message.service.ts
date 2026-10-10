@@ -3,6 +3,10 @@ import { AppError } from '../utils/errors.js';
 import { notify } from './notification.service.js';
 import { areFriends, listFriendIds } from './friendship.service.js';
 
+export function conversationMemberFilter(userId: string, friendIds: Iterable<string>) {
+  return { $and: [{ memberIds: userId }, { memberIds: { $in: [...friendIds] } }] };
+}
+
 async function conversationForFriend(userId: string, conversationId: string) {
   const conversation = await Conversation.findOne({ _id: conversationId, memberIds: userId });
   if (!conversation) throw new AppError(403, 'You do not have access to this conversation.', 'CONVERSATION_FORBIDDEN');
@@ -22,8 +26,7 @@ export async function createConversation(userId: string, memberId: string) {
 export async function listConversations(userId: string) {
   const friendIds = new Set(await listFriendIds(userId));
   if (!friendIds.size) return [];
-  const rows = await Conversation.find({ memberIds: userId }).sort({ lastMessageAt: -1 }).limit(200).populate('memberIds', 'username displayName profile.avatarUrl').lean();
-  const conversations = rows.filter((conversation: any) => conversation.memberIds.some((member: any) => String(member?._id) !== String(userId) && friendIds.has(String(member?._id)))).slice(0, 60);
+  const conversations = await Conversation.find(conversationMemberFilter(userId, friendIds)).sort({ lastMessageAt: -1 }).limit(60).populate('memberIds', 'username displayName profile.avatarUrl').lean();
   if (!conversations.length) return [];
   const latest = await Message.aggregate([
     { $match: { conversationId: { $in: conversations.map((item: any) => item._id) }, deletedAt: null } },
@@ -45,8 +48,7 @@ export async function markConversationRead(userId: string, conversationId: strin
 export async function countUnreadConversations(userId: string): Promise<number> {
   const friendIds = new Set(await listFriendIds(userId));
   if (!friendIds.size) return 0;
-  const rows = await Conversation.find({ memberIds: userId }).select('_id memberIds').lean();
-  const conversations = rows.filter((conversation: any) => conversation.memberIds.some((memberId: unknown) => String(memberId) !== String(userId) && friendIds.has(String(memberId))));
+  const conversations = await Conversation.find(conversationMemberFilter(userId, friendIds)).select('_id').lean();
   if (!conversations.length) return 0;
   const unread = await Message.distinct('conversationId', { conversationId: { $in: conversations.map((item: any) => item._id) }, senderId: { $ne: userId }, readBy: { $ne: userId }, deletedAt: null });
   return unread.length;

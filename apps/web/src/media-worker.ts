@@ -16,6 +16,7 @@ const UPLOADS = path.resolve(process.cwd(), 'uploads');
 const ORIGINAL_GRACE_MS = 15 * 60 * 1000;
 const STUCK_AFTER_MS = 2 * 60 * 1000;
 const REQUEUE_EVERY_MS = 5 * 60 * 1000;
+const TRASH_SWEEP_BATCH = 32;
 let stopping = false;
 
 const uploadPath = (url: string) => path.join(UPLOADS, path.basename(url));
@@ -50,11 +51,12 @@ async function processJob(job: VideoJob) {
 }
 
 async function sweepTrash() {
-  const due = await redis.zRangeByScore(MEDIA_TRASH, 0, Date.now());
-  for (const name of due) {
-    await fs.rm(path.join(UPLOADS, path.basename(name)), { force: true });
-    await redis.zRem(MEDIA_TRASH, name);
-  }
+  // A bounded batch prevents a large backlog from being loaded into memory at
+  // once. File removals can run together, followed by one Redis round trip.
+  const due = await redis.zRangeByScore(MEDIA_TRASH, 0, Date.now(), { LIMIT: { offset: 0, count: TRASH_SWEEP_BATCH } });
+  if (!due.length) return;
+  await Promise.all(due.map((name) => fs.rm(path.join(UPLOADS, path.basename(name)), { force: true })));
+  await redis.zRem(MEDIA_TRASH, due);
 }
 
 /**

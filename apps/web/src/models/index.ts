@@ -99,6 +99,7 @@ const followSchema = new Schema({
   followingId: { type: objectId, ref: 'User', required: true }
 }, options);
 followSchema.index({ followerId: 1, followingId: 1 }, { unique: true });
+followSchema.index({ followingId: 1, followerId: 1 });
 
 // Store each unordered pair once. userAId/userBId are always sorted by id in the
 // friendship service, while requesterId preserves the direction of a pending request.
@@ -154,7 +155,8 @@ const postSchema = new Schema({
   editedAt: Date,
   deletedAt: { type: Date, default: null, index: true }
 }, options);
-postSchema.index({ createdAt: -1, authorId: 1 });
+postSchema.index({ authorId: 1, groupId: 1, deletedAt: 1, createdAt: -1 });
+postSchema.index({ groupId: 1, deletedAt: 1, groupStatus: 1, createdAt: -1 });
 postSchema.index({ content: 'text' });
 
 const reactionSchema = new Schema({
@@ -173,6 +175,7 @@ const commentSchema = new Schema({
   deletedAt: { type: Date, default: null }
 }, options);
 commentSchema.index({ postId: 1, createdAt: 1 });
+commentSchema.index({ parentId: 1, deletedAt: 1 });
 
 const groupSchema = new Schema({
   name: { type: String, required: true, trim: true, maxlength: 80 },
@@ -206,6 +209,7 @@ const groupMemberSchema = new Schema({
   role: { type: String, enum: ['admin', 'moderator', 'member'], default: 'member' }
 }, options);
 groupMemberSchema.index({ groupId: 1, userId: 1 }, { unique: true });
+groupMemberSchema.index({ userId: 1, groupId: 1 });
 
 const groupJoinRequestSchema = new Schema({
   groupId: { type: objectId, ref: 'Group', required: true },
@@ -217,6 +221,7 @@ const groupJoinRequestSchema = new Schema({
   reviewedAt: Date
 }, options);
 groupJoinRequestSchema.index({ groupId: 1, userId: 1, status: 1 });
+groupJoinRequestSchema.index({ groupId: 1, status: 1, createdAt: 1 });
 
 const groupPostSchema = new Schema({
   groupId: { type: objectId, ref: 'Group', required: true },
@@ -260,6 +265,7 @@ const notificationSchema = new Schema({
   readAt: { type: Date, default: null }
 }, options);
 notificationSchema.index({ recipientId: 1, createdAt: -1 });
+notificationSchema.index({ recipientId: 1, readAt: 1, createdAt: -1 });
 
 const storySchema = new Schema({
   seedKey: { type: String, unique: true, sparse: true, select: false },

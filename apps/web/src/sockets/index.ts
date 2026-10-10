@@ -4,9 +4,7 @@ import { Server } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
 import { env } from '../config/env.js';
-import { Conversation } from '../models/index.js';
 import { setNotifier } from '../services/notification.service.js';
-import { areFriends } from '../services/friendship.service.js';
 
 export async function createSocketServer(server: HttpServer) {
   const io = new Server(server, { cors: { origin: env.APP_ORIGIN, credentials: true } });
@@ -19,18 +17,11 @@ export async function createSocketServer(server: HttpServer) {
       socket.data.userId = claims.sub; next();
     } catch { next(new Error('Authentication required')); }
   });
-  io.on('connection', async (socket) => {
+  // All realtime events are delivered through the authenticated user's room.
+  // Conversation rooms were never used for emitting, but joining them caused
+  // one friendship lookup per conversation on every socket connection.
+  io.on('connection', (socket) => {
     const userId = String(socket.data.userId); socket.join(`user:${userId}`);
-    const conversations = await Conversation.find({ memberIds: userId }).select('_id memberIds').lean();
-    for (const item of conversations) {
-      const otherId = item.memberIds.map(String).find((memberId: string) => memberId !== userId);
-      if (otherId && await areFriends(userId, otherId)) socket.join(`conversation:${item._id}`);
-    }
-    socket.on('conversation:join', async (conversationId: string) => {
-      const conversation: any = await Conversation.findOne({ _id: conversationId, memberIds: userId }).select('memberIds').lean();
-      const otherId = conversation?.memberIds.map(String).find((memberId: string) => memberId !== userId);
-      if (otherId && await areFriends(userId, otherId)) socket.join(`conversation:${conversationId}`);
-    });
   });
   setNotifier((userId, event, payload) => io.to(`user:${userId}`).emit(event, payload));
   return io;

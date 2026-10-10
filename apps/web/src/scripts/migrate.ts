@@ -1,10 +1,10 @@
 import { connectInfrastructure, disconnectInfrastructure } from '../config/database.js';
 import mongoose from 'mongoose';
-import { User, Follow, Friendship, Block, SocialPreference, Post, Reaction, Comment, Group, GroupMember, GroupJoinRequest, GroupPost, Conversation, Message, Notification, RefreshToken, AuditLog } from '../models/index.js';
+import { User, Follow, Friendship, Block, SocialPreference, Post, Reaction, Comment, Group, GroupMember, GroupJoinRequest, GroupInvite, GroupPost, Conversation, Message, Notification, Story, StoryView, RefreshToken, AuditLog, SearchHistory, SearchTerm } from '../models/index.js';
 
 async function migrate() {
   await connectInfrastructure();
-  const models = [User, Follow, Friendship, Block, SocialPreference, Post, Reaction, Comment, Group, GroupMember, GroupJoinRequest, GroupPost, Conversation, Message, Notification, RefreshToken, AuditLog];
+  const models = [User, Follow, Friendship, Block, SocialPreference, Post, Reaction, Comment, Group, GroupMember, GroupJoinRequest, GroupInvite, GroupPost, Conversation, Message, Notification, Story, StoryView, RefreshToken, AuditLog, SearchHistory, SearchTerm];
   for (const model of models) await model.syncIndexes();
   // Backfill only the first upgrade. Re-running migration must never restore an
   // unfriended or blocked pair simply because its message history was retained.

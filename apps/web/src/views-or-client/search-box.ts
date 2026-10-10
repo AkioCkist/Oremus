@@ -6,6 +6,7 @@ type Suggestions = { query: string; completions: Array<{ text: string; recent: b
 type Option = { el: HTMLElement; run: () => void };
 
 const csrf = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content || '';
+const SEARCH_CACHE_LIMIT = 50;
 
 async function api<T>(url: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(url, { credentials: 'same-origin', ...init, headers: { 'x-csrf-token': csrf, ...(init.body ? { 'content-type': 'application/json' } : {}), ...(init.headers || {}) } });
@@ -156,7 +157,9 @@ function initSearchBox(form: HTMLFormElement) {
       controller?.abort(); controller = new AbortController();
       try {
         const data = await api<Suggestions>(`/api/search/suggest?q=${encodeURIComponent(query)}`, { signal: controller.signal });
-        cache.set(query.toLowerCase(), data);
+        const key = query.toLowerCase();
+        if (!cache.has(key) && cache.size >= SEARCH_CACHE_LIMIT) cache.delete(cache.keys().next().value!);
+        cache.set(key, data);
         if (input.value.trim() === query && document.activeElement === input) { renderSuggestions(data); open(); }
       } catch { /* aborted or offline: keep what is shown */ }
     }, 120);

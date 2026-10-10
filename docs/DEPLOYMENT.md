@@ -110,7 +110,7 @@ Run the migration after every update that adds indexes. It is safe to run many t
 | Move uploads to S3-compatible storage before scaling out | The local volume cannot be shared by many servers |
 | Run exactly one `media` worker | The worker's crash recovery assumes it is alone |
 | Allow enough upload size in the proxy | Videos can be up to 200 MB per file |
-| Add `Story`, `StoryView` and `GroupInvite` to `scripts/migrate.ts` | With `autoIndex` off, their indexes are otherwise not created |
+| Run `dist/scripts/migrate.js` after schema changes | Production has `autoIndex` off; the migration synchronizes indexes for all exported models |
 
 ## Scaling notes
 

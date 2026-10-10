@@ -2,7 +2,7 @@ import { Follow, Group, GroupInvite, GroupJoinRequest, GroupMember, Post, User }
 import { slugify } from '../utils/slug.js';
 import { AppError } from '../utils/errors.js';
 import { cacheGet, cacheSet, invalidateCacheKeys, invalidateSocialCaches } from './cache.service.js';
-import { notify } from './notification.service.js';
+import { notify, notifyMany } from './notification.service.js';
 import { getPhotoLibrary } from './user.service.js';
 
 const PERSON_FIELDS = 'username displayName profile.avatarUrl';
@@ -154,10 +154,10 @@ export async function inviteMembers(inviterId: string, groupId: string, userIds:
   const [users, members] = await Promise.all([User.find({ _id: { $in: unique }, deletedAt: null }).select('_id').lean(), GroupMember.find({ groupId, userId: { $in: unique } }).select('userId').lean()]);
   const memberSet = new Set(members.map((item: any) => String(item.userId)));
   const targets = users.map((user: any) => String(user._id)).filter((id) => !memberSet.has(id));
-  for (const userId of targets) {
-    await GroupInvite.updateOne({ groupId, userId }, { $set: { invitedBy: inviterId, byAdmin: isManager(member) } }, { upsert: true });
-    await notify({ recipientId: userId, actorId: inviterId, type: 'group_invite', entityType: 'Group', entityId: groupId, text: `invited you to join ${group.name}` });
-  }
+  if (targets.length) await GroupInvite.bulkWrite(targets.map((userId) => ({
+    updateOne: { filter: { groupId, userId }, update: { $set: { invitedBy: inviterId, byAdmin: isManager(member) } }, upsert: true }
+  })));
+  await notifyMany(targets.map((userId) => ({ recipientId: userId, actorId: inviterId, type: 'group_invite', entityType: 'Group', entityId: groupId, text: `invited you to join ${group.name}` })));
   return { invited: targets.length };
 }
 

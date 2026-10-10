@@ -19,6 +19,7 @@ Then open the page for the feature you are working on.
 | [Overview](OVERVIEW.md) | Features, technology stack, repository layout, how a page is built |
 | [Architecture](ARCHITECTURE.md) | Services, code layers, middleware order, request lifecycle, errors, caching, rate limits, background work |
 | [Caching](CACHING.md) | Browser cache headers, Redis keys and TTLs, feed generations, invalidation and diagnostics |
+| [Performance and memory](PERFORMANCE.md) | N+1 prevention, query indexes, memory bounds and verification commands |
 | [Data model](DATA_MODEL.md) | Every MongoDB collection and field, relationships, indexes, migrations and seed data |
 | [Authentication and security](AUTHENTICATION.md) | Login, JWT cookies, refresh token rotation, logout, password reset, CSRF and other protections |
 | [Posts and feed](POSTS_AND_FEED.md) | Creating and editing posts, who can see what, media layout, reactions, comments, home feed order |
@@ -43,6 +44,7 @@ flowchart TB
   Arch --> Auth["Authentication"]
   Arch --> Deploy["Deployment"]
   Arch --> Cache["Caching"]
+  Arch --> Perf["Performance and memory"]
   Arch --> Front["Frontend"]
   Data --> Posts["Posts and feed"]
   Data --> Social["People and relationships"]
