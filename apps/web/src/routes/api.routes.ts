@@ -1,0 +1,26 @@
+import { Router } from 'express';
+import * as controller from '../controllers/api.controller.js';
+import { requireAuth } from '../middleware/auth.js';
+import { rateLimit } from '../middleware/rate-limit.js';
+import { upload } from '../middleware/upload.js';
+import { asyncHandler } from '../utils/async-handler.js';
+
+export const apiRoutes = Router();
+apiRoutes.use(requireAuth);
+apiRoutes.patch('/profile', upload.fields([{ name: 'avatar', maxCount: 1 }, { name: 'cover', maxCount: 1 }]), asyncHandler(controller.updateProfile));
+apiRoutes.post('/users/:userId/follow', asyncHandler(controller.toggleFollow));
+apiRoutes.post('/posts', rateLimit('post', 20, 3600), upload.array('images', 4), asyncHandler(controller.createPost));
+apiRoutes.patch('/posts/:postId', asyncHandler(controller.updatePost));
+apiRoutes.delete('/posts/:postId', asyncHandler(controller.deletePost));
+apiRoutes.post('/posts/:postId/reactions', asyncHandler(controller.react));
+apiRoutes.post('/posts/:postId/comments', rateLimit('comment', 60, 3600), asyncHandler(controller.comment));
+apiRoutes.post('/groups', rateLimit('group', 5, 3600), asyncHandler(controller.createGroup));
+apiRoutes.post('/groups/:groupId/join', asyncHandler(controller.requestJoin));
+apiRoutes.post('/group-requests/:requestId/decision', asyncHandler(controller.decideJoin));
+apiRoutes.post('/conversations', asyncHandler(controller.createConversation));
+apiRoutes.post('/conversations/:conversationId/messages', rateLimit('message', 120, 60), asyncHandler(controller.sendMessage));
+apiRoutes.get('/notifications', asyncHandler(controller.notifications));
+apiRoutes.post('/notifications/read', asyncHandler(controller.readNotifications));
+apiRoutes.get('/search', asyncHandler(controller.search));
+apiRoutes.get('/dev/cache', asyncHandler(controller.diagnostics));
+

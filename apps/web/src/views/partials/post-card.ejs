@@ -1,0 +1,14 @@
+<article class="card overflow-hidden" data-post-id="<%= item._id %>">
+  <div class="flex items-start gap-3 p-4">
+    <a class="avatar size-10" href="/profile/<%= item.authorId.username %>"><% if (item.authorId.profile?.avatarUrl) { %><img src="<%= item.authorId.profile.avatarUrl %>" alt=""><% } else { %><%= item.authorId.displayName.charAt(0) %><% } %></a>
+    <div class="min-w-0 flex-1"><a class="font-semibold hover:underline" href="/profile/<%= item.authorId.username %>"><%= item.authorId.displayName %></a><p class="text-sm text-stone-500">@<%= item.authorId.username %> · <a class="hover:underline" href="/posts/<%= item._id %>"><%= new Date(item.createdAt).toLocaleString('en', { dateStyle: 'medium', timeStyle: 'short' }) %></a><% if (item.editedAt) { %> · edited<% } %></p></div>
+    <% if (currentUser && String(item.authorId._id) === String(currentUser._id)) { %><div class="flex"><button class="icon-button text-base" data-edit-post="<%= item._id %>" aria-label="Edit post">✎</button><button class="icon-button" data-delete-post="<%= item._id %>" aria-label="Delete post">×</button></div><% } %>
+  </div>
+  <% if (item.content) { %><p class="whitespace-pre-wrap px-4 pb-4 text-pretty leading-7"><%= item.content %></p><% } %>
+  <% if (item.media?.length) { %><div class="grid gap-0.5 <%= item.media.length > 1 ? 'grid-cols-2' : '' %>"><% item.media.forEach(function(media) { %><img class="max-h-[34rem] w-full bg-stone-100 object-cover" src="<%= media.url %>" alt="<%= media.alt || 'Image shared in post' %>" loading="lazy"><% }) %></div><% } %>
+  <div class="flex items-center justify-between border-t border-stone-100 px-4 py-3 text-sm text-stone-500"><span data-reaction-count><%= item.reactionCount || 0 %> reactions</span><a href="/posts/<%= item._id %>"><%= item.commentCount || 0 %> comments</a></div>
+  <% if (currentUser) { %><div class="grid grid-cols-3 border-t border-stone-100 p-1">
+    <details class="relative"><summary class="action-button list-none <%= item.myReaction ? 'text-accent-700' : '' %>"><%= item.myReaction || 'React' %></summary><div class="absolute bottom-full left-0 z-20 mb-2 flex rounded-lg border border-stone-200 bg-white p-1 shadow-md"><% ['like','love','haha','wow','sad','angry'].forEach(function(reaction) { %><button class="reaction-choice px-2 py-1.5 text-sm capitalize hover:bg-stone-100" data-react="<%= reaction %>" data-post="<%= item._id %>"><%= reaction %></button><% }) %></div></details>
+    <a class="action-button" href="/posts/<%= item._id %>#comments">Comment</a><button class="action-button" data-copy="<%= item._id %>">Share</button>
+  </div><% } %>
+</article>

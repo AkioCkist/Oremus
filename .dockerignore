@@ -1,0 +1,10 @@
+.env
+.git
+node_modules
+**/node_modules
+**/dist
+apps/web/uploads
+coverage
+*.log
+__pycache__
+*.pyc

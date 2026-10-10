@@ -1,0 +1,16 @@
+{
+  "name": "oremus",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": ["apps/web"],
+  "scripts": {
+    "dev": "npm --workspace @oremus/web run dev",
+    "build": "npm --workspace @oremus/web run build",
+    "lint": "npm --workspace @oremus/web run lint",
+    "typecheck": "npm --workspace @oremus/web run typecheck",
+    "test": "npm --workspace @oremus/web run test",
+    "seed": "npm --workspace @oremus/web run seed"
+  },
+  "engines": { "node": ">=22" }
+}
+

@@ -1,0 +1,16 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+<main id="main" class="mx-auto max-w-3xl px-4 py-8 pb-24">
+  <p class="eyebrow">Account</p><h1 class="mt-2 text-3xl font-bold">Profile settings</h1>
+  <form class="card mt-6 space-y-5 p-5 sm:p-7" data-api-form data-method="PATCH" action="/api/profile" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="grid gap-5 sm:grid-cols-2"><div><label class="label" for="displayName">Display name</label><input class="input mt-2 w-full" id="displayName" name="displayName" value="<%= currentUser.displayName %>" required></div><div><label class="label" for="username">Username</label><input class="input mt-2 w-full" id="username" name="username" value="<%= currentUser.username %>" required></div></div>
+    <div><label class="label" for="bio">Bio</label><textarea class="input mt-2 w-full" id="bio" name="bio" maxlength="240"><%= currentUser.profile?.bio || '' %></textarea></div>
+    <div class="grid gap-5 sm:grid-cols-2"><div><label class="label" for="location">Location</label><input class="input mt-2 w-full" id="location" name="location" value="<%= currentUser.profile?.location || '' %>"></div><div><label class="label" for="website">Website</label><input class="input mt-2 w-full" id="website" name="website" type="url" value="<%= currentUser.profile?.website || '' %>"></div></div>
+    <div class="grid gap-5 sm:grid-cols-2"><div><label class="label" for="avatar">Avatar</label><input class="file-input mt-2" id="avatar" name="avatar" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></div><div><label class="label" for="cover">Cover image</label><input class="file-input mt-2" id="cover" name="cover" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></div></div>
+    <div><label class="label" for="privacy">Profile privacy</label><select class="input mt-2" id="privacy" name="privacy"><option value="public" <%= currentUser.profile?.privacy === 'public' ? 'selected' : '' %>>Public</option><option value="followers" <%= currentUser.profile?.privacy === 'followers' ? 'selected' : '' %>>Followers</option></select></div>
+    <p class="form-error hidden" data-form-error role="alert"></p><button class="button-primary" type="submit">Save changes</button>
+  </form>
+  <section class="card mt-6 p-5"><h2 class="font-semibold">Session</h2><p class="mt-2 text-sm text-stone-600">Sign out of this browser. Your other sessions remain active.</p><button class="button-secondary mt-4" data-logout>Sign out</button></section>
+</main>
+<%- include('partials/foot') %>

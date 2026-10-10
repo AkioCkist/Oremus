@@ -1,0 +1,10 @@
+<% if (typeof currentUser !== 'undefined' && currentUser) { %>
+<nav aria-label="Mobile navigation" class="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-stone-200 bg-white px-2 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden">
+  <a class="mobile-link" href="/"><span aria-hidden="true">⌂</span><small>Home</small></a>
+  <a class="mobile-link" href="/groups"><span aria-hidden="true">◉</span><small>Groups</small></a>
+  <a class="mobile-link" href="/messages"><span aria-hidden="true">✉</span><small>Messages</small></a>
+  <a class="mobile-link" href="/notifications"><span aria-hidden="true">●</span><small>Alerts</small></a>
+  <a class="mobile-link" href="/profile/<%= currentUser.username %>"><span aria-hidden="true">☺</span><small>Profile</small></a>
+</nav>
+<% } %>
+
