@@ -16,48 +16,100 @@
   <form data-api-form data-reload action="/api/posts" method="post" enctype="multipart/form-data" data-composer-form>
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <input type="hidden" name="groupId" value="" data-composer-group disabled>
-    <div class="relative border-b border-line px-4 py-3 text-center"><h2 id="composer-title" class="text-xl font-bold">Create post</h2><button type="button" class="icon-btn absolute right-3 top-2" data-close-dialog="composer-dialog" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button></div>
-    <div class="max-h-[70dvh] overflow-y-auto p-4">
-      <div class="flex items-center gap-2.5">
-        <%- include('avatar', { person: currentUser, size: 'size-10 text-sm' }) %>
-        <div>
-          <p class="font-semibold leading-tight"><%= currentUser.displayName %><span class="font-normal text-muted" data-composer-group-label></span></p>
-          <label class="sr-only" for="composer-visibility">Who can see this post</label>
-          <div class="relative mt-1 inline-flex" data-visibility-wrap>
-            <svg class="icon pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2"><use href="#i-globe"/></svg>
-            <select id="composer-visibility" name="visibility" class="h-7 appearance-none rounded-md bg-[#e4e6eb] pl-7 pr-7 text-[0.8125rem] font-semibold focus:outline-none focus:ring-2 focus:ring-brand-200">
-              <option value="public">Public</option><option value="followers">Followers</option><option value="private">Only me</option>
-            </select>
-            <svg class="icon pointer-events-none absolute right-2 top-1/2 size-3.5 -translate-y-1/2"><use href="#i-chevron-down"/></svg>
+    <input type="hidden" name="feeling" value="" data-composer-feeling-input>
+    <input type="hidden" name="place" value="" data-composer-place-input>
+
+    <!-- Main view -->
+    <div data-composer-view="main">
+      <div class="relative border-b border-line px-4 py-3 text-center"><h2 id="composer-title" class="text-xl font-bold">Create post</h2><button type="button" class="icon-btn absolute right-3 top-2" data-close-dialog="composer-dialog" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button></div>
+      <div class="max-h-[65dvh] overflow-y-auto p-4">
+        <div class="flex items-start gap-2.5">
+          <%- include('avatar', { person: currentUser, size: 'size-10 text-sm' }) %>
+          <div class="min-w-0">
+            <p class="text-15 leading-snug"><strong class="font-semibold"><%= currentUser.displayName %></strong><span class="text-muted" data-composer-group-label></span><span data-composer-meta></span></p>
+            <label class="sr-only" for="composer-visibility">Who can see this post</label>
+            <div class="relative mt-1 inline-flex" data-visibility-wrap>
+              <svg class="icon pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2"><use href="#i-globe"/></svg>
+              <select id="composer-visibility" name="visibility" class="h-7 appearance-none rounded-md bg-[#e4e6eb] pl-7 pr-7 text-[0.8125rem] font-semibold focus:outline-none focus:ring-2 focus:ring-brand-200">
+                <option value="public">Public</option><option value="followers">Followers</option><option value="private">Only me</option>
+              </select>
+              <svg class="icon pointer-events-none absolute right-2 top-1/2 size-3.5 -translate-y-1/2"><use href="#i-chevron-down"/></svg>
+            </div>
           </div>
         </div>
-      </div>
-      <label class="sr-only" for="composer-content">Post text</label>
-      <textarea id="composer-content" name="content" maxlength="5000" rows="4" class="mt-3 w-full resize-none border-0 bg-transparent p-0 text-2xl leading-snug placeholder:text-subtle focus:outline-none focus:ring-0" placeholder="What's on your mind, <%= firstName(currentUser.displayName) %>?"></textarea>
-      <div class="mt-2 grid hidden grid-cols-2 gap-1 overflow-hidden rounded-lg border border-line p-1" data-composer-previews></div>
-      <p class="form-error mt-3 hidden" data-form-error role="alert"></p>
-    </div>
-    <div class="px-4 pb-4">
-      <div class="flex items-center justify-between rounded-lg border border-[#ccd0d5] px-4 py-2">
-        <span class="text-15 font-semibold">Add to your post</span>
-        <div class="flex items-center gap-1">
-          <label class="icon-btn-ghost cursor-pointer text-[#45bd62]" title="Photo"><svg class="icon size-6"><use href="#i-image"/></svg><span class="sr-only">Add photos</span><input class="sr-only" name="images" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple data-composer-files></label>
-          <button type="button" class="icon-btn-ghost text-[#f7b928]" title="Feeling" data-insert-emoji="😊"><svg class="icon size-6"><use href="#i-smile"/></svg><span class="sr-only">Add a feeling</span></button>
-          <button type="button" class="icon-btn-ghost text-[#f5533d]" title="Location" data-insert-emoji="📍"><svg class="icon size-6"><use href="#i-pin"/></svg><span class="sr-only">Add a location pin</span></button>
+        <div class="relative mt-3">
+          <label class="sr-only" for="composer-content">Post text</label>
+          <textarea id="composer-content" name="content" maxlength="5000" rows="4" class="w-full resize-none border-0 bg-transparent p-0 pr-10 text-2xl leading-snug placeholder:text-subtle focus:outline-none focus:ring-0" placeholder="What's on your mind, <%= firstName(currentUser.displayName) %>?"></textarea>
+          <button type="button" class="icon-btn-ghost absolute bottom-0 right-0" data-emoji-for="#composer-content" aria-label="Insert emoji" title="Emoji"><svg class="icon"><use href="#i-smile"/></svg></button>
         </div>
+        <div class="mt-2 grid hidden grid-cols-2 gap-1 overflow-hidden rounded-lg border border-line p-1" data-composer-previews></div>
+        <div class="relative mt-2 hidden overflow-hidden rounded-lg border border-line" data-composer-place-card>
+          <div class="relative h-36 bg-field" data-map></div>
+          <div class="flex items-center gap-2 px-3 py-2"><svg class="icon shrink-0 text-[#f5533d]"><use href="#i-pin"/></svg><div class="min-w-0"><p class="truncate font-semibold" data-composer-place-name></p><p class="truncate text-[0.8125rem] text-muted" data-composer-place-address></p></div></div>
+          <button type="button" class="icon-btn absolute right-2 top-2 size-8 bg-white shadow-card" data-composer-clear="place" aria-label="Remove location"><svg class="icon size-4"><use href="#i-x"/></svg></button>
+        </div>
+        <p class="form-error mt-3 hidden" data-form-error role="alert"></p>
       </div>
-      <button class="btn-primary mt-3 w-full" type="submit">Post</button>
+      <div class="px-4 pb-4">
+        <div class="flex items-center justify-between rounded-lg border border-[#ccd0d5] px-4 py-2">
+          <span class="text-15 font-semibold">Add to your post</span>
+          <div class="flex items-center gap-1">
+            <label class="icon-btn-ghost cursor-pointer text-[#45bd62]" title="Photo/video"><svg class="icon size-6"><use href="#i-image"/></svg><span class="sr-only">Add photos</span><input class="sr-only" name="images" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple data-composer-files></label>
+            <button type="button" class="icon-btn-ghost text-[#f7b928]" title="Feeling/activity" data-composer-open="feeling"><svg class="icon size-6"><use href="#i-smile"/></svg><span class="sr-only">Feeling or activity</span></button>
+            <button type="button" class="icon-btn-ghost text-[#f5533d]" title="Check in" data-composer-open="place"><svg class="icon size-6"><use href="#i-pin"/></svg><span class="sr-only">Check in</span></button>
+          </div>
+        </div>
+        <button class="btn-primary mt-3 w-full" type="submit">Post</button>
+      </div>
+    </div>
+
+    <!-- Feeling / activity view -->
+    <div class="hidden" data-composer-view="feeling">
+      <div class="relative border-b border-line px-4 py-3 text-center">
+        <button type="button" class="icon-btn absolute left-3 top-2" data-composer-back aria-label="Back to post"><svg class="icon"><use href="#i-arrow-left"/></svg></button>
+        <h2 class="text-xl font-bold" data-feeling-title>How are you feeling?</h2>
+      </div>
+      <div class="flex border-b border-line px-2" role="tablist">
+        <button type="button" role="tab" class="tab h-12 tab-active" data-feeling-tab="feeling" aria-selected="true">Feelings</button>
+        <button type="button" role="tab" class="tab h-12" data-feeling-tab="activity" aria-selected="false">Activities</button>
+      </div>
+      <div class="p-3">
+        <div class="relative" data-feeling-search-wrap><svg class="icon pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"><use href="#i-search"/></svg><input type="search" class="pill-input pl-9" placeholder="Search" data-feeling-search aria-label="Search feelings"></div>
+        <div class="mt-3 hidden" data-activity-detail>
+          <div class="flex items-center gap-2 rounded-lg bg-field p-2"><span class="grid size-9 place-items-center rounded-full bg-white text-xl" data-activity-emoji></span><span class="font-semibold" data-activity-verb></span></div>
+          <input class="input mt-2 w-full" maxlength="80" data-activity-text>
+          <div class="mt-2 flex justify-end gap-2"><button type="button" class="btn-secondary" data-activity-cancel>Back</button><button type="button" class="btn-primary" data-activity-done>Done</button></div>
+        </div>
+        <div class="mt-3 grid max-h-[50dvh] grid-cols-2 gap-1 overflow-y-auto" data-feeling-grid></div>
+      </div>
+    </div>
+
+    <!-- Check-in view -->
+    <div class="hidden" data-composer-view="place">
+      <div class="relative border-b border-line px-4 py-3 text-center">
+        <button type="button" class="icon-btn absolute left-3 top-2" data-composer-back aria-label="Back to post"><svg class="icon"><use href="#i-arrow-left"/></svg></button>
+        <h2 class="text-xl font-bold">Search for location</h2>
+      </div>
+      <div class="p-3">
+        <div class="relative"><svg class="icon pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"><use href="#i-search"/></svg><input type="search" class="pill-input pl-9" placeholder="Where are you?" autocomplete="off" data-place-search aria-label="Search for a place"></div>
+        <button type="button" class="mt-2 flex w-full items-center gap-3 rounded-lg p-2 text-left hover:bg-hover" data-place-locate><span class="icon-btn shrink-0 bg-brand-50 text-brand-600"><svg class="icon"><use href="#i-pin"/></svg></span><span><span class="block font-semibold">Use my current location</span><span class="block text-[0.8125rem] text-muted">Show places near you</span></span></button>
+        <p class="px-2 py-2 text-[0.8125rem] text-muted" data-place-status role="status"></p>
+        <ul class="max-h-[48dvh] space-y-0.5 overflow-y-auto" data-place-results></ul>
+        <p class="px-2 pt-2 text-2xs text-subtle">Places from © OpenStreetMap contributors</p>
+      </div>
     </div>
   </form>
 </dialog>
 
 <dialog id="edit-post-dialog" class="w-[min(31.25rem,calc(100%-1.5rem))] rounded-xl p-0 shadow-pop" aria-labelledby="edit-post-title">
-  <form id="edit-post-form" data-api-form data-method="PATCH" data-reload method="post">
+  <form id="edit-post-form" method="post" data-edit-post-form>
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <div class="relative border-b border-line px-4 py-3 text-center"><h2 id="edit-post-title" class="text-xl font-bold">Edit post</h2><button type="button" class="icon-btn absolute right-3 top-2" data-close-dialog="edit-post-dialog" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button></div>
     <div class="p-4">
       <label class="sr-only" for="edit-post-content">Post text</label>
-      <textarea class="w-full resize-none border-0 p-0 text-xl leading-snug focus:outline-none focus:ring-0" id="edit-post-content" name="content" rows="6" maxlength="5000" required></textarea>
+      <textarea class="w-full resize-none border-0 p-0 text-xl leading-snug focus:outline-none focus:ring-0" id="edit-post-content" name="content" rows="5" maxlength="5000"></textarea>
+      <div class="mt-3 grid grid-cols-2 gap-1 rounded-lg border border-line p-1 empty:hidden" data-edit-media></div>
+      <p class="mt-2 text-[0.8125rem] text-muted">Tap a photo's buttons to replace or remove it. Up to 4 photos.</p>
       <p class="form-error mt-3 hidden" data-form-error role="alert"></p>
       <button class="btn-primary mt-3 w-full" type="submit">Save</button>
     </div>
@@ -94,6 +146,10 @@
       <p class="mb-3 self-start text-15 font-semibold">Preview</p>
       <div class="relative grid aspect-[9/16] w-full max-w-[16rem] place-items-center overflow-hidden rounded-xl bg-story-ocean shadow-float" data-story-preview>
         <img class="absolute inset-0 hidden size-full object-cover" alt="" data-story-preview-image>
+        <div class="absolute right-2 top-2 z-20 hidden gap-1.5" data-story-photo-actions>
+          <button type="button" class="grid size-9 place-items-center rounded-full bg-white/90 text-ink shadow-float hover:bg-white" data-story-photo="replace" aria-label="Replace photo" title="Replace photo"><svg class="icon size-[1.125rem]"><use href="#i-edit"/></svg></button>
+          <button type="button" class="grid size-9 place-items-center rounded-full bg-white/90 text-ink shadow-float hover:bg-white" data-story-photo="remove" aria-label="Remove photo" title="Remove photo"><svg class="icon size-[1.125rem]"><use href="#i-x"/></svg></button>
+        </div>
         <p class="relative z-10 whitespace-pre-wrap break-words px-5 text-center font-display text-xl font-bold text-white text-shadow" data-story-preview-text>Start typing</p>
       </div>
       <label class="btn-secondary mt-4 cursor-pointer"><svg class="icon"><use href="#i-image"/></svg>Add photo<input class="sr-only" type="file" name="media" accept="image/jpeg,image/png,image/webp,image/gif" data-story-file></label>

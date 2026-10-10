@@ -16,6 +16,7 @@ const schema = z.object({
   COOKIE_SECURE: z.string().default('false').transform((value) => value === 'true'),
   FASTAPI_URL: z.string().url().default('http://localhost:8000'),
   APP_ORIGIN: z.string().url().default('http://localhost:3000'),
+  PLACES_URL: z.string().url().default('https://photon.komoot.io'),
   LOG_LEVEL: z.string().default('info')
 });
 

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { GROUP_TYPES, REACTION_TYPES, STORY_BACKGROUNDS, STORY_REACTIONS } from '../models/index.js';
+import { ACTIVITIES, FEELINGS } from '../shared/feelings.js';
 
 const username = z.string().trim().toLowerCase().regex(/^[a-z0-9_]{3,24}$/, 'Username must contain 3–24 letters, numbers, or underscores.');
 const password = z.string({ required_error: 'Enter a password.' })
@@ -23,8 +24,23 @@ const website = z.union([z.literal(''), z.string().url().max(200).refine((value)
 export const profileSchema = z.object({ displayName: z.string().trim().min(2).max(60), username, bio: z.string().trim().max(240).default(''), location: z.string().trim().max(80).default(''), website: website.default(''), privacy: z.enum(['public', 'followers']).default('public') });
 export const profileDetailsSchema = profileSchema.partial();
 export const profilePhotoSchema = z.object({ kind: z.enum(['avatar', 'cover']), url: z.string().max(500).optional(), remove: z.preprocess((value) => value === true || value === 'true', z.boolean()).default(false) });
-export const postSchema = z.object({ content: z.string().trim().max(5000).default(''), visibility: z.enum(['public', 'followers', 'private']).default('public'), groupId: z.string().optional() });
-export const postEditSchema = z.object({ content: z.string().trim().min(1).max(5000), visibility: z.enum(['public', 'followers', 'private']).optional() });
+// Multipart posts send structured fields as JSON strings.
+const jsonField = <T extends z.ZodTypeAny>(schema: T) => z.preprocess((value) => {
+  if (value === undefined || value === '' || value === 'null') return null;
+  if (typeof value !== 'string') return value;
+  try { return JSON.parse(value); } catch { return value; }
+}, schema.nullable().default(null));
+export const postFeelingSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('feeling'), key: z.string().refine((key) => FEELINGS.some((item) => item.key === key), 'Unknown feeling') }),
+  z.object({ type: z.literal('activity'), key: z.string().refine((key) => ACTIVITIES.some((item) => item.key === key), 'Unknown activity'), text: z.string().trim().min(1).max(80) })
+]);
+export const postPlaceSchema = z.object({ id: z.string().max(60).default(''), name: z.string().trim().min(1).max(120), address: z.string().trim().max(200).default(''), lat: z.number().min(-90).max(90), lon: z.number().min(-180).max(180) });
+export const postSchema = z.object({ content: z.string().trim().max(5000).default(''), visibility: z.enum(['public', 'followers', 'private']).default('public'), groupId: z.string().optional(), feeling: jsonField(postFeelingSchema), place: jsonField(postPlaceSchema) });
+const mediaSlot = z.union([z.object({ id: z.string().min(1) }), z.object({ upload: z.number().int().min(0).max(3) })]);
+export const postEditSchema = z.object({ content: z.string().trim().max(5000).default(''), visibility: z.enum(['public', 'followers', 'private']).optional(), layout: jsonField(z.array(mediaSlot).max(4)) });
+export const photoDeleteSchema = z.object({ url: z.string().min(1).max(500) });
+export const placeSearchSchema = z.object({ q: z.string().trim().min(2).max(100), lat: z.coerce.number().min(-90).max(90).optional(), lon: z.coerce.number().min(-180).max(180).optional() });
+export const placeNearbySchema = z.object({ lat: z.coerce.number().min(-90).max(90), lon: z.coerce.number().min(-180).max(180) });
 export const reactionSchema = z.object({ type: z.enum(REACTION_TYPES) });
 export const commentSchema = z.object({ content: z.string().trim().min(1).max(1500), parentId: z.string().optional() });
 const groupRule = z.object({ title: z.string().trim().min(1).max(80), details: z.string().trim().max(500).default('') });

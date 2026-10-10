@@ -8,15 +8,18 @@
   const group = item.groupId && item.groupId.name ? item.groupId : null;
   const bigText = !media.length && item.content && item.content.length < 90;
   const visibilityIcon = item.visibility === 'private' ? 'i-lock' : item.visibility === 'followers' ? 'i-users' : 'i-globe';
+  const feelingInfo = describeFeeling(item.feeling);
+  const mapLink = item.place ? `https://www.openstreetmap.org/?mlat=${item.place.lat}&mlon=${item.place.lon}#map=17/${item.place.lat}/${item.place.lon}` : '';
   const visibilityLabel = item.visibility === 'private' ? 'Only me' : item.visibility === 'followers' ? 'Followers' : 'Public';
 -%>
-<article class="card" data-post-id="<%= item._id %>">
+<article class="card" data-post-id="<%= item._id %>"<% if (isOwner) { %> data-post-media="<%= JSON.stringify((item.media || []).map(function (m) { return { id: String(m._id), url: m.url }; })) %>"<% } %>>
   <header class="flex items-start gap-2.5 px-4 pt-3">
     <a href="/profile/<%= author.username %>" class="shrink-0" aria-label="<%= author.displayName %>'s profile"><%- include('avatar', { person: author, size: 'size-10 text-sm' }) %></a>
     <div class="min-w-0 flex-1 leading-tight">
       <p class="text-15">
         <a class="font-semibold hover:underline" href="/profile/<%= author.username %>"><%= author.displayName %></a>
         <% if (group) { %><svg class="icon -mt-0.5 inline size-3.5 text-muted"><use href="#i-chevron-right"/></svg> <a class="font-semibold hover:underline" href="/groups/<%= group.slug %>"><%= group.name %></a><% } %>
+        <% if (feelingInfo || item.place) { %><span> is<% if (feelingInfo) { %> <%= feelingInfo.emoji %> <%= feelingInfo.text %><% } %><% if (item.place) { %> at <a class="font-semibold hover:underline" href="<%= mapLink %>" target="_blank" rel="noopener noreferrer"><%= item.place.name %></a><% } %>.</span><% } %>
       </p>
       <p class="mt-0.5 flex items-center gap-1 text-[0.8125rem] text-muted">
         <a class="hover:underline" href="/posts/<%= item._id %>" title="<%= longTime(item.createdAt) %>"><time datetime="<%= new Date(item.createdAt).toISOString() %>"><%= timeAgo(item.createdAt) %></time></a>
@@ -41,14 +44,23 @@
   <% if (media.length) { %>
   <div class="media-grid <%= media.length === 1 ? '' : 'grid-cols-2' %> <%= media.length === 3 ? 'grid-rows-2 aspect-[4/3]' : '' %>">
     <% media.forEach(function (m, i) { const span = media.length === 3 && i === 0 ? 'row-span-2' : ''; const ratio = media.length === 1 ? 'max-h-[40rem]' : media.length === 3 ? '' : 'aspect-square'; %>
-    <button type="button" class="relative block overflow-hidden <%= span %> <%= ratio %>" data-lightbox="<%= m.url %>" aria-label="Open photo <%= i + 1 %> of <%= item.media.length %>">
-      <img src="<%= m.url %>" alt="<%= m.alt || ('Photo shared by ' + author.displayName) %>" loading="lazy" decoding="async" class="<%= media.length === 1 ? 'max-h-[40rem]' : '' %>">
-      <% if (i === 3 && extraMedia > 0) { %><span class="absolute inset-0 grid place-items-center bg-black/45 font-display text-3xl font-bold text-white">+<%= extraMedia %></span><% } %>
-    </button>
+    <div class="group/photo relative overflow-hidden <%= span %> <%= ratio %>">
+      <button type="button" class="relative block size-full overflow-hidden" data-lightbox="<%= m.url %>" aria-label="Open photo <%= i + 1 %> of <%= item.media.length %>">
+        <img src="<%= m.url %>" alt="<%= m.alt || ('Photo shared by ' + author.displayName) %>" loading="lazy" decoding="async" class="<%= media.length === 1 ? 'max-h-[40rem]' : '' %>">
+        <% if (i === 3 && extraMedia > 0) { %><span class="absolute inset-0 grid place-items-center bg-black/45 font-display text-3xl font-bold text-white">+<%= extraMedia %></span><% } %>
+      </button>
+      <% if (isOwner) { %><button type="button" class="absolute right-2 top-2 grid size-9 place-items-center rounded-full bg-white/90 text-ink shadow-float transition-opacity hover:bg-white sm:opacity-0 sm:group-hover/photo:opacity-100 sm:focus-visible:opacity-100" data-photo-menu="post" data-post="<%= item._id %>" data-media="<%= m._id %>" data-url="<%= m.url %>" aria-label="Photo options"><svg class="icon size-5"><use href="#i-more"/></svg></button><% } %>
+    </div>
     <% }) %>
   </div>
   <% } %>
 
+  <% if (item.place && !media.length) { %>
+  <a class="block border-y border-line" href="<%= mapLink %>" target="_blank" rel="noopener noreferrer" aria-label="Open <%= item.place.name %> on the map">
+    <div class="relative h-52 overflow-hidden bg-field" data-map data-lat="<%= item.place.lat %>" data-lon="<%= item.place.lon %>"></div>
+    <div class="flex items-center gap-3 bg-[#f7f8fa] px-4 py-3"><span class="icon-btn shrink-0 bg-white text-[#f5533d]"><svg class="icon"><use href="#i-pin"/></svg></span><span class="min-w-0"><span class="block truncate font-semibold"><%= item.place.name %></span><span class="block truncate text-[0.8125rem] text-muted"><%= item.place.address %></span></span></div>
+  </a>
+  <% } %>
   <div class="mx-4 flex min-h-[2.5rem] items-center justify-between gap-3 text-15 text-muted">
     <span class="flex items-center gap-1.5 <%= item.reactionCount ? '' : 'invisible' %>" data-reaction-summary>
       <span class="flex -space-x-1" data-reaction-icons><% top.forEach(function (type) { %><svg class="size-[1.125rem] rounded-full ring-2 ring-white"><use href="#r-<%= type %>"/></svg><% }) %></span>

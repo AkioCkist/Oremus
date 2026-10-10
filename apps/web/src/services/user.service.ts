@@ -96,3 +96,25 @@ export async function setProfilePhoto(userId: string, input: { kind: 'avatar' | 
   await invalidateSocialCaches([userId]);
   return user;
 }
+
+/** Deletes one of your photos: clears it as avatar/cover, drops it from history and removes it from your posts. */
+export async function deletePhoto(userId: string, url: string) {
+  const library = await getPhotoLibrary(userId);
+  if (![...library.uploads, ...library.profilePictures, ...library.coverPhotos].includes(url)) throw new AppError(404, 'Photo not found in your photos.', 'PHOTO_NOT_FOUND');
+  const user = await User.findById(userId);
+  const profile: any = user!.profile;
+  if (profile.avatarUrl === url) profile.avatarUrl = '';
+  if (profile.coverUrl === url) profile.coverUrl = '';
+  profile.avatarHistory = (profile.avatarHistory || []).filter((item: string) => item !== url);
+  profile.coverHistory = (profile.coverHistory || []).filter((item: string) => item !== url);
+  await user!.save();
+  const posts = await Post.find({ authorId: userId, deletedAt: null, 'media.url': url });
+  let postsDeleted = 0;
+  for (const post of posts) {
+    post.media = post.media.filter((media: any) => media.url !== url);
+    if (!post.content && !post.media.length && !post.feeling && !post.place) { post.deletedAt = new Date(); postsDeleted++; }
+    await post.save();
+  }
+  await invalidateSocialCaches([userId]);
+  return { postsUpdated: posts.length - postsDeleted, postsDeleted };
+}

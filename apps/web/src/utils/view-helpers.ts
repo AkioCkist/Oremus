@@ -1,4 +1,5 @@
 // Formatting helpers exposed to every EJS view through app.locals.
+import { describeFeeling } from '../shared/feelings.js';
 
 const MINUTE = 60_000, HOUR = 60 * MINUTE, DAY = 24 * HOUR;
 
@@ -61,4 +62,4 @@ export const REACTION_LABELS: Record<string, { label: string; color: string }> =
   angry: { label: 'Angry', color: 'text-[#e9710f]' }
 };
 
-export const viewHelpers = { timeAgo, longTime, clockTime, toneOf, initials, firstName, compact, plural, extractLinks, REACTION_LABELS };
+export const viewHelpers = { describeFeeling, timeAgo, longTime, clockTime, toneOf, initials, firstName, compact, plural, extractLinks, REACTION_LABELS };

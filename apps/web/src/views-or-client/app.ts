@@ -1,3 +1,6 @@
+import { ACTIVITIES, FEELINGS, describeFeeling } from '../shared/feelings.js';
+import { EMOJI_CATEGORIES } from './emoji-data.js';
+
 declare const io: undefined | (() => { on: (event: string, callback: (payload: any) => void) => void; emit: (event: string, payload: unknown) => void });
 
 const csrf = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content || '';
@@ -174,19 +177,271 @@ function openComposer(trigger: HTMLElement) {
   if (trigger.dataset.pickPhoto !== undefined) $<HTMLInputElement>('[data-composer-files]', composer)?.click();
   textarea.focus();
 }
-$<HTMLInputElement>('[data-composer-files]')?.addEventListener('change', async (event) => {
-  const input = event.target as HTMLInputElement;
-  const previews = $('[data-composer-previews]')!;
-  previews.replaceChildren();
-  const files = [...(input.files || [])].slice(0, 4);
-  if (input.files && input.files.length > 4) showToast('You can add up to 4 photos per post.', 'error');
-  for (const file of files) {
-    const img = document.createElement('img'); img.className = 'aspect-square w-full rounded-md object-cover'; img.alt = file.name;
-    img.src = await readAsDataUrl(file); previews.appendChild(img);
+
+/* ---------- Static map (OpenStreetMap tiles positioned around a point) ---------- */
+
+function renderMap(container: HTMLElement, lat: number, lon: number, zoom = 15) {
+  const width = container.clientWidth || 480, height = container.clientHeight || 200;
+  const scale = 256 * 2 ** zoom;
+  const worldX = ((lon + 180) / 360) * scale;
+  const latRad = (lat * Math.PI) / 180;
+  const worldY = ((1 - Math.asinh(Math.tan(latRad)) / Math.PI) / 2) * scale;
+  const left = worldX - width / 2, top = worldY - height / 2;
+  const tiles = document.createDocumentFragment();
+  const max = 2 ** zoom;
+  for (let tx = Math.floor(left / 256); tx <= Math.floor((left + width) / 256); tx++) {
+    for (let ty = Math.floor(top / 256); ty <= Math.floor((top + height) / 256); ty++) {
+      if (ty < 0 || ty >= max) continue;
+      const img = document.createElement('img');
+      img.src = `https://tile.openstreetmap.org/${zoom}/${((tx % max) + max) % max}/${ty}.png`;
+      img.alt = ''; img.loading = 'lazy'; img.className = 'absolute max-w-none select-none';
+      img.style.width = '256px'; img.style.height = '256px';
+      img.style.left = `${Math.round(tx * 256 - left)}px`; img.style.top = `${Math.round(ty * 256 - top)}px`;
+      tiles.appendChild(img);
+    }
   }
-  previews.classList.toggle('hidden', files.length === 0);
-  if (files.length === 1) previews.classList.replace('grid-cols-2', 'grid-cols-1'); else previews.classList.replace('grid-cols-1', 'grid-cols-2');
+  const pin = svgUse('i-pin', 'absolute left-1/2 top-1/2 size-9 -translate-x-1/2 -translate-y-full fill-[#f5533d] stroke-white drop-shadow');
+  pin.setAttribute('stroke-width', '1.5');
+  const credit = Object.assign(document.createElement('span'), { className: 'absolute bottom-1 right-1 rounded bg-white/80 px-1 text-2xs text-muted', textContent: '© OpenStreetMap' });
+  container.replaceChildren(tiles, pin, credit);
+}
+$$('[data-map][data-lat]').forEach((map) => renderMap(map, Number(map.dataset.lat), Number(map.dataset.lon)));
+
+/* ---------- Emoji picker popover ---------- */
+
+const RECENT_EMOJI_KEY = 'oremus:recent-emoji';
+const readRecentEmoji = (): string[] => { try { return JSON.parse(localStorage.getItem(RECENT_EMOJI_KEY) || '[]'); } catch { return []; } };
+const saveRecentEmoji = (emoji: string) => { try { localStorage.setItem(RECENT_EMOJI_KEY, JSON.stringify([emoji, ...readRecentEmoji().filter((item) => item !== emoji)].slice(0, 16))); } catch { /* storage unavailable */ } };
+
+function insertAtCursor(field: HTMLInputElement | HTMLTextAreaElement, text: string) {
+  const start = field.selectionStart ?? field.value.length, end = field.selectionEnd ?? field.value.length;
+  field.value = field.value.slice(0, start) + text + field.value.slice(end);
+  const caret = start + text.length; field.focus(); field.setSelectionRange(caret, caret);
+  field.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+let emojiPopover: HTMLElement | null = null;
+function closeEmojiPicker() { emojiPopover?.remove(); emojiPopover = null; }
+
+function openEmojiPicker(anchor: HTMLElement, field: HTMLInputElement | HTMLTextAreaElement) {
+  closeEmojiPicker();
+  const popover = document.createElement('div');
+  popover.className = 'fixed z-[70] flex h-[22rem] w-[20rem] max-w-[calc(100vw-1rem)] animate-pop-in flex-col overflow-hidden rounded-xl bg-white shadow-pop';
+  popover.setAttribute('role', 'dialog'); popover.setAttribute('aria-label', 'Emoji picker');
+  const search = Object.assign(document.createElement('input'), { type: 'search', className: 'pill-input h-9', placeholder: 'Search emoji' });
+  search.setAttribute('aria-label', 'Search emoji');
+  const head = document.createElement('div'); head.className = 'p-2'; head.appendChild(search);
+  const tabs = document.createElement('div'); tabs.className = 'flex gap-0.5 border-b border-line px-2 pb-1';
+  const body = document.createElement('div'); body.className = 'flex-1 overflow-y-auto px-2 pb-2';
+
+  const grid = (title: string, items: Array<[string, string]>, id?: string) => {
+    const section = document.createElement('section'); if (id) section.dataset.emojiSection = id;
+    section.appendChild(Object.assign(document.createElement('p'), { className: 'sticky top-0 bg-white py-1.5 text-xs font-semibold text-muted', textContent: title }));
+    const wrap = document.createElement('div'); wrap.className = 'grid grid-cols-8';
+    items.forEach(([emoji, words]) => {
+      const button = Object.assign(document.createElement('button'), { type: 'button', className: 'grid size-9 place-items-center rounded-lg text-2xl hover:bg-hover', textContent: emoji, title: words.split(' ')[0] });
+      button.setAttribute('aria-label', words.split(' ')[0] || emoji);
+      button.addEventListener('click', () => { insertAtCursor(field, emoji); saveRecentEmoji(emoji); });
+      wrap.appendChild(button);
+    });
+    section.appendChild(wrap); return section;
+  };
+  const renderAll = () => {
+    const recent = readRecentEmoji();
+    body.replaceChildren(...(recent.length ? [grid('Recently used', recent.map((emoji) => [emoji, emoji] as [string, string]), 'recent')] : []), ...EMOJI_CATEGORIES.map((category) => grid(category.label, category.items, category.id)));
+  };
+  EMOJI_CATEGORIES.forEach((category) => {
+    const tab = Object.assign(document.createElement('button'), { type: 'button', className: 'grid size-8 flex-1 place-items-center rounded-md text-lg hover:bg-hover', textContent: category.icon, title: category.label });
+    tab.setAttribute('aria-label', category.label);
+    tab.addEventListener('click', () => { search.value = ''; renderAll(); $(`[data-emoji-section="${category.id}"]`, body)?.scrollIntoView({ block: 'start' }); });
+    tabs.appendChild(tab);
+  });
+  search.addEventListener('input', () => {
+    const term = search.value.trim().toLowerCase();
+    if (!term) { renderAll(); return; }
+    const matches = EMOJI_CATEGORIES.flatMap((category) => category.items).filter(([, words]) => words.includes(term));
+    body.replaceChildren(matches.length ? grid('Search results', matches) : Object.assign(document.createElement('p'), { className: 'py-8 text-center text-15 text-muted', textContent: 'No emoji found' }));
+  });
+  renderAll();
+  popover.append(head, tabs, body);
+  // Inside a modal <dialog> the popover must live in the dialog to render above it.
+  (anchor.closest('dialog') || document.body).appendChild(popover);
+  const rect = anchor.getBoundingClientRect();
+  const left = Math.min(Math.max(8, rect.right - popover.offsetWidth), window.innerWidth - popover.offsetWidth - 8);
+  const above = rect.top - popover.offsetHeight - 8;
+  popover.style.left = `${left}px`;
+  popover.style.top = `${above > 8 ? above : Math.min(rect.bottom + 8, window.innerHeight - popover.offsetHeight - 8)}px`;
+  emojiPopover = popover; search.focus();
+}
+
+document.addEventListener('click', (event) => {
+  const trigger = (event.target as HTMLElement).closest<HTMLElement>('[data-emoji-for]');
+  if (trigger) {
+    event.preventDefault();
+    if (emojiPopover) { closeEmojiPicker(); return; }
+    const field = $<HTMLInputElement | HTMLTextAreaElement>(trigger.dataset.emojiFor!);
+    if (field) openEmojiPicker(trigger, field);
+    return;
+  }
+  if (emojiPopover && !emojiPopover.contains(event.target as Node)) closeEmojiPicker();
 });
+document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && emojiPopover) { event.preventDefault(); event.stopPropagation(); closeEmojiPicker(); } }, true);
+
+/* ---------- Composer: feeling/activity and check-in ---------- */
+
+type ComposerFeeling = { type: 'feeling'; key: string } | { type: 'activity'; key: string; text: string };
+type ComposerPlace = { id: string; name: string; address: string; lat: number; lon: number };
+
+if (composer) {
+  const composerState: { feeling: ComposerFeeling | null; place: ComposerPlace | null } = { feeling: null, place: null };
+  const feelingInput = $<HTMLInputElement>('[data-composer-feeling-input]', composer)!;
+  const placeInput = $<HTMLInputElement>('[data-composer-place-input]', composer)!;
+  const meta = $('[data-composer-meta]', composer)!;
+  const placeCard = $('[data-composer-place-card]', composer)!;
+
+  const showView = (view: 'main' | 'feeling' | 'place') => {
+    $$('[data-composer-view]', composer).forEach((panel) => panel.classList.toggle('hidden', panel.dataset.composerView !== view));
+    closeEmojiPicker();
+  };
+
+  const paintComposerMeta = () => {
+    feelingInput.value = composerState.feeling ? JSON.stringify(composerState.feeling) : '';
+    placeInput.value = composerState.place ? JSON.stringify(composerState.place) : '';
+    meta.replaceChildren();
+    const info = describeFeeling(composerState.feeling);
+    if (info || composerState.place) {
+      meta.append(' is ');
+      if (info) {
+        const chip = Object.assign(document.createElement('button'), { type: 'button', className: 'font-semibold hover:underline', textContent: `${info.emoji} ${info.text}` });
+        chip.addEventListener('click', () => showView('feeling')); meta.appendChild(chip);
+      }
+      if (composerState.place) {
+        meta.append(info ? ' at ' : 'at ');
+        const chip = Object.assign(document.createElement('button'), { type: 'button', className: 'font-semibold hover:underline', textContent: composerState.place.name });
+        chip.addEventListener('click', () => showView('place')); meta.appendChild(chip);
+      }
+      meta.append('.');
+    }
+    placeCard.classList.toggle('hidden', !composerState.place);
+    if (composerState.place) {
+      $('[data-composer-place-name]', placeCard)!.textContent = composerState.place.name;
+      $('[data-composer-place-address]', placeCard)!.textContent = composerState.place.address;
+      requestAnimationFrame(() => renderMap($('[data-map]', placeCard)!, composerState.place!.lat, composerState.place!.lon));
+    }
+  };
+
+  $$('[data-composer-open]', composer).forEach((button) => button.addEventListener('click', () => {
+    const view = button.dataset.composerOpen as 'feeling' | 'place';
+    showView(view);
+    if (view === 'feeling') { renderFeelingGrid(); $<HTMLInputElement>('[data-feeling-search]', composer)?.focus(); }
+    else $<HTMLInputElement>('[data-place-search]', composer)?.focus();
+  }));
+  $$('[data-composer-back]', composer).forEach((button) => button.addEventListener('click', () => showView('main')));
+  $$('[data-composer-clear]', composer).forEach((button) => button.addEventListener('click', () => { composerState.place = null; paintComposerMeta(); }));
+  composer.addEventListener('close', () => { showView('main'); closeEmojiPicker(); });
+
+  /* Feelings & activities */
+  let feelingTab: 'feeling' | 'activity' = 'feeling';
+  let pendingActivity: (typeof ACTIVITIES)[number] | null = null;
+  const feelingGrid = $('[data-feeling-grid]', composer)!;
+  const feelingSearch = $<HTMLInputElement>('[data-feeling-search]', composer)!;
+  const activityDetail = $('[data-activity-detail]', composer)!;
+  const activityText = $<HTMLInputElement>('[data-activity-text]', composer)!;
+
+  const feelingButton = (emoji: string, label: string, selected: boolean, onPick: () => void) => {
+    const button = document.createElement('button'); button.type = 'button';
+    button.className = `flex items-center gap-3 rounded-lg p-2 text-left text-15 hover:bg-hover ${selected ? 'bg-brand-50 font-semibold text-brand-700' : ''}`;
+    button.append(Object.assign(document.createElement('span'), { className: 'grid size-9 shrink-0 place-items-center rounded-full bg-field text-xl', textContent: emoji }), Object.assign(document.createElement('span'), { className: 'capitalize', textContent: label }));
+    button.setAttribute('aria-pressed', String(selected)); button.addEventListener('click', onPick); return button;
+  };
+  function renderFeelingGrid() {
+    const term = feelingSearch.value.trim().toLowerCase();
+    $('[data-feeling-title]', composer)!.textContent = feelingTab === 'feeling' ? 'How are you feeling?' : 'What are you doing?';
+    $$('[data-feeling-tab]', composer).forEach((tab) => { const on = tab.dataset.feelingTab === feelingTab; tab.classList.toggle('tab-active', on); tab.setAttribute('aria-selected', String(on)); });
+    const current = composerState.feeling;
+    const buttons = feelingTab === 'feeling'
+      ? FEELINGS.filter((item) => !term || item.label.includes(term)).map((item) => feelingButton(item.emoji, item.label, current?.type === 'feeling' && current.key === item.key, () => {
+        composerState.feeling = current?.type === 'feeling' && current.key === item.key ? null : { type: 'feeling', key: item.key };
+        paintComposerMeta(); showView('main');
+      }))
+      : ACTIVITIES.filter((item) => !term || item.verb.includes(term)).map((item) => feelingButton(item.emoji, item.verb, current?.type === 'activity' && current.key === item.key, () => {
+        pendingActivity = item;
+        $('[data-activity-emoji]', composer)!.textContent = item.emoji; $('[data-activity-verb]', composer)!.textContent = item.verb;
+        activityText.placeholder = item.placeholder; activityText.value = current?.type === 'activity' && current.key === item.key ? current.text : '';
+        activityDetail.classList.remove('hidden'); feelingGrid.classList.add('hidden'); activityText.focus();
+      }));
+    feelingGrid.replaceChildren(...(buttons.length ? buttons : [Object.assign(document.createElement('p'), { className: 'col-span-2 py-8 text-center text-muted', textContent: 'No matches' })]));
+    if (current) {
+      const clear = Object.assign(document.createElement('button'), { type: 'button', className: 'col-span-2 mt-1 rounded-lg p-2 text-15 font-semibold text-red-600 hover:bg-red-50', textContent: 'Remove feeling/activity' });
+      clear.addEventListener('click', () => { composerState.feeling = null; paintComposerMeta(); showView('main'); });
+      feelingGrid.appendChild(clear);
+    }
+  }
+  $$('[data-feeling-tab]', composer).forEach((tab) => tab.addEventListener('click', () => {
+    feelingTab = tab.dataset.feelingTab as 'feeling' | 'activity'; feelingSearch.value = '';
+    activityDetail.classList.add('hidden'); feelingGrid.classList.remove('hidden'); renderFeelingGrid();
+  }));
+  feelingSearch.addEventListener('input', renderFeelingGrid);
+  const finishActivity = () => {
+    const text = activityText.value.trim();
+    if (!pendingActivity || !text) { activityText.focus(); return; }
+    composerState.feeling = { type: 'activity', key: pendingActivity.key, text };
+    activityDetail.classList.add('hidden'); feelingGrid.classList.remove('hidden'); paintComposerMeta(); showView('main');
+  };
+  $('[data-activity-done]', composer)!.addEventListener('click', finishActivity);
+  activityText.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); finishActivity(); } });
+  $('[data-activity-cancel]', composer)!.addEventListener('click', () => { activityDetail.classList.add('hidden'); feelingGrid.classList.remove('hidden'); });
+
+  /* Check-in */
+  const placeSearch = $<HTMLInputElement>('[data-place-search]', composer)!;
+  const placeResults = $('[data-place-results]', composer)!;
+  const placeStatus = $('[data-place-status]', composer)!;
+  let near: { lat: number; lon: number } | null = null;
+  let placeTimer = 0;
+  let placeAbort: AbortController | null = null;
+
+  const renderPlaces = (places: ComposerPlace[], emptyText: string) => {
+    placeStatus.textContent = places.length ? '' : emptyText;
+    placeResults.replaceChildren(...places.map((place) => {
+      const item = document.createElement('li');
+      const button = document.createElement('button'); button.type = 'button';
+      button.className = `flex w-full items-center gap-3 rounded-lg p-2 text-left hover:bg-hover ${composerState.place?.id === place.id ? 'bg-brand-50' : ''}`;
+      const icon = document.createElement('span'); icon.className = 'icon-btn shrink-0 text-[#f5533d]'; icon.appendChild(svgUse('i-pin', 'icon'));
+      const text = document.createElement('span'); text.className = 'min-w-0';
+      text.append(Object.assign(document.createElement('span'), { className: 'block truncate font-semibold', textContent: place.name }), Object.assign(document.createElement('span'), { className: 'block truncate text-[0.8125rem] text-muted', textContent: place.address }));
+      button.append(icon, text);
+      button.addEventListener('click', () => { composerState.place = place; paintComposerMeta(); showView('main'); });
+      item.appendChild(button); return item;
+    }));
+  };
+  const loadPlaces = async (url: string, emptyText: string) => {
+    placeAbort?.abort(); placeAbort = new AbortController();
+    placeStatus.textContent = 'Searching…';
+    try {
+      const response = await fetch(url, { credentials: 'same-origin', signal: placeAbort.signal });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error?.message || 'Search failed.');
+      renderPlaces(payload.data.places, emptyText);
+    } catch (caught) {
+      if ((caught as Error).name === 'AbortError') return;
+      placeResults.replaceChildren(); placeStatus.textContent = caught instanceof Error ? caught.message : 'Search failed.';
+    }
+  };
+  placeSearch.addEventListener('input', () => {
+    window.clearTimeout(placeTimer);
+    const q = placeSearch.value.trim();
+    if (q.length < 2) { placeAbort?.abort(); placeResults.replaceChildren(); placeStatus.textContent = q ? 'Keep typing…' : ''; return; }
+    placeTimer = window.setTimeout(() => void loadPlaces(`/api/places?q=${encodeURIComponent(q)}${near ? `&lat=${near.lat}&lon=${near.lon}` : ''}`, `No places found for "${q}".`), 350);
+  });
+  $('[data-place-locate]', composer)!.addEventListener('click', () => {
+    if (!navigator.geolocation) { placeStatus.textContent = 'Your browser cannot share your location.'; return; }
+    placeStatus.textContent = 'Finding your location…';
+    navigator.geolocation.getCurrentPosition((position) => {
+      near = { lat: Number(position.coords.latitude.toFixed(4)), lon: Number(position.coords.longitude.toFixed(4)) };
+      void loadPlaces(`/api/places/nearby?lat=${near.lat}&lon=${near.lon}`, 'No places found near you.');
+    }, () => { placeStatus.textContent = 'Location permission was denied. Search for a place instead.'; }, { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 });
+  });
+}
 
 /* ---------- Story composer ---------- */
 
@@ -355,21 +610,44 @@ if (picker) {
   $$('[data-crop-zoom]', picker).forEach((button) => button.addEventListener('click', () => setCropZoom(crop.zoom + Number(button.dataset.cropZoom) * 0.2)));
 }
 
-function pickerSection(title: string, urls: string[]) {
+let pickerArtwork: string[] = [];
+let pickerDirty = false;
+
+async function deleteLibraryPhoto(url: string) {
+  if (!(await confirmAction('Delete this photo?', 'It is removed from your photos, your profile and any post that uses it. Empty posts move to trash.', 'Delete'))) return;
+  try {
+    await request('/api/profile/photos', { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url }) });
+    pickerDirty = true; showToast('Photo deleted.');
+    void openPhotoPicker(pickerKind, pickerTarget, pickerArtwork);
+  } catch (caught) { showToast(caught instanceof Error ? caught.message : 'Could not delete photo.', 'error'); }
+}
+
+function pickerSection(title: string, urls: string[], deletable = true) {
   const section = document.createElement('section'); section.className = 'mt-5';
   const heading = document.createElement('h3'); heading.className = 'text-[1.0625rem] font-bold'; heading.textContent = title;
   const grid = document.createElement('div'); grid.className = 'mt-2 grid grid-cols-3 gap-2 sm:grid-cols-6';
   urls.forEach((url, index) => {
+    const tile = document.createElement('div');
+    tile.className = `group/tile relative aspect-square overflow-hidden rounded-md bg-field ${index >= 6 ? 'hidden' : ''}`;
     const button = document.createElement('button'); button.type = 'button';
-    button.className = `aspect-square overflow-hidden rounded-md bg-field ring-brand-600 transition hover:opacity-90 focus-visible:ring-4 ${index >= 6 ? 'hidden' : ''}`;
+    button.className = 'block size-full ring-brand-600 transition hover:opacity-90 focus-visible:ring-4';
     button.setAttribute('aria-label', pickerKind === 'avatar' ? 'Use this photo as your profile picture' : 'Use this photo as the cover');
     const img = document.createElement('img'); img.src = url; img.alt = ''; img.loading = 'lazy'; img.className = 'size-full object-cover';
-    button.appendChild(img); button.addEventListener('click', () => showPickerPreview(url, { url })); grid.appendChild(button);
+    button.appendChild(img); button.addEventListener('click', () => showPickerPreview(url, { url }));
+    tile.appendChild(button);
+    if (deletable) {
+      const remove = document.createElement('button'); remove.type = 'button';
+      remove.className = 'absolute right-1 top-1 grid size-7 place-items-center rounded-full bg-white/95 text-ink shadow-float transition-opacity hover:bg-white sm:opacity-0 sm:group-hover/tile:opacity-100 sm:focus-visible:opacity-100';
+      remove.setAttribute('aria-label', 'Delete this photo'); remove.title = 'Delete photo';
+      remove.appendChild(svgUse('i-trash', 'icon size-4')); remove.addEventListener('click', () => void deleteLibraryPhoto(url));
+      tile.appendChild(remove);
+    }
+    grid.appendChild(tile);
   });
   section.append(heading, grid);
   if (urls.length > 6) {
     const more = document.createElement('button'); more.type = 'button'; more.className = 'btn-secondary mt-2 w-full'; more.textContent = 'See more';
-    more.addEventListener('click', () => { $$('button.hidden', grid).forEach((item) => item.classList.remove('hidden')); more.remove(); });
+    more.addEventListener('click', () => { $$('.hidden', grid).forEach((item) => item.classList.remove('hidden')); more.remove(); });
     section.appendChild(more);
   }
   return section;
@@ -377,10 +655,10 @@ function pickerSection(title: string, urls: string[]) {
 
 async function openPhotoPicker(kind: PickerKind, target: ((result: PickerResult) => void) | null = null, artwork: string[] = []) {
   if (!picker) return;
-  pickerKind = kind; pickerChoice = null; pickerTarget = target;
+  pickerKind = kind; pickerChoice = null; pickerTarget = target; pickerArtwork = artwork;
   $('[data-picker-title]', picker)!.textContent = kind === 'avatar' ? 'Choose profile picture' : kind === 'group-cover' ? 'Choose group cover' : 'Choose cover photo';
   $<HTMLInputElement>('[data-picker-file]', picker)!.value = '';
-  pickerStep('list'); picker.showModal();
+  pickerStep('list'); if (!picker.open) picker.showModal();
   const sections = $('[data-picker-sections]', picker)!;
   sections.replaceChildren(Object.assign(document.createElement('p'), { className: 'py-8 text-center text-muted', textContent: 'Loading your photos…' }));
   try {
@@ -392,13 +670,15 @@ async function openPhotoPicker(kind: PickerKind, target: ((result: PickerResult)
       ? [['Artwork', artwork], ['Your photos', yourPhotos]]
       : [['Suggested photos', library.suggested], ['Uploads', library.uploads], kind === 'avatar' ? ['Profile pictures', library.profilePictures] : ['Cover photos', library.coverPhotos]];
     const filled = groups.filter(([, urls]) => urls.length);
-    sections.replaceChildren(...(filled.length ? filled.map(([title, urls]) => pickerSection(title, urls)) : [Object.assign(document.createElement('p'), { className: 'py-10 text-center text-muted', textContent: 'No photos yet. Upload one to get started.' })]));
+    sections.replaceChildren(...(filled.length ? filled.map(([title, urls]) => pickerSection(title, urls, title !== 'Artwork')) : [Object.assign(document.createElement('p'), { className: 'py-10 text-center text-muted', textContent: 'No photos yet. Upload one to get started.' })]));
   } catch (caught) {
     sections.replaceChildren(Object.assign(document.createElement('p'), { className: 'py-8 text-center text-red-600', textContent: caught instanceof Error ? caught.message : 'Could not load photos.' }));
   }
 }
 
 if (picker) {
+  // Deleting photos can change the current avatar/cover, so refresh the page once the picker closes.
+  picker.addEventListener('close', () => { if (pickerDirty && !pickerTarget) window.location.reload(); pickerDirty = false; });
   $<HTMLInputElement>('[data-picker-file]', picker)!.addEventListener('change', async (event) => {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (file) showPickerPreview(await readAsDataUrl(file), { file });
@@ -447,6 +727,203 @@ if (picker) {
 $$<HTMLTextAreaElement>('[data-char-count]').forEach((field) => field.addEventListener('input', () => {
   const counter = document.getElementById(field.dataset.charCount!); if (counter) counter.textContent = String(field.maxLength - field.value.length);
 }));
+
+/* ---------- Photo actions: file picking, action menu, editable thumbnails ---------- */
+
+const IMAGE_TYPES = 'image/jpeg,image/png,image/webp,image/gif';
+
+/** Opens the OS file chooser without needing an <input> in the markup. Resolves with [] when cancelled. */
+function pickImageFiles(multiple = false): Promise<File[]> {
+  return new Promise((resolve) => {
+    const input = Object.assign(document.createElement('input'), { type: 'file', accept: IMAGE_TYPES, multiple, className: 'hidden' });
+    const done = (files: File[]) => { input.remove(); resolve(files); };
+    input.addEventListener('change', () => done([...(input.files || [])]), { once: true });
+    input.addEventListener('cancel', () => done([]), { once: true });
+    document.body.appendChild(input); input.click();
+  });
+}
+
+function setInputFiles(input: HTMLInputElement, files: File[]) {
+  const transfer = new DataTransfer();
+  files.forEach((file) => transfer.items.add(file));
+  input.files = transfer.files;
+}
+
+type PhotoMenuItem = { label: string; icon: string; danger?: boolean; run: () => unknown };
+let photoMenuEl: HTMLElement | null = null;
+const closePhotoMenu = () => { photoMenuEl?.remove(); photoMenuEl = null; };
+
+function openPhotoMenu(anchor: HTMLElement, items: PhotoMenuItem[]) {
+  closePhotoMenu();
+  const menu = document.createElement('div');
+  menu.className = 'menu fixed w-64';
+  menu.setAttribute('role', 'menu');
+  items.forEach((item) => {
+    const button = document.createElement('button'); button.type = 'button'; button.setAttribute('role', 'menuitem');
+    button.className = `menu-item ${item.danger ? 'text-red-600' : ''}`;
+    const icon = document.createElement('span'); icon.className = 'menu-icon'; icon.appendChild(svgUse(item.icon, 'icon'));
+    button.append(icon, item.label);
+    button.addEventListener('click', () => { closePhotoMenu(); void item.run(); });
+    menu.appendChild(button);
+  });
+  (anchor.closest('dialog') || document.body).appendChild(menu);
+  const rect = anchor.getBoundingClientRect();
+  const left = Math.min(Math.max(8, rect.right - menu.offsetWidth), window.innerWidth - menu.offsetWidth - 8);
+  const below = rect.bottom + 6;
+  menu.style.left = `${left}px`;
+  menu.style.top = `${below + menu.offsetHeight > window.innerHeight - 8 ? Math.max(8, rect.top - menu.offsetHeight - 6) : below}px`;
+  photoMenuEl = menu;
+  ($('button', menu) as HTMLButtonElement | null)?.focus();
+}
+
+/** Thumbnail grid where every photo has Replace / Remove buttons, plus an "Add photos" tile while below the limit. */
+function renderPhotoTiles(container: HTMLElement, tiles: Array<{ src: string }>, actions: { replace: (index: number) => void; remove: (index: number) => void; add?: () => void; max: number }) {
+  const single = tiles.length === 1 && !(actions.add && tiles.length < actions.max);
+  const tileButton = (icon: string, label: string, onClick: () => void) => {
+    const button = document.createElement('button'); button.type = 'button';
+    button.className = 'grid size-8 place-items-center rounded-full bg-white/95 text-ink shadow-float hover:bg-white';
+    button.setAttribute('aria-label', label); button.title = label;
+    button.appendChild(svgUse(icon, 'icon size-4')); button.addEventListener('click', onClick);
+    return button;
+  };
+  const nodes: HTMLElement[] = tiles.map((tile, index) => {
+    const wrap = document.createElement('div');
+    wrap.className = `relative overflow-hidden rounded-md bg-field ${single ? 'aspect-[4/3]' : 'aspect-square'}`;
+    const img = Object.assign(document.createElement('img'), { src: tile.src, alt: `Photo ${index + 1}`, className: 'size-full object-cover' });
+    const bar = document.createElement('div'); bar.className = 'absolute right-1.5 top-1.5 flex gap-1';
+    bar.append(tileButton('i-edit', `Replace photo ${index + 1}`, () => actions.replace(index)), tileButton('i-x', `Remove photo ${index + 1}`, () => actions.remove(index)));
+    wrap.append(img, bar); return wrap;
+  });
+  if (actions.add && tiles.length < actions.max) {
+    const add = document.createElement('button'); add.type = 'button';
+    add.className = 'grid aspect-square place-items-center rounded-md border-2 border-dashed border-[#ccd0d5] text-muted hover:bg-hover';
+    const inner = document.createElement('span'); inner.className = 'flex flex-col items-center gap-1 text-[0.8125rem] font-semibold';
+    inner.append(svgUse('i-plus', 'icon size-6'), `Add photos (${tiles.length}/${actions.max})`);
+    add.appendChild(inner); add.addEventListener('click', actions.add); nodes.push(add);
+  }
+  container.replaceChildren(...nodes);
+  container.classList.toggle('grid-cols-1', single); container.classList.toggle('grid-cols-2', !single);
+}
+
+/* Create post: draft photos */
+const composerFilesInput = $<HTMLInputElement>('[data-composer-files]');
+let draftFiles: File[] = [];
+async function paintDraftPhotos() {
+  if (!composerFilesInput) return;
+  setInputFiles(composerFilesInput, draftFiles);
+  const previews = $('[data-composer-previews]')!;
+  const sources = await Promise.all(draftFiles.map(readAsDataUrl));
+  renderPhotoTiles(previews, sources.map((src) => ({ src })), {
+    max: 4,
+    replace: async (index) => { const [file] = await pickImageFiles(); if (file) { draftFiles[index] = file; void paintDraftPhotos(); } },
+    remove: (index) => { draftFiles.splice(index, 1); void paintDraftPhotos(); },
+    add: async () => addDraftPhotos(await pickImageFiles(true))
+  });
+  previews.classList.toggle('hidden', draftFiles.length === 0);
+}
+function addDraftPhotos(files: File[]) {
+  if (!files.length) return;
+  if (draftFiles.length + files.length > 4) showToast('You can add up to 4 photos per post.', 'error');
+  draftFiles = [...draftFiles, ...files].slice(0, 4);
+  void paintDraftPhotos();
+}
+composerFilesInput?.addEventListener('change', () => addDraftPhotos([...(composerFilesInput.files || [])]));
+
+/* Edit post: keep, replace, remove or add photos */
+const editPostForm = $<HTMLFormElement>('[data-edit-post-form]');
+let editSlots: Array<{ id?: string; file?: File; src: string }> = [];
+function paintEditSlots() {
+  const container = $('[data-edit-media]', editPostForm!);
+  if (!container) return;
+  renderPhotoTiles(container, editSlots, {
+    max: 4,
+    replace: async (index) => { const [file] = await pickImageFiles(); if (file) { editSlots[index] = { file, src: await readAsDataUrl(file) }; paintEditSlots(); } },
+    remove: (index) => { editSlots.splice(index, 1); paintEditSlots(); },
+    add: async () => {
+      const files = (await pickImageFiles(true)).slice(0, 4 - editSlots.length);
+      for (const file of files) editSlots.push({ file, src: await readAsDataUrl(file) });
+      paintEditSlots();
+    }
+  });
+}
+function openEditPost(postId: string, card: Element | null) {
+  if (!editPostForm) return;
+  editPostForm.dataset.postId = postId;
+  $<HTMLTextAreaElement>('#edit-post-content', editPostForm)!.value = $('[data-post-content]', card || document)?.textContent?.trim() || '';
+  try { editSlots = JSON.parse((card as HTMLElement | null)?.dataset.postMedia || '[]').map((media: { id: string; url: string }) => ({ id: media.id, src: media.url })); } catch { editSlots = []; }
+  $('[data-form-error]', editPostForm)!.classList.add('hidden');
+  paintEditSlots(); openDialog('edit-post-dialog'); $<HTMLTextAreaElement>('#edit-post-content', editPostForm)!.focus();
+}
+editPostForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const submit = $<HTMLButtonElement>('button[type="submit"]', editPostForm)!;
+  const error = $('[data-form-error]', editPostForm)!;
+  const body = new FormData();
+  body.append('content', $<HTMLTextAreaElement>('#edit-post-content', editPostForm)!.value);
+  let upload = 0;
+  const layout = editSlots.map((slot) => {
+    if (slot.id) return { id: slot.id };
+    body.append('images', slot.file!); return { upload: upload++ };
+  });
+  body.append('layout', JSON.stringify(layout));
+  submit.disabled = true; error.classList.add('hidden');
+  try { await request(`/api/posts/${editPostForm.dataset.postId}`, { method: 'PATCH', body }); window.location.reload(); }
+  catch (caught) { error.textContent = caught instanceof Error ? caught.message : 'Could not save the post.'; error.classList.remove('hidden'); }
+  finally { submit.disabled = false; }
+});
+
+/* Story composer: replace / remove the photo */
+if (storyDialog) {
+  const storyFile = $<HTMLInputElement>('[data-story-file]', storyDialog)!;
+  const storyActions = $('[data-story-photo-actions]', storyDialog)!;
+  storyFile.addEventListener('change', () => { const has = !!storyFile.files?.length; storyActions.classList.toggle('hidden', !has); storyActions.classList.toggle('flex', has); });
+  $$('[data-story-photo]', storyDialog).forEach((button) => button.addEventListener('click', async () => {
+    if (button.dataset.storyPhoto === 'replace') { const [file] = await pickImageFiles(); if (!file) return; setInputFiles(storyFile, [file]); }
+    else setInputFiles(storyFile, []);
+    storyFile.dispatchEvent(new Event('change'));
+  }));
+}
+
+/* "…" menus on photos (post images, profile picture, cover) */
+async function photoMenuFor(trigger: HTMLElement): Promise<PhotoMenuItem[]> {
+  const { photoMenu: kind, url = '', post, media } = trigger.dataset;
+  const view: PhotoMenuItem = { label: kind === 'avatar' ? 'View profile picture' : kind === 'cover' ? 'View cover photo' : 'View photo', icon: 'i-eye', run: () => { const box = openDialog('lightbox'); const img = box && $<HTMLImageElement>('[data-lightbox-image]', box); if (img) img.src = url; } };
+  if (kind === 'post') {
+    return [view,
+      { label: 'Replace photo', icon: 'i-edit', run: async () => {
+        const [file] = await pickImageFiles(); if (!file) return;
+        const body = new FormData(); body.append('photo', file);
+        try { await request(`/api/posts/${post}/media/${media}`, { method: 'PUT', body }); window.location.reload(); }
+        catch (caught) { showToast(caught instanceof Error ? caught.message : 'Could not replace photo.', 'error'); }
+      } },
+      { label: 'Delete photo', icon: 'i-trash', danger: true, run: async () => {
+        if (!(await confirmAction('Delete this photo?', 'It will be removed from the post. A post left empty moves to trash.', 'Delete'))) return;
+        try { const result = await request(`/api/posts/${post}/media/${media}`, { method: 'DELETE' }); showToast(result.message); window.setTimeout(() => window.location.reload(), 500); }
+        catch (caught) { showToast(caught instanceof Error ? caught.message : 'Could not delete photo.', 'error'); }
+      } }];
+  }
+  const photoKind = kind === 'cover' ? 'cover' : 'avatar';
+  const items: PhotoMenuItem[] = url ? [view] : [];
+  items.push({ label: url ? (photoKind === 'avatar' ? 'Replace profile picture' : 'Replace cover photo') : (photoKind === 'avatar' ? 'Add profile picture' : 'Add cover photo'), icon: 'i-camera', run: () => openPhotoPicker(photoKind) });
+  if (url) items.push({ label: 'Remove', icon: 'i-trash', danger: true, run: async () => {
+    if (!(await confirmAction(photoKind === 'avatar' ? 'Remove profile picture?' : 'Remove cover photo?', 'You can choose it again later from your photos.', 'Remove'))) return;
+    try { await postJson('/api/profile/photo', { kind: photoKind, remove: true }); window.location.reload(); }
+    catch (caught) { showToast(caught instanceof Error ? caught.message : 'Could not remove photo.', 'error'); }
+  } });
+  return items;
+}
+
+document.addEventListener('click', async (event) => {
+  const trigger = (event.target as HTMLElement).closest<HTMLElement>('[data-photo-menu]');
+  if (trigger) {
+    event.preventDefault(); event.stopPropagation();
+    if (photoMenuEl) { closePhotoMenu(); return; }
+    openPhotoMenu(trigger, await photoMenuFor(trigger));
+    return;
+  }
+  if (photoMenuEl && !photoMenuEl.contains(event.target as Node)) closePhotoMenu();
+}, true);
+document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && photoMenuEl) { event.preventDefault(); event.stopPropagation(); closePhotoMenu(); } }, true);
 
 /* ---------- Group create / edit popup ---------- */
 
@@ -736,10 +1213,8 @@ document.addEventListener('click', async (event) => {
       $$('[data-toggle-details][aria-expanded]').forEach((button) => button.setAttribute('aria-expanded', String(hidden))); return;
     }
     if (data.editPost) {
-      const card = target.closest('[data-post-id]');
-      const form = $<HTMLFormElement>('#edit-post-form'); const input = $<HTMLTextAreaElement>('#edit-post-content');
       target.closest<HTMLDetailsElement>('details')?.removeAttribute('open');
-      if (form && input) { form.action = `/api/posts/${data.editPost}`; input.value = $('[data-post-content]', card || document)?.textContent?.trim() || ''; openDialog('edit-post-dialog'); input.focus(); }
+      openEditPost(data.editPost, target.closest('[data-post-id]'));
       return;
     }
     if (data.follow) {

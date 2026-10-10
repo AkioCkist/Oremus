@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { buildStoryTray, canViewStory } from '../services/story.service.js';
-import { groupJoinSchema, groupSchema, profileDetailsSchema, profilePhotoSchema, storyReactionSchema, storyReplySchema, storySchema } from '../validators/index.js';
+import { groupJoinSchema, groupSchema, postEditSchema, postSchema, profileDetailsSchema, profilePhotoSchema, storyReactionSchema, storyReplySchema, storySchema } from '../validators/index.js';
 import { extractLinks, initials, timeAgo, toneOf } from '../utils/view-helpers.js';
+import { describeFeeling } from '../shared/feelings.js';
 
 const author = (id: string, name: string) => ({ _id: id, username: name.toLowerCase(), displayName: name, profile: { avatarUrl: '' } });
 const story = (id: string, who: ReturnType<typeof author>, minutesAgo: number) => ({ _id: id, authorId: who, text: id, background: 'ocean', media: null, viewCount: 2, createdAt: new Date(Date.now() - minutesAgo * 60_000) });
@@ -100,5 +101,36 @@ describe('group creation options', () => {
   it('accepts join answers and rule agreement', () => {
     expect(groupJoinSchema.parse({})).toEqual({ answers: [], agreeRules: false });
     expect(groupJoinSchema.parse({ answers: ['Fuji X100'], agreeRules: true }).agreeRules).toBe(true);
+  });
+});
+
+describe('post feeling and check-in', () => {
+  it('parses feeling and place sent as multipart JSON strings', () => {
+    const post = postSchema.parse({ content: '', feeling: '{"type":"feeling","key":"happy"}', place: '{"id":"W1","name":"Cầu Rồng","address":"Đà Nẵng","lat":16.06,"lon":108.22}' });
+    expect(post.feeling).toEqual({ type: 'feeling', key: 'happy' });
+    expect(post.place?.name).toBe('Cầu Rồng');
+    expect(postSchema.parse({ feeling: '', place: '' })).toMatchObject({ feeling: null, place: null });
+  });
+  it('rejects unknown feelings, empty activities and impossible coordinates', () => {
+    expect(() => postSchema.parse({ feeling: '{"type":"feeling","key":"hacked"}' })).toThrow();
+    expect(() => postSchema.parse({ feeling: '{"type":"activity","key":"eating","text":" "}' })).toThrow();
+    expect(() => postSchema.parse({ place: '{"name":"Nowhere","lat":200,"lon":0}' })).toThrow();
+  });
+  it('describes feelings and activities like Facebook', () => {
+    expect(describeFeeling({ type: 'feeling', key: 'happy' })).toEqual({ emoji: '😊', text: 'feeling happy' });
+    expect(describeFeeling({ type: 'activity', key: 'eating', text: 'phở' })).toEqual({ emoji: '🍜', text: 'eating phở' });
+    expect(describeFeeling(null)).toBeNull();
+  });
+});
+
+describe('post photo editing', () => {
+  it('accepts a layout of kept photos and new upload slots', () => {
+    const edit = postEditSchema.parse({ content: '', layout: '[{"id":"abc"},{"upload":0}]' });
+    expect(edit.layout).toEqual([{ id: 'abc' }, { upload: 0 }]);
+    expect(postEditSchema.parse({ content: 'Only text' }).layout).toBeNull();
+  });
+  it('caps photos at four and rejects bad slots', () => {
+    expect(() => postEditSchema.parse({ layout: JSON.stringify(Array.from({ length: 5 }, (_, i) => ({ id: String(i) }))) })).toThrow();
+    expect(() => postEditSchema.parse({ layout: '[{"upload":9}]' })).toThrow();
   });
 });

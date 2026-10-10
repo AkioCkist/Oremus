@@ -1,12 +1,13 @@
 import type { Request, Response } from 'express';
 import { Notification } from '../models/index.js';
-import { profileSchema, profileDetailsSchema, profilePhotoSchema, postSchema, postEditSchema, reactionSchema, commentSchema, groupSchema, decisionSchema, conversationSchema, messageSchema, groupJoinSchema, groupInviteSchema } from '../validators/index.js';
+import { profileSchema, profileDetailsSchema, profilePhotoSchema, postSchema, postEditSchema, reactionSchema, commentSchema, groupSchema, decisionSchema, conversationSchema, messageSchema, groupJoinSchema, groupInviteSchema, placeNearbySchema, placeSearchSchema, photoDeleteSchema } from '../validators/index.js';
 import { AppError } from '../utils/errors.js';
 import * as users from '../services/user.service.js';
 import * as posts from '../services/post.service.js';
 import * as groups from '../services/group.service.js';
 import * as messages from '../services/message.service.js';
 import { cacheStats } from '../services/cache.service.js';
+import { nearbyPlaces, searchPlaces } from '../services/places.service.js';
 import { searchAll } from '../services/feed.service.js';
 import { audit } from '../services/audit.service.js';
 
@@ -15,7 +16,9 @@ const param = (req: Request, name: string) => String(req.params[name]);
 export async function updateProfile(req: Request, res: Response) { const user = await users.updateProfile(id(req), profileSchema.parse(req.body), req.files as any); res.json({ ok: true, data: { user, redirect: `/profile/${user.username}` } }); }
 export async function toggleFollow(req: Request, res: Response) { res.json({ ok: true, data: await users.toggleFollow(id(req), param(req, 'userId')) }); }
 export async function createPost(req: Request, res: Response) { const post = await posts.createPost(id(req), postSchema.parse(req.body), req.files as Express.Multer.File[]); res.status(201).json({ ok: true, data: { post } }); }
-export async function updatePost(req: Request, res: Response) { res.json({ ok: true, data: { post: await posts.updatePost(id(req), param(req, 'postId'), postEditSchema.parse(req.body)) } }); }
+export async function updatePost(req: Request, res: Response) { res.json({ ok: true, data: { post: await posts.updatePost(id(req), param(req, 'postId'), postEditSchema.parse(req.body), req.files as Express.Multer.File[]), message: 'Post updated.' } }); }
+export async function replacePostMedia(req: Request, res: Response) { res.json({ ok: true, data: { ...(await posts.replacePostMedia(id(req), param(req, 'postId'), param(req, 'mediaId'), req.file)), message: 'Photo replaced.' } }); }
+export async function removePostMedia(req: Request, res: Response) { const result = await posts.removePostMedia(id(req), param(req, 'postId'), param(req, 'mediaId')); res.json({ ok: true, data: { ...result, message: result.postDeleted ? 'Photo deleted. The empty post was moved to trash.' : 'Photo deleted.' } }); }
 export async function deletePost(req: Request, res: Response) { const postId = param(req, 'postId'); await posts.deletePost(id(req), postId); await audit('post.delete', id(req), 'Post', postId, {}, req.ip); res.json({ ok: true, data: { deleted: true } }); }
 export async function react(req: Request, res: Response) { const { type } = reactionSchema.parse(req.body); res.json({ ok: true, data: await posts.react(id(req), param(req, 'postId'), type) }); }
 export async function comment(req: Request, res: Response) { const item = await posts.addComment(id(req), param(req, 'postId'), commentSchema.parse(req.body)); res.status(201).json({ ok: true, data: { comment: item } }); }
@@ -41,3 +44,6 @@ export async function diagnostics(_req: Request, res: Response) { res.json({ ok:
 export async function photoLibrary(req: Request, res: Response) { res.json({ ok: true, data: await users.getPhotoLibrary(id(req)) }); }
 export async function updateDetails(req: Request, res: Response) { const user = await users.updateProfileDetails(id(req), profileDetailsSchema.parse(req.body)); res.json({ ok: true, data: { user, message: 'Profile updated.' } }); }
 export async function updatePhoto(req: Request, res: Response) { const user = await users.setProfilePhoto(id(req), profilePhotoSchema.parse(req.body), req.file); res.json({ ok: true, data: { user, message: 'Photo updated.' } }); }
+export async function places(req: Request, res: Response) { const { q, lat, lon } = placeSearchSchema.parse(req.query); res.json({ ok: true, data: { places: await searchPlaces(q, lat !== undefined && lon !== undefined ? { lat, lon } : undefined) } }); }
+export async function placesNearby(req: Request, res: Response) { const { lat, lon } = placeNearbySchema.parse(req.query); res.json({ ok: true, data: { places: await nearbyPlaces(lat, lon) } }); }
+export async function deletePhoto(req: Request, res: Response) { const { url } = photoDeleteSchema.parse(req.body); const result = await users.deletePhoto(id(req), url); res.json({ ok: true, data: { ...result, message: 'Photo deleted.' } }); }

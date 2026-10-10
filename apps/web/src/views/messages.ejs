@@ -90,7 +90,7 @@
         <label class="sr-only" for="message">Message <%= partner.displayName %></label>
         <div class="relative flex-1">
           <input class="pill-input pr-10" id="message" name="content" autocomplete="off" maxlength="3000" placeholder="Aa" required>
-          <button type="button" class="absolute right-1 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-brand-600 hover:bg-line" data-insert-emoji="😊" aria-label="Insert smiley"><svg class="icon"><use href="#i-smile"/></svg></button>
+          <button type="button" class="absolute right-1 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-brand-600 hover:bg-line" data-emoji-for="#message" aria-label="Insert emoji"><svg class="icon"><use href="#i-smile"/></svg></button>
         </div>
         <button class="icon-btn-ghost text-brand-600" type="submit" aria-label="Send"><svg class="icon"><use href="#i-send"/></svg></button>
       </form>

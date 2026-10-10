@@ -29,7 +29,7 @@ MongoDB and Redis must be available locally first.
 Copy-Item .env.example .env
 npm install
 python -m pip install -r apps/api/requirements.txt
-npm run migrate
+npm --workspace @oremus/web run migrate
 npm run seed
 npm run dev
 ```
@@ -52,7 +52,7 @@ python -m pytest -q apps/api/tests
 docker compose config --quiet
 ```
 
-`npm run migrate` synchronizes declared MongoDB indexes and constraints. Migrations are intentionally index-oriented because document shape is backwards-compatible and validated at both Zod and Mongoose boundaries.
+`npm --workspace @oremus/web run migrate` synchronizes declared MongoDB indexes and constraints. Migrations are intentionally index-oriented because document shape is backwards-compatible and validated at both Zod and Mongoose boundaries.
 
 ## Architecture decisions
 
@@ -64,7 +64,11 @@ docker compose config --quiet
 - **UI:** Facebook-style layout (sticky header with centre tabs, left shortcuts, right contacts rail, bottom mobile navigation), indigo brand on a neutral `#f0f2f5` canvas, Red Hat Display/Text type, an inline SVG icon sprite with six reaction emoji (`src/views/partials/icons.ejs`), and generated SVG artwork in `public/assets/img`. Tokens live in `tailwind.config.js`; component classes in `src/views-or-client/styles.css`.
 - **Stories:** 24-hour photo or text stories (`Story`, `StoryView` models, `services/story.service.ts`). Audience is `public` or `followers` (per-user default in settings). The viewer at `/stories` records views, five reactions, and replies that land in Messages; authors see viewers and keep everything in `/stories/archive`.
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the service map, document model, route map, cache behavior, and verification matrix.
+Project documentation:
+
+- [Development setup and commands](docs/DEVELOPMENT.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Documentation index](docs/README.md)
 
 ## Intentional production integrations left to the deployer
 

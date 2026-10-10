@@ -56,6 +56,8 @@ const postSchema = new Schema({
   content: { type: String, maxlength: 5000, default: '' },
   media: { type: [postMediaSchema], default: [] },
   visibility: { type: String, enum: ['public', 'followers', 'private'], default: 'public' },
+  feeling: { type: new Schema({ type: { type: String, enum: ['feeling', 'activity'], required: true }, key: { type: String, required: true }, text: { type: String, maxlength: 80, default: '' } }, { _id: false }), default: null },
+  place: { type: new Schema({ id: String, name: { type: String, required: true, maxlength: 120 }, address: { type: String, maxlength: 200, default: '' }, lat: Number, lon: Number }, { _id: false }), default: null },
   // Group posts wait for admin approval when the group turns on post approval.
   groupStatus: { type: String, enum: ['approved', 'pending', 'declined'], default: 'approved' },
   reactionCount: { type: Number, default: 0 },

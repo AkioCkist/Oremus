@@ -38,22 +38,69 @@ export async function createPost(authorId: string, input: any, files: Express.Mu
   }
   const media = files.map((file) => ({ url: `/uploads/${file.filename}`, mimeType: file.mimetype, alt: '' }));
   const content = clean(input.content || '');
-  if (!content && media.length === 0) throw new AppError(422, 'Write something or add an image.', 'EMPTY_POST');
-  const post = await Post.create({ authorId, groupId: input.groupId || null, content, visibility: input.visibility, media, groupStatus });
+  if (!content && media.length === 0 && !input.feeling && !input.place) throw new AppError(422, 'Write something, add a photo, or check in somewhere.', 'EMPTY_POST');
+  const post = await Post.create({ authorId, groupId: input.groupId || null, content, visibility: input.visibility, media, groupStatus, feeling: input.feeling || null, place: input.place || null });
   if (input.groupId) await GroupPost.create({ groupId: input.groupId, postId: post.id, authorId });
   if (groupStatus === 'pending') await notify({ recipientId: String(groupInfo.ownerId), actorId: authorId, type: 'group_post', entityType: 'Group', entityId: input.groupId, text: `posted in ${groupInfo.name} and is waiting for approval` });
   await invalidateSocialCaches([authorId]);
   return post;
 }
 
-export async function updatePost(userId: string, postId: string, input: any) {
+const isEmptyPost = (post: any) => !post.content && !post.media.length && !post.feeling && !post.place;
+const uploadedMedia = (file: Express.Multer.File) => ({ url: `/uploads/${file.filename}`, mimeType: file.mimetype, alt: '' });
+
+async function ownedPost(userId: string, postId: string) {
   const post = await Post.findOne({ _id: postId, deletedAt: null });
   if (!post) throw new AppError(404, 'Post not found.', 'POST_NOT_FOUND');
+  assertOwner(post.authorId, userId, 'You can only change your own posts.');
+  return post;
+}
+
+/** Edits text and, when a layout is sent, rebuilds the photo list from kept ids and new uploads (in display order). */
+export async function updatePost(userId: string, postId: string, input: { content: string; visibility?: string; layout: Array<{ id: string } | { upload: number }> | null }, files: Express.Multer.File[] = []) {
+  const post = await ownedPost(userId, postId);
   await assertCanAccessPost(post, userId);
-  assertOwner(post.authorId, userId, 'You can only edit your own posts.');
-  post.content = clean(input.content); if (input.visibility) post.visibility = input.visibility; post.editedAt = new Date(); await post.save();
+  if (input.layout) {
+    const existing = new Map(post.media.map((media: any) => [String(media._id), media]));
+    post.media = input.layout.map((slot) => {
+      if ('id' in slot) {
+        const media = existing.get(slot.id);
+        if (!media) throw new AppError(422, 'One of the photos no longer exists. Reload and try again.', 'MEDIA_NOT_FOUND');
+        return media;
+      }
+      const file = files[slot.upload];
+      if (!file) throw new AppError(422, 'A new photo is missing from the upload.', 'MEDIA_UPLOAD_MISSING');
+      return uploadedMedia(file);
+    }) as any;
+  }
+  post.content = clean(input.content || '');
+  if (input.visibility) post.visibility = input.visibility;
+  if (isEmptyPost(post)) throw new AppError(422, 'A post needs text, a photo, or a check-in.', 'EMPTY_POST');
+  post.editedAt = new Date(); await post.save();
   await invalidateSocialCaches([userId]);
   return post;
+}
+
+export async function replacePostMedia(userId: string, postId: string, mediaId: string, file?: Express.Multer.File) {
+  if (!file) throw new AppError(422, 'Choose a photo to upload.', 'MEDIA_UPLOAD_MISSING');
+  const post = await ownedPost(userId, postId);
+  const media = post.media.id(mediaId);
+  if (!media) throw new AppError(404, 'Photo not found.', 'MEDIA_NOT_FOUND');
+  Object.assign(media, uploadedMedia(file));
+  post.editedAt = new Date(); await post.save();
+  await invalidateSocialCaches([userId]);
+  return { media };
+}
+
+/** Removes one photo; a post left with nothing in it is moved to trash, as Facebook does. */
+export async function removePostMedia(userId: string, postId: string, mediaId: string) {
+  const post = await ownedPost(userId, postId);
+  if (!post.media.id(mediaId)) throw new AppError(404, 'Photo not found.', 'MEDIA_NOT_FOUND');
+  post.media.pull({ _id: mediaId });
+  if (isEmptyPost(post)) post.deletedAt = new Date(); else post.editedAt = new Date();
+  await post.save();
+  await invalidateSocialCaches([userId]);
+  return { postDeleted: !!post.deletedAt };
 }
 
 export async function deletePost(userId: string, postId: string) {

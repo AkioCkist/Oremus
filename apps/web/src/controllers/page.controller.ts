@@ -50,7 +50,7 @@ export async function profile(req: Request, res: Response) {
   const visibility = profile.isSelf ? {} : profile.isFollowing ? { visibility: { $in: ['public', 'followers'] } } : { visibility: 'public' };
   const raw = await Post.find({ authorId: profile._id, groupId: null, deletedAt: null, ...visibility }).sort({ createdAt: -1 }).limit(50).populate('authorId', AUTHOR_FIELDS).lean();
   const posts = await withReactionSummary(raw, req.user?.id);
-  const photos = raw.flatMap((post: any) => (post.media || []).map((media: any) => ({ ...media, postId: post._id }))).slice(0, 9);
+  const photos = raw.flatMap((post: any) => (post.media || []).map((media: any) => ({ ...media, postId: post._id, mediaId: media._id }))).slice(0, 9);
   const tray = req.user ? await getStoryTray(req.user.id, [String(profile._id)]) : [];
   const hasStory = tray.some((group) => group.author._id === String(profile._id));
   const followingPreview = await contacts(String(profile._id), 9);
