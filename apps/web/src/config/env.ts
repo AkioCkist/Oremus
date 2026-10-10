@@ -17,7 +17,8 @@ const schema = z.object({
   FASTAPI_URL: z.string().url().default('http://localhost:8000'),
   APP_ORIGIN: z.string().url().default('http://localhost:3000'),
   PLACES_URL: z.string().url().default('https://photon.komoot.io'),
-  LOG_LEVEL: z.string().default('info')
+  LOG_LEVEL: z.string().default('info'),
+  FFMPEG_PATH: z.string().min(1).default('ffmpeg')
 });
 
 export const env = schema.parse(process.env);

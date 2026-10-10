@@ -34,6 +34,14 @@ npm run seed
 npm run dev
 ```
 
+Video compression runs in a separate worker and needs `ffmpeg` on the PATH (Docker's `media` service includes it):
+
+```powershell
+npm --workspace @oremus/web run dev:worker
+```
+
+Without the worker, videos still post and play from the original upload; they are compressed once it runs.
+
 In another terminal:
 
 ```powershell

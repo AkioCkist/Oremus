@@ -38,7 +38,9 @@
   html { -webkit-tap-highlight-color: transparent; }
   body { @apply bg-canvas font-sans text-15 text-ink selection:bg-brand-100 selection:text-brand-800; }
   h1, h2, h3 { @apply font-display; }
-  :focus-visible { @apply outline-none ring-2 ring-brand-500 ring-offset-2; }
+  :focus-visible { @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-surface; }
+  /* Text fields must not retain the global ring's white offset when their own ring is disabled. */
+  :is(input, textarea):focus-visible { @apply ring-offset-0; }
   summary::-webkit-details-marker { display: none; }
   dialog::backdrop { background: var(--backdrop); }
   dialog { @apply bg-surface text-ink; }

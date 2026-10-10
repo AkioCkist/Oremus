@@ -16,6 +16,10 @@ flowchart LR
 
 Express controllers only translate HTTP. Services own business rules, Mongoose models own persistence constraints, Zod validators own request shapes, middleware owns cross-cutting auth/CSRF/rate-limit/upload concerns, and sockets own live delivery.
 
+## Media pipeline
+
+Uploads are re-encoded before viewers see them for long. Images are compressed inline by `compressUploadedImages` (sharp): EXIF rotation applied, metadata stripped, long edge capped at 2048px, WebP quality 80, with a lossless WebP fallback when lossy output would be larger (flat graphics). Videos are too slow for the request path: the post is saved with the original file and `status: 'processing'`, and a job is pushed to the Redis list `media:video:jobs`. The `media` service (`src/media-worker.ts`, same image plus ffmpeg) moves jobs to `media:video:active`, transcodes to H.264/AAC MP4 (long edge ≤1280px, CRF 23, ≤4 Mbps, ≤30 fps, metadata stripped, faststart), extracts a poster frame, and swaps the media entry only if it still points at the original. The original is scheduled in the `media:trash` sorted set and deleted 15 minutes later so already-rendered pages keep working. A failed transcode marks the media `failed` and keeps serving the original. Run a single worker instance; on start it requeues jobs left active by a crash.
+
 ## Document model
 
 MongoDB embeds values that are read and updated with their parent: `Profile` inside `User`, `PostMedia` inside `Post`, and conversation member IDs inside `Conversation`. High-cardinality or independently updated relationships use collections.

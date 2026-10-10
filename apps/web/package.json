@@ -5,11 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "npm run build:client && npm run build:css && tsx watch src/server.ts",
+    "dev:worker": "tsx watch src/media-worker.ts",
     "build": "npm run clean && tsc -p tsconfig.json && npm run build:client && npm run build:css",
     "build:client": "esbuild src/views-or-client/app.ts --bundle --minify --format=esm --outfile=public/assets/app.js",
     "build:css": "tailwindcss -i src/views-or-client/styles.css -o public/assets/styles.css --minify",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "start": "node dist/server.js",
+    "start:worker": "node dist/media-worker.js",
     "lint": "eslint src --max-warnings=0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run src/tests",
@@ -32,6 +34,7 @@
     "pino-http": "^10.4.0",
     "redis": "^5.1.0",
     "sanitize-html": "^2.17.0",
+    "sharp": "^0.35.5",
     "socket.io": "^4.8.1",
     "zod": "^3.25.51"
   },

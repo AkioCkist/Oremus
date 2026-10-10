@@ -75,7 +75,10 @@ socialPreferenceSchema.index({ targetId: 1, restrictPosts: 1 });
 const postMediaSchema = new Schema({
   url: { type: String, required: true },
   mimeType: { type: String, required: true },
-  alt: { type: String, maxlength: 160, default: '' }
+  alt: { type: String, maxlength: 160, default: '' },
+  // Videos are transcoded by the media worker; until then the original upload is served.
+  status: { type: String, enum: ['processing', 'ready', 'failed'], default: 'ready' },
+  poster: { type: String, default: '' }
 }, { _id: true });
 
 const postSchema = new Schema({

@@ -5,7 +5,8 @@ import type { RequestHandler } from 'express';
 import multer from 'multer';
 import { AppError } from '../utils/errors.js';
 
-const IMAGE_MAX_BYTES = 8 * 1024 * 1024;
+// Generous caps: everything is re-encoded server-side, so originals never reach viewers for long.
+const IMAGE_MAX_BYTES = 20 * 1024 * 1024;
 const VIDEO_MAX_BYTES = 200 * 1024 * 1024;
 const imageTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 const videoTypes = new Set(['video/mp4', 'video/webm', 'video/quicktime']);
@@ -33,5 +34,5 @@ export const enforcePostMediaSize: RequestHandler = async (req, _res, next) => {
   const files = [...(Array.isArray(req.files) ? req.files : Object.values(req.files || {}).flat()), ...(req.file ? [req.file] : [])];
   if (!files.some((file) => imageTypes.has(file.mimetype) && file.size > IMAGE_MAX_BYTES)) return next();
   await Promise.all(files.map((file) => fs.rm(file.path, { force: true })));
-  next(new AppError(413, 'Photos must be 8 MB or smaller.', 'MEDIA_TOO_LARGE'));
+  next(new AppError(413, 'Photos must be 20 MB or smaller.', 'MEDIA_TOO_LARGE'));
 };

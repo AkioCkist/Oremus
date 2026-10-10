@@ -1,12 +1,14 @@
 import mongoose from 'mongoose';
 import sanitizeHtml from 'sanitize-html';
 import { Comment, Follow, Group, GroupMember, GroupPost, Post, Reaction } from '../models/index.js';
+import { enqueuePostVideos } from '../media/queue.js';
 import { AppError } from '../utils/errors.js';
 import { invalidateSocialCaches } from './cache.service.js';
 import { notify } from './notification.service.js';
 import { assertOwner } from './permissions.js';
 import { assertNotBlocked, blockedUserIds, restrictedAuthorIds } from './social.service.js';
 
+const uploadedMedia = (file: Express.Multer.File) => ({ url: `/uploads/${file.filename}`, mimeType: file.mimetype, alt: '', status: file.mimetype.startsWith('video/') ? 'processing' : 'ready', poster: '' });
 const clean = (value: string) => sanitizeHtml(value, { allowedTags: [], allowedAttributes: {} }).trim();
 
 async function assertCanAccessPost(post: any, viewerId: string): Promise<void> {
@@ -38,10 +40,11 @@ export async function createPost(authorId: string, input: any, files: Express.Mu
     if (group.settings?.postApproval && !manager) groupStatus = 'pending';
     groupInfo = group;
   }
-  const media = files.map((file) => ({ url: `/uploads/${file.filename}`, mimeType: file.mimetype, alt: '' }));
+  const media = files.map(uploadedMedia);
   const content = clean(input.content || '');
   if (!content && media.length === 0 && !input.feeling && !input.place) throw new AppError(422, 'Write something, add a photo or video, or check in somewhere.', 'EMPTY_POST');
   const post = await Post.create({ authorId, groupId: input.groupId || null, content, visibility: input.visibility, media, groupStatus, feeling: input.feeling || null, place: input.place || null });
+  await enqueuePostVideos(post, media.map((item) => item.url));
   if (input.groupId) await GroupPost.create({ groupId: input.groupId, postId: post.id, authorId });
   if (groupStatus === 'pending') await notify({ recipientId: String(groupInfo.ownerId), actorId: authorId, type: 'group_post', entityType: 'Group', entityId: input.groupId, text: `posted in ${groupInfo.name} and is waiting for approval` });
   await invalidateSocialCaches([authorId]);
@@ -49,7 +52,6 @@ export async function createPost(authorId: string, input: any, files: Express.Mu
 }
 
 const isEmptyPost = (post: any) => !post.content && !post.media.length && !post.feeling && !post.place;
-const uploadedMedia = (file: Express.Multer.File) => ({ url: `/uploads/${file.filename}`, mimeType: file.mimetype, alt: '' });
 
 async function ownedPost(userId: string, postId: string) {
   const post = await Post.findOne({ _id: postId, deletedAt: null });
@@ -79,6 +81,7 @@ export async function updatePost(userId: string, postId: string, input: { conten
   if (input.visibility) post.visibility = input.visibility;
   if (isEmptyPost(post)) throw new AppError(422, 'A post needs text, a photo or video, or a check-in.', 'EMPTY_POST');
   post.editedAt = new Date(); await post.save();
+  await enqueuePostVideos(post, files.map((file) => `/uploads/${file.filename}`));
   await invalidateSocialCaches([userId]);
   return post;
 }
@@ -90,6 +93,7 @@ export async function replacePostMedia(userId: string, postId: string, mediaId: 
   if (!media) throw new AppError(404, 'Media not found.', 'MEDIA_NOT_FOUND');
   Object.assign(media, uploadedMedia(file));
   post.editedAt = new Date(); await post.save();
+  await enqueuePostVideos(post, [media.url]);
   await invalidateSocialCaches([userId]);
   return { media };
 }
