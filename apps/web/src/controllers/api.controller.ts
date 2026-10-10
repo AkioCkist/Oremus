@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { Follow, Notification } from '../models/index.js';
-import { profileSchema, profileDetailsSchema, profilePhotoSchema, postSchema, postEditSchema, reactionSchema, commentSchema, groupSchema, decisionSchema, friendActionSchema, breakSchema, blockActionSchema, conversationSchema, messageSchema, groupJoinSchema, groupInviteSchema, placeNearbySchema, placeSearchSchema, photoDeleteSchema } from '../validators/index.js';
+import { profileSchema, profileDetailsSchema, profileListItemSchemas, type ProfileList, profilePhotoSchema, postSchema, postEditSchema, reactionSchema, commentSchema, groupSchema, decisionSchema, friendActionSchema, breakSchema, blockActionSchema, conversationSchema, messageSchema, groupJoinSchema, groupInviteSchema, placeNearbySchema, placeSearchSchema, photoDeleteSchema } from '../validators/index.js';
 import { AppError } from '../utils/errors.js';
 import * as users from '../services/user.service.js';
 import * as posts from '../services/post.service.js';
@@ -59,6 +59,11 @@ export async function diagnostics(_req: Request, res: Response) { res.json({ ok:
 
 export async function photoLibrary(req: Request, res: Response) { res.json({ ok: true, data: await users.getPhotoLibrary(id(req)) }); }
 export async function updateDetails(req: Request, res: Response) { const user = await users.updateProfileDetails(id(req), profileDetailsSchema.parse(req.body)); res.json({ ok: true, data: { user, message: 'Profile updated.' } }); }
+export const saveProfileItem = (list: ProfileList) => async (req: Request, res: Response) => {
+  const item = req.method === 'DELETE' ? null : profileListItemSchemas[list].parse(req.body);
+  const user = await users.saveProfileListItem(id(req), list, req.params.itemId as string | undefined, item);
+  res.json({ ok: true, data: { user, message: req.method === 'DELETE' ? 'Removed.' : 'Saved.' } });
+};
 export async function updatePhoto(req: Request, res: Response) { const user = await users.setProfilePhoto(id(req), profilePhotoSchema.parse(req.body), req.file); res.json({ ok: true, data: { user, message: 'Photo updated.' } }); }
 export async function places(req: Request, res: Response) { const { q, lat, lon } = placeSearchSchema.parse(req.query); res.json({ ok: true, data: { places: await searchPlaces(q, lat !== undefined && lon !== undefined ? { lat, lon } : undefined) } }); }
 export async function placesNearby(req: Request, res: Response) { const { lat, lon } = placeNearbySchema.parse(req.query); res.json({ ok: true, data: { places: await nearbyPlaces(lat, lon) } }); }

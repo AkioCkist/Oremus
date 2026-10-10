@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { GROUP_TYPES, REACTION_TYPES, STORY_BACKGROUNDS, STORY_REACTIONS } from '../models/index.js';
+import { AUDIENCE_FIELDS, AUDIENCES, GENDERS, GROUP_TYPES, INTRO_ITEMS, PRONOUNS, REACTION_TYPES, RELATIONSHIPS, SOCIAL_PLATFORMS, STORY_BACKGROUNDS, STORY_REACTIONS } from '../models/index.js';
 import { ACTIVITIES, FEELINGS } from '../shared/feelings.js';
 
 const username = z.string().trim().toLowerCase().regex(/^[a-z0-9_]{3,24}$/, 'Username must contain 3–24 letters, numbers, or underscores.');
@@ -22,7 +22,54 @@ export const resetRequestSchema = z.object({ email: z.string().email().toLowerCa
 export const resetConfirmSchema = z.object({ token: z.string().min(20), password });
 const website = z.union([z.literal(''), z.string().url().max(200).refine((value) => ['http:', 'https:'].includes(new URL(value).protocol), 'Website must use HTTP or HTTPS')]);
 export const profileSchema = z.object({ displayName: z.string().trim().min(2).max(60), username, bio: z.string().trim().max(240).default(''), location: z.string().trim().max(80).default(''), website: website.default(''), privacy: z.enum(['public', 'followers']).default('public') });
-export const profileDetailsSchema = profileSchema.partial();
+// HTML forms post flat keys; "audience.location" style names become nested objects.
+const nestDotted = (value: unknown) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+  const out: Record<string, any> = {};
+  for (const [key, item] of Object.entries(value)) {
+    const [head, tail] = key.split('.', 2) as [string, string | undefined];
+    if (tail) out[head] = { ...(typeof out[head] === 'object' ? out[head] : {}), [tail]: item };
+    else out[key] = item;
+  }
+  return out;
+};
+const flag = z.preprocess((value) => value === true || value === 'true' || value === 'on' || value === '1', z.boolean());
+const optionalInt = (min: number, max: number) => z.preprocess((value) => value === '' || value === null || value === undefined ? null : Number(value), z.number().int().min(min).max(max).nullable());
+const tagList = (max: number, length: number) => z.preprocess(
+  (value) => typeof value === 'string' ? value.split(',') : value,
+  z.array(z.string().trim().max(length)).transform((items) => [...new Set(items.filter(Boolean))]).pipe(z.array(z.string()).max(max, `Add up to ${max} items.`))
+);
+const audience = z.enum(AUDIENCES);
+const optionalDate = z.preprocess((value) => value === '' || value === null || value === undefined ? null : value, z.coerce.date().nullable());
+export const aboutDetailsSchema = z.object({
+  hometown: z.string().trim().max(80),
+  relationship: z.enum([...RELATIONSHIPS, '']),
+  birthDay: optionalInt(1, 31),
+  birthMonth: optionalInt(1, 12),
+  birthYear: optionalInt(1900, new Date().getFullYear()),
+  gender: z.enum([...GENDERS, '']),
+  pronouns: z.enum([...PRONOUNS, '']),
+  languages: tagList(10, 40),
+  hobbies: tagList(20, 40),
+  phone: z.string().trim().max(30).regex(/^[+0-9 ().-]*$/, 'Enter a valid phone number.'),
+  publicEmail: z.union([z.literal(''), z.string().trim().email('Enter a valid email address.').max(254)]),
+  otherNames: z.string().trim().max(60),
+  about: z.string().trim().max(1000),
+  quotes: z.string().trim().max(500),
+  intro: z.object(Object.fromEntries(INTRO_ITEMS.map((item) => [item, flag])) as Record<(typeof INTRO_ITEMS)[number], typeof flag>).partial(),
+  audience: z.object(Object.fromEntries(AUDIENCE_FIELDS.map((field) => [field, audience])) as Record<(typeof AUDIENCE_FIELDS)[number], typeof audience>).partial()
+}).partial();
+export const profileDetailsSchema = z.preprocess(nestDotted, profileSchema.partial().merge(aboutDetailsSchema).superRefine((value, ctx) => {
+  if (value.birthDay && value.birthMonth && new Date(2000, value.birthMonth - 1, value.birthDay).getMonth() !== value.birthMonth - 1) ctx.addIssue({ code: 'custom', path: ['birthDay'], message: 'Choose a valid birthday.' });
+}));
+export const profileListItemSchemas = {
+  work: z.object({ company: z.string().trim().min(1, 'Enter a company.').max(100), position: z.string().trim().max(100).default(''), city: z.string().trim().max(80).default(''), description: z.string().trim().max(300).default(''), startDate: optionalDate.default(null), endDate: optionalDate.default(null), current: flag.default(false) })
+    .refine((item) => !item.startDate || !item.endDate || item.current || item.startDate <= item.endDate, { path: ['endDate'], message: 'End date must be after the start date.' }),
+  education: z.object({ school: z.string().trim().min(1, 'Enter a school.').max(120), level: z.enum(['college', 'high_school']).default('college'), concentration: z.string().trim().max(100).default(''), degree: z.string().trim().max(100).default(''), startYear: optionalInt(1900, 2100).default(null), endYear: optionalInt(1900, 2100).default(null), graduated: flag.default(false) })
+    .refine((item) => !item.startYear || !item.endYear || item.startYear <= item.endYear, { path: ['endYear'], message: 'End year must be after the start year.' }),
+  links: z.object({ platform: z.enum(SOCIAL_PLATFORMS).default('website'), url: z.string().trim().url('Enter a full link starting with https://').max(200).refine((value) => ['http:', 'https:'].includes(new URL(value).protocol), 'Links must use HTTP or HTTPS') })
+} as const;
+export type ProfileList = keyof typeof profileListItemSchemas;
 export const profilePhotoSchema = z.object({ kind: z.enum(['avatar', 'cover']), url: z.string().max(500).optional(), remove: z.preprocess((value) => value === true || value === 'true', z.boolean()).default(false) });
 // Multipart posts send structured fields as JSON strings.
 const jsonField = <T extends z.ZodTypeAny>(schema: T) => z.preprocess((value) => {

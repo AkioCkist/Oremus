@@ -62,4 +62,50 @@ export const REACTION_LABELS: Record<string, { label: string; color: string }> =
   angry: { label: 'Angry', color: 'text-[#e9710f]' }
 };
 
-export const viewHelpers = { describeFeeling, timeAgo, longTime, clockTime, toneOf, initials, firstName, compact, plural, extractLinks, REACTION_LABELS };
+export const RELATIONSHIP_LABELS: Record<string, string> = {
+  single: 'Single', in_relationship: 'In a relationship', engaged: 'Engaged', married: 'Married', civil_union: 'In a civil union',
+  domestic_partnership: 'In a domestic partnership', open_relationship: 'In an open relationship', complicated: "It's complicated",
+  separated: 'Separated', divorced: 'Divorced', widowed: 'Widowed'
+};
+export const GENDER_LABELS: Record<string, string> = { male: 'Male', female: 'Female', nonbinary: 'Non-binary', other: 'Other' };
+export const PLATFORM_LABELS: Record<string, string> = {
+  website: 'Website', facebook: 'Facebook', instagram: 'Instagram', x: 'X', threads: 'Threads', tiktok: 'TikTok', youtube: 'YouTube',
+  linkedin: 'LinkedIn', github: 'GitHub', discord: 'Discord', other: 'Link'
+};
+export const AUDIENCE_LABELS: Record<string, { label: string; icon: string }> = {
+  public: { label: 'Public', icon: 'i-globe' }, friends: { label: 'Friends', icon: 'i-users' }, only_me: { label: 'Only me', icon: 'i-lock' }
+};
+export const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+/** "13 Jul 2023" — dates of a workplace entry. */
+export function shortDate(value?: Date | string | null): string {
+  return value ? new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+}
+
+/** Facebook-style tenure: "3 years, 2 months". */
+export function duration(start?: Date | string | null, end?: Date | string | null, now = Date.now()): string {
+  if (!start) return '';
+  const from = new Date(start), to = end ? new Date(end) : new Date(now);
+  let months = (to.getFullYear() - from.getFullYear()) * 12 + to.getMonth() - from.getMonth() - (to.getDate() < from.getDate() ? 1 : 0);
+  if (months < 1) return 'Less than a month';
+  const years = Math.floor(months / 12); months %= 12;
+  return [years ? `${years} year${years === 1 ? '' : 's'}` : '', months ? `${months} month${months === 1 ? '' : 's'}` : ''].filter(Boolean).join(', ');
+}
+
+/** "15 July" (+ year when given). */
+export function birthdayText(day?: number | null, month?: number | null, year?: number | null): string {
+  if (!day || !month) return year ? String(year) : '';
+  return `${day} ${MONTHS[month - 1]}${year ? ` ${year}` : ''}`;
+}
+
+/** Display text for a profile link without the protocol and trailing slash. */
+export function linkLabel(url: string): string {
+  return String(url || '').replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+}
+
+/** Escapes text that a view builds into an HTML string before printing it unescaped. */
+export function escapeHtml(value: unknown): string {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!));
+}
+
+export const viewHelpers = { escapeHtml, describeFeeling, timeAgo, longTime, clockTime, toneOf, initials, firstName, compact, plural, extractLinks, REACTION_LABELS, RELATIONSHIP_LABELS, GENDER_LABELS, PLATFORM_LABELS, AUDIENCE_LABELS, MONTHS, shortDate, duration, birthdayText, linkLabel };

@@ -45,9 +45,11 @@ export async function home(req: Request, res: Response) {
   res.render('home', { ...base(req, 'Home'), posts, suggestions, contacts: friends.slice(0, 12), groups, tray, cached: result.cached });
 }
 
+const ABOUT_SECTIONS = ['overview', 'work', 'places', 'contact', 'relationship', 'details', 'hobbies'];
+
 export async function profile(req: Request, res: Response) {
   const profile = await getProfile(param(req, 'username'), req.user?.id);
-  if (profile.blockedByMe) return res.render('profile', { ...base(req, profile.displayName), profile, posts: [], photos: [], hasStory: false, friendsPreview: [], tab: 'posts', profileQuery: '' });
+  if (profile.blockedByMe) return res.render('profile', { ...base(req, profile.displayName), profile, posts: [], photos: [], hasStory: false, friendsPreview: [], tab: 'posts', profileQuery: '', aboutSection: 'overview' });
   const restricted = req.user ? (await restrictedAuthorIds(req.user.id)).includes(String(profile._id)) : false;
   const visibility = profile.isSelf ? {} : profile.isFollowing && !restricted ? { visibility: { $in: ['public', 'followers'] } } : { visibility: 'public' };
   const profileQuery = String(req.query.q || '').trim().slice(0, 80);
@@ -58,7 +60,8 @@ export async function profile(req: Request, res: Response) {
   const tray = req.user ? await getStoryTray(req.user.id, [String(profile._id)]) : [];
   const hasStory = tray.some((group) => group.author._id === String(profile._id));
   const friendsPreview = await listFriends(String(profile._id), 9);
-  res.render('profile', { ...base(req, profile.displayName), profile, posts, photos, hasStory, friendsPreview, profileQuery, tab: profileQuery ? 'posts' : req.query.tab === 'about' ? 'about' : req.query.tab === 'photos' ? 'photos' : 'posts' });
+  const aboutSection = ABOUT_SECTIONS.includes(String(req.query.section)) ? String(req.query.section) : 'overview';
+  res.render('profile', { ...base(req, profile.displayName), profile, posts, photos, hasStory, friendsPreview, profileQuery, aboutSection, tab: profileQuery ? 'posts' : req.query.tab === 'about' ? 'about' : req.query.tab === 'photos' ? 'photos' : 'posts' });
 }
 
 export async function post(req: Request, res: Response) {

@@ -1,0 +1,112 @@
+<%# Profile left column "Intro" card: bio, personal details, links, work, education and hobbies (Facebook-style). -%>
+<%
+  const hidden = new Set(info.introHidden || []);
+  const show = (item) => !hidden.has(item);
+  const aud = (field) => (info.audience && info.audience[field]) || (['birthYear', 'contact'].includes(field) ? 'only_me' : 'public');
+  const badge = (field) => isSelf && aud(field) !== 'public' ? `<svg class="icon size-3.5 shrink-0 text-subtle" role="img" aria-label="Visible to: ${AUDIENCE_LABELS[aud(field)].label}"><title>${AUDIENCE_LABELS[aud(field)].label}</title><use href="#${AUDIENCE_LABELS[aud(field)].icon}"/></svg>` : '';
+  const aboutHref = (section) => `/profile/${profile.username}?tab=about&section=${section}`;
+  const work = show('work') ? (info.work || []) : [];
+  const hobbies = show('hobbies') ? (info.hobbies || []) : [];
+  const education = show('education') ? (info.education || []) : [];
+  const links = show('links') ? [...(info.website ? [{ platform: 'website', url: info.website }] : []), ...(info.links || [])] : [];
+  const birthday = show('birthday') ? birthdayText(info.birthDay, info.birthMonth) : '';
+  const personal = [
+    show('location') && info.location && { icon: 'i-pin', html: `Lives in <strong class="font-semibold">${escapeHtml(info.location)}</strong>`, field: 'location' },
+    show('hometown') && info.hometown && { icon: 'i-home', html: `From <strong class="font-semibold">${escapeHtml(info.hometown)}</strong>`, field: 'hometown' },
+    birthday && { icon: 'i-cake', html: escapeHtml(birthday), field: 'birthday' },
+    show('relationship') && info.relationship && { icon: 'i-heart', html: escapeHtml(RELATIONSHIP_LABELS[info.relationship] || ''), field: 'relationship' },
+    show('joined') && { icon: 'i-clock', html: `Joined ${new Date(profile.createdAt).toLocaleDateString('en', { month: 'long', year: 'numeric' })}` },
+    show('followers') && profile.followers > 0 && { icon: 'i-users', html: `Followed by <strong class="font-semibold">${escapeHtml(plural(profile.followers, 'person', 'people'))}</strong>` }
+  ].filter(Boolean);
+  const pencil = (section, label) => isSelf ? `<a class="icon-btn-ghost size-8" href="${aboutHref(section)}" aria-label="${label}" title="${label}"><svg class="icon size-[1.125rem]"><use href="#i-edit"/></svg></a>` : '';
+-%>
+<section class="card p-4">
+  <h2 class="card-title text-xl">Intro</h2>
+  <% if (!profile.canViewDetails) { %>
+    <p class="mt-3 flex items-center gap-2 text-muted"><svg class="icon"><use href="#i-lock"/></svg>Only followers can see <%= firstName(profile.displayName) %>'s details.</p>
+  <% } else { %>
+    <% if (info.bio) { %><p class="mt-3 whitespace-pre-wrap text-center text-15"><%= info.bio %></p><% } %>
+    <% if (isSelf) { %><button type="button" class="btn-secondary mt-3 w-full" data-open-dialog="edit-profile-dialog" data-focus-bio><%= info.bio ? 'Edit bio' : 'Add bio' %></button><% } %>
+
+    <% if (personal.length || isSelf) { %>
+    <div class="mt-4 border-t border-line pt-3">
+      <div class="flex items-center justify-between"><h3 class="text-[1.0625rem] font-bold">Personal details</h3><%- pencil('places', 'Edit personal details') %></div>
+      <ul class="mt-2 space-y-3 text-15">
+        <% personal.forEach(function (item) { %>
+        <li class="flex items-center gap-3"><svg class="icon shrink-0 text-subtle"><use href="#<%= item.icon %>"/></svg><span class="min-w-0 flex-1"><%- item.html %></span><%- item.field ? badge(item.field) : '' %></li>
+        <% }) %>
+        <% if (isSelf && !info.location && !info.hometown && !info.birthDay && !info.relationship) { %>
+        <li><a class="flex items-center gap-3 text-brand-600 hover:underline" href="<%= aboutHref('places') %>"><svg class="icon"><use href="#i-plus"/></svg>Add city, hometown, birthday…</a></li>
+        <% } %>
+      </ul>
+    </div>
+    <% } %>
+
+    <% if (links.length || (isSelf && show('links'))) { %>
+    <div class="mt-4 border-t border-line pt-3">
+      <div class="flex items-center justify-between"><h3 class="text-[1.0625rem] font-bold">Links</h3><%- pencil('contact', 'Edit links') %></div>
+      <% if (links.length) { %>
+      <ul class="mt-2 space-y-3 text-15">
+        <% links.forEach(function (link) { %>
+        <li class="flex items-center gap-3"><svg class="icon shrink-0 text-subtle"><use href="#i-link"/></svg><a class="min-w-0 flex-1 truncate font-semibold text-brand-600 hover:underline" href="<%= link.url %>" rel="noopener noreferrer nofollow" target="_blank" title="<%= PLATFORM_LABELS[link.platform] || 'Link' %>"><%= linkLabel(link.url) %></a><%- badge('links') %></li>
+        <% }) %>
+      </ul>
+      <% } else { %><a class="mt-2 flex items-center gap-3 text-15 text-brand-600 hover:underline" href="<%= aboutHref('contact') %>"><svg class="icon"><use href="#i-plus"/></svg>Add a website or social link</a><% } %>
+    </div>
+    <% } %>
+
+    <% if (work.length || (isSelf && show('work'))) { %>
+    <div class="mt-4 border-t border-line pt-3">
+      <div class="flex items-center justify-between"><h3 class="text-[1.0625rem] font-bold">Work</h3><%- pencil('work', 'Edit work') %></div>
+      <% if (work.length) { %>
+      <ul class="mt-2 space-y-3">
+        <% work.forEach(function (job) { %>
+        <li class="flex items-start gap-3">
+          <span class="grid size-10 shrink-0 place-items-center rounded-full bg-field text-muted"><svg class="icon"><use href="#i-briefcase"/></svg></span>
+          <span class="min-w-0 flex-1">
+            <span class="block text-15 font-semibold"><%= job.company %></span>
+            <% if (job.position) { %><span class="block text-[0.8125rem] text-muted"><%= job.current ? '' : 'Former ' %><%= job.position %></span><% } %>
+            <% if (job.startDate) { %><span class="block text-[0.8125rem] text-muted"><%= shortDate(job.startDate) %> – <%= job.current || !job.endDate ? 'Present' : shortDate(job.endDate) %> · <%= duration(job.startDate, job.current ? null : job.endDate) %></span><% } %>
+          </span>
+          <%- badge('work') %>
+        </li>
+        <% }) %>
+      </ul>
+      <% } else { %><a class="mt-2 flex items-center gap-3 text-15 text-brand-600 hover:underline" href="<%= aboutHref('work') %>"><svg class="icon"><use href="#i-plus"/></svg>Add a workplace</a><% } %>
+    </div>
+    <% } %>
+
+    <% if (education.length || (isSelf && show('education'))) { %>
+    <div class="mt-4 border-t border-line pt-3">
+      <div class="flex items-center justify-between"><h3 class="text-[1.0625rem] font-bold">Education</h3><%- pencil('work', 'Edit education') %></div>
+      <% if (education.length) { %>
+      <ul class="mt-2 space-y-3">
+        <% education.slice(0, 2).forEach(function (school) { %>
+        <li class="flex items-start gap-3">
+          <span class="grid size-10 shrink-0 place-items-center rounded-full bg-field text-muted"><svg class="icon"><use href="#i-school"/></svg></span>
+          <span class="min-w-0 flex-1">
+            <span class="block text-15"><%= school.level === 'high_school' ? 'Went to' : (school.graduated ? 'Studied' : 'Studies') + (school.concentration ? ` ${school.concentration}` : '') + ' at' %> <strong class="font-semibold"><%= school.school %></strong></span>
+            <% if (school.startYear || school.endYear) { %><span class="block text-[0.8125rem] text-muted"><%= [school.startYear, school.endYear].filter(Boolean).join(' – ') %></span><% } %>
+          </span>
+          <%- badge('education') %>
+        </li>
+        <% }) %>
+      </ul>
+      <% if (education.length > 2) { %><a class="ml-[3.25rem] mt-2 inline-block text-[0.8125rem] font-semibold text-muted hover:underline" href="<%= aboutHref('work') %>">See more education</a><% } %>
+      <% } else { %><a class="mt-2 flex items-center gap-3 text-15 text-brand-600 hover:underline" href="<%= aboutHref('work') %>"><svg class="icon"><use href="#i-plus"/></svg>Add a school</a><% } %>
+    </div>
+    <% } %>
+
+    <% if (hobbies.length || (isSelf && show('hobbies'))) { %>
+    <div class="mt-4 border-t border-line pt-3">
+      <div class="flex items-center justify-between"><h3 class="text-[1.0625rem] font-bold">Hobbies</h3><%- pencil('hobbies', 'Edit hobbies') %></div>
+      <% if (hobbies.length) { %>
+      <ul class="mt-2 flex flex-wrap gap-2"><% hobbies.forEach(function (hobby) { %><li class="chip pointer-events-none"><%= hobby %></li><% }) %></ul>
+      <% } else { %><a class="mt-2 flex items-center gap-3 text-15 text-brand-600 hover:underline" href="<%= aboutHref('hobbies') %>"><svg class="icon"><use href="#i-plus"/></svg>Add hobbies</a><% } %>
+    </div>
+    <% } %>
+
+    <a class="mt-4 flex items-center gap-3 rounded-lg px-1 py-2 text-15 font-semibold text-muted hover:bg-hover" href="<%= aboutHref('overview') %>"><svg class="icon"><use href="#i-more"/></svg>See more about <%= firstName(profile.displayName) %></a>
+    <% if (isSelf) { %><button type="button" class="btn-secondary mt-2 w-full" data-open-dialog="edit-details-dialog">Edit details</button><% } %>
+  <% } %>
+</section>

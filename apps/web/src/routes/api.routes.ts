@@ -13,6 +13,11 @@ apiRoutes.patch('/profile', upload.fields([{ name: 'avatar', maxCount: 1 }, { na
 apiRoutes.get('/profile/photos', asyncHandler(controller.photoLibrary));
 apiRoutes.delete('/profile/photos', asyncHandler(controller.deletePhoto));
 apiRoutes.patch('/profile/details', asyncHandler(controller.updateDetails));
+for (const list of ['work', 'education', 'links'] as const) {
+  apiRoutes.post(`/profile/${list}`, asyncHandler(controller.saveProfileItem(list)));
+  apiRoutes.patch(`/profile/${list}/:itemId`, asyncHandler(controller.saveProfileItem(list)));
+  apiRoutes.delete(`/profile/${list}/:itemId`, asyncHandler(controller.saveProfileItem(list)));
+}
 apiRoutes.post('/profile/photo', rateLimit('profile-photo', 30, 3600), upload.single('photo'), compressUploadedImages, asyncHandler(controller.updatePhoto));
 apiRoutes.post('/users/:userId/follow', asyncHandler(controller.toggleFollow));
 apiRoutes.post('/users/:userId/friendship', asyncHandler(controller.changeFriendship));

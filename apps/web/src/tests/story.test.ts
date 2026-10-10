@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildStoryTray, canViewStory } from '../services/story.service.js';
-import { groupJoinSchema, groupSchema, postEditSchema, postSchema, profileDetailsSchema, profilePhotoSchema, storyReactionSchema, storyReplySchema, storySchema } from '../validators/index.js';
+import { groupJoinSchema, groupSchema, postEditSchema, postSchema, profileDetailsSchema, profileListItemSchemas, profilePhotoSchema, storyReactionSchema, storyReplySchema, storySchema } from '../validators/index.js';
 import { extractLinks, initials, timeAgo, toneOf } from '../utils/view-helpers.js';
 import { describeFeeling } from '../shared/feelings.js';
 
@@ -78,6 +78,19 @@ describe('profile popups validation', () => {
   it('accepts partial profile updates without filling defaults', () => {
     expect(profileDetailsSchema.parse({ bio: 'Hi' })).toEqual({ bio: 'Hi' });
     expect(() => profileDetailsSchema.parse({ username: 'no spaces' })).toThrow();
+  });
+  it('parses About details posted as flat form fields', () => {
+    const parsed: any = profileDetailsSchema.parse({ 'audience.location': 'friends', 'intro.work': '0', 'intro.links': '1', languages: 'Vietnamese, English, vietnamese, English', birthDay: '15', birthMonth: '7', birthYear: '' });
+    expect(parsed).toEqual({ audience: { location: 'friends' }, intro: { work: false, links: true }, languages: ['Vietnamese', 'English', 'vietnamese'], birthDay: 15, birthMonth: 7, birthYear: null });
+    expect(() => profileDetailsSchema.parse({ birthDay: '31', birthMonth: '2' })).toThrow();
+    expect(() => profileDetailsSchema.parse({ 'audience.location': 'everyone' })).toThrow();
+  });
+  it('validates workplace, school and link entries', () => {
+    const job = profileListItemSchemas.work.parse({ company: 'Vietnamese Editor Community', position: 'Administrator', startDate: '2023-07-13', endDate: '', current: 'true' });
+    expect(job).toMatchObject({ company: 'Vietnamese Editor Community', current: true, endDate: null });
+    expect(() => profileListItemSchemas.work.parse({ company: 'A', startDate: '2024-01-01', endDate: '2023-01-01', current: '0' })).toThrow();
+    expect(profileListItemSchemas.education.parse({ school: 'VNUK', startYear: '2023', endYear: '', graduated: '0' })).toMatchObject({ startYear: 2023, endYear: null, graduated: false, level: 'college' });
+    expect(() => profileListItemSchemas.links.parse({ url: 'javascript:alert(1)' })).toThrow();
   });
   it('requires a photo kind and coerces remove', () => {
     expect(profilePhotoSchema.parse({ kind: 'cover', remove: 'true' }).remove).toBe(true);

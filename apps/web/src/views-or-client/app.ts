@@ -128,6 +128,17 @@ $$<HTMLFormElement>('[data-api-form]').forEach((form) => {
   });
 });
 
+// Audience pickers on the About tab save as soon as they change.
+$$<HTMLSelectElement>('[data-autosubmit]').forEach((select) => select.addEventListener('change', () => {
+  const icon = select.parentElement?.querySelector('use');
+  icon?.setAttribute('href', `#${({ public: 'i-globe', friends: 'i-users', only_me: 'i-lock' } as Record<string, string>)[select.value] || 'i-globe'}`);
+  select.form?.requestSubmit();
+}));
+// Workplace editor: hide the end date while "I currently work here" is checked.
+$$<HTMLInputElement>('[data-current-toggle]').forEach((box) => box.addEventListener('change', () => {
+  box.closest('form')?.querySelector('[data-end-date]')?.classList.toggle('hidden', box.checked);
+}));
+
 /* ---------- Confirm dialog ---------- */
 
 async function confirmAction(title = 'Move to trash?', description = "This can't be undone.", confirmLabel = 'Delete'): Promise<boolean> {
@@ -1518,6 +1529,10 @@ document.addEventListener('click', async (event) => {
     if (data.closeDialog) { if (target.matches('[data-close-dialog]') && (event.target === target || target.tagName === 'BUTTON' || target.closest('button'))) document.querySelector<HTMLDialogElement>(`#${data.closeDialog}`)?.close(); return; }
     if (data.toggle) { const node = document.getElementById(data.toggle); node?.classList.toggle('hidden'); $<HTMLInputElement>('input:not([type=hidden]), textarea', node || document)?.focus(); return; }
     if (data.pickPhotoKind) { void openPhotoPicker(data.pickPhotoKind === 'cover' ? 'cover' : 'avatar'); return; }
+    if (data.profileItemDelete) {
+      if (!(await confirmAction('Remove from profile?', 'This detail will be removed from your About info.', 'Remove'))) return;
+      await request(data.profileItemDelete, { method: 'DELETE' }); window.location.reload(); return;
+    }
     if (data.openGroupDialog !== undefined) { openGroupDialog(data.groupStepOpen); return; }
     if (data.groupLeave) {
       if (!(await confirmAction('Leave group?', "You won't see new posts from this group in your feed.", 'Leave group'))) return;

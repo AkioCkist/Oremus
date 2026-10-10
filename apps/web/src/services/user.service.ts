@@ -1,4 +1,5 @@
-import { Follow, Friendship, Post, User } from '../models/index.js';
+import { AUDIENCE_FIELDS, Follow, Friendship, Post, User } from '../models/index.js';
+import type { ProfileList } from '../validators/index.js';
 import { AppError } from '../utils/errors.js';
 import { cacheGet, cacheSet, invalidateSocialCaches } from './cache.service.js';
 import { notify } from './notification.service.js';
@@ -25,9 +26,40 @@ export async function getProfile(username: string, viewerId?: string) {
   const isFollowing = viewerId ? !!(await Follow.exists({ followerId: viewerId, followingId: user.id })) : false;
   const isSelf = viewerId === user.id;
   const canViewDetails = summary.profile?.privacy === 'public' || isSelf || isFollowing;
-  if (!canViewDetails) summary = { ...summary, profile: { ...summary.profile, bio: '', location: '', website: '', coverUrl: '' } };
   const friendState = viewerId ? await getFriendshipState(viewerId, user.id) : 'none';
+  summary = { ...summary, profile: visibleProfile(summary.profile || {}, { isSelf, isFriend: friendState === 'friends', canViewDetails }) };
   return { ...summary, isFollowing, isSelf, canViewDetails, friendState, ...social };
+}
+
+const DEFAULT_AUDIENCE: Record<string, string> = { birthYear: 'only_me', contact: 'only_me' };
+export const audienceOf = (profile: any, field: string): string => profile?.audience?.[field] || DEFAULT_AUDIENCE[field] || 'public';
+
+/** Removes About details the viewer is not allowed to see (per-field audience + "followers only" profiles). */
+export function visibleProfile(profile: any, viewer: { isSelf: boolean; isFriend: boolean; canViewDetails: boolean }) {
+  if (viewer.isSelf) return profile;
+  const allowed = (field: string) => {
+    if (!viewer.canViewDetails) return false;
+    const audience = audienceOf(profile, field);
+    return audience === 'public' || (audience === 'friends' && viewer.isFriend);
+  };
+  const out = { ...profile };
+  const hide: Record<string, () => void> = {
+    work: () => { out.work = []; },
+    education: () => { out.education = []; },
+    location: () => { out.location = ''; },
+    hometown: () => { out.hometown = ''; },
+    birthday: () => { out.birthDay = null; out.birthMonth = null; },
+    birthYear: () => { out.birthYear = null; },
+    relationship: () => { out.relationship = ''; },
+    gender: () => { out.gender = ''; },
+    pronouns: () => { out.pronouns = ''; },
+    languages: () => { out.languages = []; },
+    contact: () => { out.phone = ''; out.publicEmail = ''; },
+    links: () => { out.links = []; out.website = ''; }
+  };
+  for (const field of AUDIENCE_FIELDS) if (!allowed(field)) hide[field]!();
+  if (!viewer.canViewDetails) Object.assign(out, { bio: '', coverUrl: '', about: '', quotes: '', otherNames: '', hobbies: [] });
+  return out;
 }
 
 export async function updateProfile(userId: string, input: any, files: { [fieldname: string]: Express.Multer.File[] } = {}) {
@@ -73,14 +105,56 @@ export async function getPhotoLibrary(userId: string) {
   return { suggested: unique([...uploads, ...profilePictures, ...coverPhotos]).slice(0, 6), uploads, profilePictures, coverPhotos, current: { avatarUrl: profile.avatarUrl || '', coverUrl: profile.coverUrl || '' } };
 }
 
-/** Partial profile update used by the Edit profile / Edit details popups. */
-export async function updateProfileDetails(userId: string, input: Record<string, string | undefined>) {
+const DETAIL_FIELDS: Record<string, string> = {
+  displayName: 'displayName', username: 'username', bio: 'profile.bio', location: 'profile.location', website: 'profile.website', privacy: 'profile.privacy',
+  hometown: 'profile.hometown', relationship: 'profile.relationship', birthDay: 'profile.birthDay', birthMonth: 'profile.birthMonth', birthYear: 'profile.birthYear',
+  gender: 'profile.gender', pronouns: 'profile.pronouns', languages: 'profile.languages', hobbies: 'profile.hobbies', phone: 'profile.phone', publicEmail: 'profile.publicEmail',
+  otherNames: 'profile.otherNames', about: 'profile.about', quotes: 'profile.quotes'
+};
+
+/** Partial profile update used by the Edit profile / Edit details popups and the About tab editors. */
+export async function updateProfileDetails(userId: string, input: Record<string, any>) {
   if (input.username && await User.exists({ username: input.username, _id: { $ne: userId } })) throw new AppError(409, 'That username is already in use.', 'USERNAME_TAKEN');
-  const fields: Record<string, string> = { displayName: 'displayName', username: 'username', bio: 'profile.bio', location: 'profile.location', website: 'profile.website', privacy: 'profile.privacy' };
-  const update: Record<string, string> = {};
-  for (const [key, path] of Object.entries(fields)) if (input[key] !== undefined) update[path] = input[key]!;
+  const update: Record<string, unknown> = {};
+  for (const [key, path] of Object.entries(DETAIL_FIELDS)) if (input[key] !== undefined) update[path] = input[key];
+  for (const [field, audience] of Object.entries(input.audience || {})) update[`profile.audience.${field}`] = audience;
+  if (input.intro && Object.keys(input.intro).length) {
+    const current = await User.findById(userId).select('profile.introHidden').lean();
+    const hidden = new Set<string>((current as any)?.profile?.introHidden || []);
+    for (const [item, shown] of Object.entries(input.intro)) { if (shown) hidden.delete(item); else hidden.add(item); }
+    update['profile.introHidden'] = [...hidden];
+  }
   if (!Object.keys(update).length) throw new AppError(422, 'Nothing to update.', 'EMPTY_UPDATE');
   const user = await User.findByIdAndUpdate(userId, update, { new: true, runValidators: true });
+  await invalidateSocialCaches([userId]);
+  return user;
+}
+
+const LIST_LIMITS: Record<ProfileList, number> = { work: 10, education: 10, links: 10 };
+const LIST_LABELS: Record<ProfileList, string> = { work: 'workplaces', education: 'schools', links: 'links' };
+const sortList = (list: ProfileList, items: any[]) => {
+  if (list === 'work') items.sort((a, b) => Number(b.current) - Number(a.current) || (b.startDate?.getTime() || 0) - (a.startDate?.getTime() || 0));
+  if (list === 'education') items.sort((a, b) => (b.endYear || b.startYear || 9999) - (a.endYear || a.startYear || 9999));
+};
+
+/** Adds, edits (itemId) or removes (item === null) one entry of a repeatable About section. */
+export async function saveProfileListItem(userId: string, list: ProfileList, itemId: string | undefined, item: Record<string, unknown> | null) {
+  const user = await User.findById(userId);
+  if (!user) throw new AppError(404, 'User not found.', 'USER_NOT_FOUND');
+  const items = (user.profile as any)[list];
+  const value = item && list === 'work' && item.current ? { ...item, endDate: null } : item;
+  if (itemId) {
+    const existing = items.id(itemId);
+    if (!existing) throw new AppError(404, 'That entry no longer exists.', 'PROFILE_ITEM_NOT_FOUND');
+    if (value === null) existing.deleteOne(); else existing.set(value);
+  } else {
+    if (value === null) throw new AppError(400, 'Choose an entry to remove.', 'PROFILE_ITEM_REQUIRED');
+    if (items.length >= LIST_LIMITS[list]) throw new AppError(422, `You can add up to ${LIST_LIMITS[list]} ${LIST_LABELS[list]}.`, 'PROFILE_LIST_FULL');
+    items.push(value);
+  }
+  const sorted = [...items]; sortList(list, sorted);
+  (user.profile as any)[list] = sorted;
+  await user.save();
   await invalidateSocialCaches([userId]);
   return user;
 }

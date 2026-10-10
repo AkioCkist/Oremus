@@ -11,6 +11,42 @@ export const GROUP_TYPES = ['general', 'social', 'learning', 'hobbies', 'buy_sel
 const options = { timestamps: true, versionKey: false } as const;
 const objectId = Schema.Types.ObjectId;
 
+export const AUDIENCES = ['public', 'friends', 'only_me'] as const;
+export const RELATIONSHIPS = ['single', 'in_relationship', 'engaged', 'married', 'civil_union', 'domestic_partnership', 'open_relationship', 'complicated', 'separated', 'divorced', 'widowed'] as const;
+export const GENDERS = ['male', 'female', 'nonbinary', 'other'] as const;
+export const PRONOUNS = ['he/him', 'she/her', 'they/them'] as const;
+export const SOCIAL_PLATFORMS = ['website', 'facebook', 'instagram', 'x', 'threads', 'tiktok', 'youtube', 'linkedin', 'github', 'discord', 'other'] as const;
+/** Details that can appear in the profile Intro card; each can be hidden independently. */
+export const INTRO_ITEMS = ['work', 'education', 'location', 'hometown', 'relationship', 'birthday', 'joined', 'followers', 'links', 'hobbies'] as const;
+/** Fields with their own audience, like Facebook's per-item privacy selector. */
+export const AUDIENCE_FIELDS = ['work', 'education', 'location', 'hometown', 'birthday', 'birthYear', 'relationship', 'gender', 'pronouns', 'languages', 'contact', 'links'] as const;
+
+const workSchema = new Schema({
+  company: { type: String, required: true, maxlength: 100 },
+  position: { type: String, maxlength: 100, default: '' },
+  city: { type: String, maxlength: 80, default: '' },
+  description: { type: String, maxlength: 300, default: '' },
+  startDate: Date,
+  endDate: Date,
+  current: { type: Boolean, default: false }
+});
+const educationSchema = new Schema({
+  school: { type: String, required: true, maxlength: 120 },
+  level: { type: String, enum: ['college', 'high_school'], default: 'college' },
+  concentration: { type: String, maxlength: 100, default: '' },
+  degree: { type: String, maxlength: 100, default: '' },
+  startYear: Number,
+  endYear: Number,
+  graduated: { type: Boolean, default: true }
+});
+const linkSchema = new Schema({
+  platform: { type: String, enum: SOCIAL_PLATFORMS, default: 'website' },
+  url: { type: String, required: true, maxlength: 200 }
+});
+const audienceSchema = new Schema(Object.fromEntries(AUDIENCE_FIELDS.map((field) => [field, {
+  type: String, enum: AUDIENCES, default: ['birthYear', 'contact'].includes(field) ? 'only_me' : 'public'
+}])), { _id: false });
+
 const profileSchema = new Schema({
   bio: { type: String, maxlength: 240, default: '' },
   location: { type: String, maxlength: 80, default: '' },
@@ -21,7 +57,27 @@ const profileSchema = new Schema({
   // Previously used photos, newest first, for the "Profile pictures" / "Cover photos" pickers.
   avatarHistory: { type: [String], default: [] },
   coverHistory: { type: [String], default: [] },
-  storyAudience: { type: String, enum: ['public', 'followers'], default: 'followers' }
+  storyAudience: { type: String, enum: ['public', 'followers'], default: 'followers' },
+  // About details (Facebook-style "About" sections).
+  hometown: { type: String, maxlength: 80, default: '' },
+  work: { type: [workSchema], default: [] },
+  education: { type: [educationSchema], default: [] },
+  links: { type: [linkSchema], default: [] },
+  relationship: { type: String, enum: [...RELATIONSHIPS, ''], default: '' },
+  birthDay: { type: Number, min: 1, max: 31 },
+  birthMonth: { type: Number, min: 1, max: 12 },
+  birthYear: { type: Number, min: 1900, max: 2100 },
+  gender: { type: String, enum: [...GENDERS, ''], default: '' },
+  pronouns: { type: String, enum: [...PRONOUNS, ''], default: '' },
+  languages: { type: [String], default: [] },
+  phone: { type: String, maxlength: 30, default: '' },
+  publicEmail: { type: String, maxlength: 254, default: '' },
+  otherNames: { type: String, maxlength: 60, default: '' },
+  about: { type: String, maxlength: 1000, default: '' },
+  quotes: { type: String, maxlength: 500, default: '' },
+  hobbies: { type: [String], default: [] },
+  introHidden: { type: [String], enum: INTRO_ITEMS, default: [] },
+  audience: { type: audienceSchema, default: () => ({}) }
 }, { _id: false });
 
 const userSchema = new Schema({

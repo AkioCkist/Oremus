@@ -1,0 +1,212 @@
+<%# Profile "About" tab: section nav + Facebook-style detail rows with inline editors and per-item audience. -%>
+<%
+  const aud = (field) => (info.audience && info.audience[field]) || (['birthYear', 'contact'].includes(field) ? 'only_me' : 'public');
+  const sectionHref = (section) => `/profile/${profile.username}?tab=about&section=${section}`;
+  const sections = [['overview', 'Overview'], ['work', 'Work and education'], ['places', 'Places lived'], ['contact', 'Contact and basic info'], ['relationship', 'Family and relationships'], ['details', 'Details about ' + firstName(profile.displayName)], ['hobbies', 'Hobbies and interests']];
+  const dateValue = (value) => value ? new Date(value).toISOString().slice(0, 10) : '';
+  const links = [...(info.website ? [{ platform: 'website', url: info.website, legacy: true }] : []), ...(info.links || [])];
+  const work = info.work || [], education = info.education || [];
+  const colleges = education.filter((s) => s.level !== 'high_school'), highSchools = education.filter((s) => s.level === 'high_school');
+  const birthday = birthdayText(info.birthDay, info.birthMonth);
+-%>
+<%# ---- Building blocks ---- -%>
+<% function audienceControl(field) { if (!isSelf) return; %>
+<form class="shrink-0" data-api-form data-method="PATCH" action="/api/profile/details" method="post">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <label class="sr-only" for="aud-<%= field %>">Who can see this</label>
+  <span class="relative inline-flex items-center">
+    <svg class="icon pointer-events-none absolute left-2 size-4 text-muted"><use href="#<%= AUDIENCE_LABELS[aud(field)].icon %>"/></svg>
+    <select id="aud-<%= field %>" name="audience.<%= field %>" class="h-8 cursor-pointer appearance-none rounded-md bg-field pl-7 pr-2 text-[0.8125rem] font-semibold text-ink hover:bg-hover" data-autosubmit title="Who can see this">
+      <% Object.entries(AUDIENCE_LABELS).forEach(function ([value, option]) { %><option value="<%= value %>" <%= aud(field) === value ? 'selected' : '' %>><%= option.label %></option><% }) %>
+    </select>
+  </span>
+</form>
+<% } %>
+<% function row(options) { %>
+<div class="flex items-center gap-3 py-2">
+  <span class="grid size-10 shrink-0 place-items-center rounded-full bg-field text-muted"><svg class="icon"><use href="#<%= options.icon %>"/></svg></span>
+  <div class="min-w-0 flex-1">
+    <p class="break-words text-15"><%- options.html %></p>
+    <% if (options.sub) { %><p class="text-[0.8125rem] text-muted"><%= options.sub %></p><% } %>
+  </div>
+  <% if (options.field) audienceControl(options.field) %>
+  <% if (isSelf && options.edit) { %><button type="button" class="icon-btn-ghost size-9" data-toggle="<%= options.edit %>" aria-label="Edit <%= options.label || '' %>" title="Edit"><svg class="icon size-[1.125rem]"><use href="#i-edit"/></svg></button><% } %>
+  <% if (isSelf && options.remove) { %><button type="button" class="icon-btn-ghost size-9" data-profile-item-delete="<%= options.remove %>" aria-label="Remove <%= options.label || '' %>" title="Remove"><svg class="icon size-[1.125rem]"><use href="#i-trash"/></svg></button><% } %>
+</div>
+<% } %>
+<% function addButton(target, text) { if (!isSelf) return; %>
+<button type="button" class="flex w-full items-center gap-3 rounded-lg py-2 text-left text-15 font-semibold text-brand-600 hover:underline" data-toggle="<%= target %>"><span class="grid size-10 shrink-0 place-items-center rounded-full border-2 border-dashed border-brand-200"><svg class="icon"><use href="#i-plus"/></svg></span><%= text %></button>
+<% } %>
+<% function formOpen(id, action, method) { %>
+<form id="<%= id %>" class="mb-3 hidden space-y-3 rounded-lg border border-line bg-canvas p-3" data-api-form data-method="<%= method || 'PATCH' %>" data-reload action="<%= action || '/api/profile/details' %>" method="post">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+<% } %>
+<% function formClose(id) { %>
+  <p class="form-error hidden" data-form-error role="alert"></p>
+  <div class="flex justify-end gap-2"><button type="button" class="btn-secondary" data-toggle="<%= id %>">Cancel</button><button type="submit" class="btn-primary px-6">Save</button></div>
+</form>
+<% } %>
+<% function emptyNote(text) { if (isSelf) return; %><p class="py-2 text-15 text-muted"><%= text %></p><% } %>
+<% function heading(text) { %><h3 class="mb-1 mt-5 text-[1.0625rem] font-bold first:mt-0"><%= text %></h3><% } %>
+
+<% function workForm(job) { const id = job ? `work-${job._id}` : 'work-new'; formOpen(id, job ? `/api/profile/work/${job._id}` : '/api/profile/work', job ? 'PATCH' : 'POST'); %>
+  <div><label class="label" for="<%= id %>-company">Company</label><input class="input mt-1.5 w-full" id="<%= id %>-company" name="company" maxlength="100" required value="<%= job ? job.company : '' %>"></div>
+  <div class="grid gap-3 sm:grid-cols-2">
+    <div><label class="label" for="<%= id %>-position">Position</label><input class="input mt-1.5 w-full" id="<%= id %>-position" name="position" maxlength="100" value="<%= job ? job.position : '' %>"></div>
+    <div><label class="label" for="<%= id %>-city">City/town</label><input class="input mt-1.5 w-full" id="<%= id %>-city" name="city" maxlength="80" value="<%= job ? job.city : '' %>"></div>
+  </div>
+  <div><label class="label" for="<%= id %>-description">Description</label><textarea class="input mt-1.5 w-full resize-none" id="<%= id %>-description" name="description" rows="2" maxlength="300"><%= job ? job.description : '' %></textarea></div>
+  <label class="flex cursor-pointer items-center gap-2 text-15"><input type="hidden" name="current" value="0"><input type="checkbox" class="check" name="current" value="true" data-current-toggle <%= job && job.current ? 'checked' : '' %>>I currently work here</label>
+  <div class="grid gap-3 sm:grid-cols-2">
+    <div><label class="label" for="<%= id %>-start">From</label><input class="input mt-1.5 w-full" type="date" id="<%= id %>-start" name="startDate" value="<%= job ? dateValue(job.startDate) : '' %>"></div>
+    <div data-end-date class="<%= job && job.current ? 'hidden' : '' %>"><label class="label" for="<%= id %>-end">To</label><input class="input mt-1.5 w-full" type="date" id="<%= id %>-end" name="endDate" value="<%= job ? dateValue(job.endDate) : '' %>"></div>
+  </div>
+<% formClose(id); } %>
+
+<% function schoolForm(school, level) { const id = school ? `education-${school._id}` : `education-new-${level}`; formOpen(id, school ? `/api/profile/education/${school._id}` : '/api/profile/education', school ? 'PATCH' : 'POST'); const isCollege = level !== 'high_school'; %>
+  <input type="hidden" name="level" value="<%= level %>">
+  <div><label class="label" for="<%= id %>-school"><%= isCollege ? 'College / university' : 'High school' %></label><input class="input mt-1.5 w-full" id="<%= id %>-school" name="school" maxlength="120" required value="<%= school ? school.school : '' %>"></div>
+  <% if (isCollege) { %>
+  <div class="grid gap-3 sm:grid-cols-2">
+    <div><label class="label" for="<%= id %>-concentration">Concentration</label><input class="input mt-1.5 w-full" id="<%= id %>-concentration" name="concentration" maxlength="100" value="<%= school ? school.concentration : '' %>"></div>
+    <div><label class="label" for="<%= id %>-degree">Degree</label><input class="input mt-1.5 w-full" id="<%= id %>-degree" name="degree" maxlength="100" value="<%= school ? school.degree : '' %>"></div>
+  </div>
+  <% } %>
+  <div class="grid grid-cols-2 gap-3">
+    <div><label class="label" for="<%= id %>-start">Start year</label><input class="input mt-1.5 w-full" type="number" inputmode="numeric" min="1900" max="2100" id="<%= id %>-start" name="startYear" value="<%= school && school.startYear || '' %>"></div>
+    <div><label class="label" for="<%= id %>-end">End year</label><input class="input mt-1.5 w-full" type="number" inputmode="numeric" min="1900" max="2100" id="<%= id %>-end" name="endYear" value="<%= school && school.endYear || '' %>"></div>
+  </div>
+  <label class="flex cursor-pointer items-center gap-2 text-15"><input type="hidden" name="graduated" value="0"><input type="checkbox" class="check" name="graduated" value="true" <%= !school || school.graduated ? 'checked' : '' %>>Graduated</label>
+<% formClose(id); } %>
+
+<% function textForm(id, name, label, value, options) { options = options || {}; formOpen(id); %>
+  <div><label class="label" for="<%= id %>-input"><%= label %></label>
+  <% if (options.textarea) { %><textarea class="input mt-1.5 w-full resize-none" id="<%= id %>-input" name="<%= name %>" rows="4" maxlength="<%= options.max %>"><%= value || '' %></textarea>
+  <% } else { %><input class="input mt-1.5 w-full" id="<%= id %>-input" name="<%= name %>" type="<%= options.type || 'text' %>" maxlength="<%= options.max %>" value="<%= value || '' %>" placeholder="<%= options.placeholder || '' %>" <%= options.pattern ? `pattern=${options.pattern}` : '' %>><% } %>
+  <% if (options.hint) { %><p class="mt-1 text-[0.8125rem] text-muted"><%= options.hint %></p><% } %></div>
+<% formClose(id); } %>
+
+<% function selectForm(id, name, label, value, choices) { formOpen(id); %>
+  <div><label class="label" for="<%= id %>-input"><%= label %></label>
+  <select class="input mt-1.5 w-full" id="<%= id %>-input" name="<%= name %>"><option value="">—</option><% Object.entries(choices).forEach(function ([key, text]) { %><option value="<%= key %>" <%= value === key ? 'selected' : '' %>><%= text %></option><% }) %></select></div>
+<% formClose(id); } %>
+
+<section class="card overflow-hidden lg:col-span-2">
+  <div class="grid md:grid-cols-[17rem_minmax(0,1fr)]">
+    <nav aria-label="About sections" class="border-b border-line p-2 md:border-b-0 md:border-r">
+      <h2 class="px-2 pb-2 pt-1 text-xl font-bold">About</h2>
+      <ul class="scrollbar-none flex gap-1 overflow-x-auto md:block md:space-y-0.5">
+        <% sections.forEach(function ([key, label]) { %>
+        <li class="shrink-0"><a class="block rounded-md px-3 py-2 text-15 font-semibold <%= aboutSection === key ? 'bg-brand-50 text-brand-700' : 'text-muted hover:bg-hover' %>" href="<%= sectionHref(key) %>" <%= aboutSection === key ? 'aria-current=page' : '' %>><%= label %></a></li>
+        <% }) %>
+      </ul>
+    </nav>
+
+    <div class="min-w-0 p-4 md:p-5">
+    <% if (!profile.canViewDetails) { %>
+      <p class="flex items-center gap-2 text-muted"><svg class="icon"><use href="#i-lock"/></svg>Only followers can see <%= firstName(profile.displayName) %>'s details.</p>
+    <% } else if (aboutSection === 'overview') { %>
+      <% const current = work.find((job) => job.current) || work[0]; const school = colleges[0] || highSchools[0]; %>
+      <% if (current) row({ icon: 'i-briefcase', html: `${current.position ? `${escapeHtml(current.position)} at ` : current.current ? 'Works at ' : 'Worked at '}<strong class="font-semibold">${escapeHtml(current.company)}</strong>`, sub: current.startDate ? `${shortDate(current.startDate)} – ${current.current || !current.endDate ? 'Present' : shortDate(current.endDate)}` : '' }); %>
+      <% if (!current && isSelf) { %><a class="flex items-center gap-3 py-2 text-15 font-semibold text-brand-600 hover:underline" href="<%= sectionHref('work') %>"><span class="grid size-10 place-items-center rounded-full border-2 border-dashed border-brand-200"><svg class="icon"><use href="#i-plus"/></svg></span>Add a workplace</a><% } %>
+      <% if (school) row({ icon: 'i-school', html: `${school.level === 'high_school' ? 'Went to' : school.graduated ? 'Studied at' : 'Studies at'} <strong class="font-semibold">${escapeHtml(school.school)}</strong>`, sub: [school.startYear, school.endYear].filter(Boolean).join(' – ') }); %>
+      <% if (!school && isSelf) { %><a class="flex items-center gap-3 py-2 text-15 font-semibold text-brand-600 hover:underline" href="<%= sectionHref('work') %>"><span class="grid size-10 place-items-center rounded-full border-2 border-dashed border-brand-200"><svg class="icon"><use href="#i-plus"/></svg></span>Add a school</a><% } %>
+      <% if (info.location) row({ icon: 'i-pin', html: `Lives in <strong class="font-semibold">${escapeHtml(info.location)}</strong>` }); %>
+      <% if (info.hometown) row({ icon: 'i-home', html: `From <strong class="font-semibold">${escapeHtml(info.hometown)}</strong>` }); %>
+      <% if (info.relationship) row({ icon: 'i-heart', html: escapeHtml(RELATIONSHIP_LABELS[info.relationship]) }); %>
+      <% if (birthday) row({ icon: 'i-cake', html: escapeHtml(birthday), sub: 'Birthday' }); %>
+      <% if (info.phone) row({ icon: 'i-phone', html: escapeHtml(info.phone), sub: 'Mobile' }); %>
+      <% if (info.publicEmail) row({ icon: 'i-mail', html: escapeHtml(info.publicEmail), sub: 'Email' }); %>
+      <% if (!current && !school && !info.location && !info.hometown && !info.relationship && !birthday && !info.phone && !info.publicEmail) emptyNote('No details to show.'); %>
+    <% } else if (aboutSection === 'work') { %>
+      <% heading('Work') %>
+      <% addButton('work-new', 'Add a workplace'); if (isSelf) workForm(null); %>
+      <% work.forEach(function (job) { row({ icon: 'i-briefcase', label: job.company, field: 'work', edit: `work-${job._id}`, remove: `/api/profile/work/${job._id}`,
+        html: `${job.position ? `${job.current ? '' : 'Former '}${escapeHtml(job.position)} at ` : job.current ? 'Works at ' : 'Worked at '}<strong class="font-semibold">${escapeHtml(job.company)}</strong>`,
+        sub: [job.startDate ? `${shortDate(job.startDate)} – ${job.current || !job.endDate ? 'Present' : shortDate(job.endDate)} · ${duration(job.startDate, job.current ? null : job.endDate)}` : '', job.city, job.description].filter(Boolean).join(' · ') }); if (isSelf) workForm(job); }) %>
+      <% if (!work.length) emptyNote('No workplaces to show.'); %>
+      <% heading('College') %>
+      <% addButton('education-new-college', 'Add college'); if (isSelf) schoolForm(null, 'college'); %>
+      <% colleges.forEach(function (school) { row({ icon: 'i-school', label: school.school, field: 'education', edit: `education-${school._id}`, remove: `/api/profile/education/${school._id}`,
+        html: `${school.graduated ? 'Studied' : 'Studies'}${school.concentration ? ` ${escapeHtml(school.concentration)}` : ''} at <strong class="font-semibold">${escapeHtml(school.school)}</strong>`,
+        sub: [[school.startYear, school.endYear].filter(Boolean).join(' – '), school.degree].filter(Boolean).join(' · ') }); if (isSelf) schoolForm(school, 'college'); }) %>
+      <% if (!colleges.length) emptyNote('No schools to show.'); %>
+      <% heading('High school') %>
+      <% addButton('education-new-high_school', 'Add high school'); if (isSelf) schoolForm(null, 'high_school'); %>
+      <% highSchools.forEach(function (school) { row({ icon: 'i-school', label: school.school, field: 'education', edit: `education-${school._id}`, remove: `/api/profile/education/${school._id}`,
+        html: `Went to <strong class="font-semibold">${escapeHtml(school.school)}</strong>`, sub: [school.startYear, school.endYear].filter(Boolean).join(' – ') }); if (isSelf) schoolForm(school, 'high_school'); }) %>
+      <% if (!highSchools.length) emptyNote('No schools to show.'); %>
+    <% } else if (aboutSection === 'places') { %>
+      <% heading('Places lived') %>
+      <% if (info.location) row({ icon: 'i-pin', label: 'current city', field: 'location', edit: 'place-location', html: `<strong class="font-semibold">${escapeHtml(info.location)}</strong>`, sub: 'Current town/city' }); else addButton('place-location', 'Add current city'); %>
+      <% if (isSelf) textForm('place-location', 'location', 'Current town/city', info.location, { max: 80, placeholder: 'e.g. Da Nang' }); %>
+      <% if (info.hometown) row({ icon: 'i-home', label: 'hometown', field: 'hometown', edit: 'place-hometown', html: `<strong class="font-semibold">${escapeHtml(info.hometown)}</strong>`, sub: 'Home town' }); else addButton('place-hometown', 'Add hometown'); %>
+      <% if (isSelf) textForm('place-hometown', 'hometown', 'Home town', info.hometown, { max: 80, placeholder: 'e.g. Điện Biên Phủ' }); %>
+      <% if (!info.location && !info.hometown) emptyNote('No places to show.'); %>
+    <% } else if (aboutSection === 'contact') { %>
+      <% heading('Contact info') %>
+      <% if (info.phone) row({ icon: 'i-phone', label: 'mobile', field: 'contact', edit: 'contact-phone', html: escapeHtml(info.phone), sub: 'Mobile' }); else addButton('contact-phone', 'Add a mobile phone'); %>
+      <% if (isSelf) textForm('contact-phone', 'phone', 'Mobile', info.phone, { max: 30, type: 'tel', placeholder: '+84 …' }); %>
+      <% if (info.publicEmail) row({ icon: 'i-mail', label: 'email', field: info.phone ? null : 'contact', edit: 'contact-email', html: escapeHtml(info.publicEmail), sub: 'Email' }); else addButton('contact-email', 'Add an email'); %>
+      <% if (isSelf) textForm('contact-email', 'publicEmail', 'Email shown on your profile', info.publicEmail, { max: 254, type: 'email', hint: 'This can be different from your login email.' }); %>
+      <% if (!info.phone && !info.publicEmail) emptyNote('No contact info to show.'); %>
+
+      <% heading('Websites and social links') %>
+      <% links.forEach(function (link, index) { row({ icon: 'i-link', label: linkLabel(link.url), field: index === 0 ? 'links' : null, edit: link.legacy ? 'link-website' : null, remove: link.legacy ? null : `/api/profile/links/${link._id}`,
+        html: `<a class="font-semibold text-brand-600 hover:underline" href="${escapeHtml(link.url)}" rel="noopener noreferrer nofollow" target="_blank">${escapeHtml(linkLabel(link.url))}</a>`, sub: PLATFORM_LABELS[link.platform] || 'Link' }); }) %>
+      <% if (isSelf && info.website) textForm('link-website', 'website', 'Website', info.website, { max: 200, type: 'url', placeholder: 'https://', hint: 'Leave empty and save to remove.' }); %>
+      <% addButton('link-new', 'Add a website or social link'); %>
+      <% if (isSelf) { formOpen('link-new', '/api/profile/links', 'POST'); %>
+        <div class="grid gap-3 sm:grid-cols-[10rem_minmax(0,1fr)]">
+          <div><label class="label" for="link-new-platform">Type</label><select class="input mt-1.5 w-full" id="link-new-platform" name="platform"><% Object.entries(PLATFORM_LABELS).forEach(function ([key, text]) { %><option value="<%= key %>"><%= text %></option><% }) %></select></div>
+          <div><label class="label" for="link-new-url">Link</label><input class="input mt-1.5 w-full" id="link-new-url" name="url" type="url" maxlength="200" required placeholder="https://"></div>
+        </div>
+      <% formClose('link-new'); } %>
+      <% if (!links.length) emptyNote('No links to show.'); %>
+
+      <% heading('Basic info') %>
+      <% if (info.gender) row({ icon: 'i-user', label: 'gender', field: 'gender', edit: 'basic-gender', html: escapeHtml(GENDER_LABELS[info.gender]), sub: 'Gender' }); else addButton('basic-gender', 'Add your gender'); %>
+      <% if (isSelf) selectForm('basic-gender', 'gender', 'Gender', info.gender, GENDER_LABELS); %>
+      <% if (info.pronouns) row({ icon: 'i-chat', label: 'pronouns', field: 'pronouns', edit: 'basic-pronouns', html: escapeHtml(info.pronouns), sub: 'Pronouns' }); else addButton('basic-pronouns', 'Add your pronouns'); %>
+      <% if (isSelf) selectForm('basic-pronouns', 'pronouns', 'Pronouns', info.pronouns, { 'he/him': 'he/him', 'she/her': 'she/her', 'they/them': 'they/them' }); %>
+      <% if (birthday) row({ icon: 'i-cake', label: 'birthday', field: 'birthday', edit: 'basic-birthday', html: escapeHtml(birthday), sub: 'Birth date' }); %>
+      <% if (info.birthYear) row({ icon: 'i-calendar', label: 'birth year', field: 'birthYear', edit: 'basic-birthday', html: String(info.birthYear), sub: 'Birth year' }); %>
+      <% if (!birthday && !info.birthYear) addButton('basic-birthday', 'Add your birthday'); %>
+      <% if (isSelf) { formOpen('basic-birthday'); %>
+        <fieldset><legend class="label">Birthday</legend>
+          <div class="mt-1.5 grid grid-cols-3 gap-2">
+            <label class="sr-only" for="birth-day">Day</label><select class="input w-full" id="birth-day" name="birthDay"><option value="">Day</option><% for (let d = 1; d <= 31; d++) { %><option value="<%= d %>" <%= info.birthDay === d ? 'selected' : '' %>><%= d %></option><% } %></select>
+            <label class="sr-only" for="birth-month">Month</label><select class="input w-full" id="birth-month" name="birthMonth"><option value="">Month</option><% MONTHS.forEach(function (name, i) { %><option value="<%= i + 1 %>" <%= info.birthMonth === i + 1 ? 'selected' : '' %>><%= name %></option><% }) %></select>
+            <label class="sr-only" for="birth-year">Year</label><select class="input w-full" id="birth-year" name="birthYear"><option value="">Year</option><% for (let y = new Date().getFullYear(); y >= 1905; y--) { %><option value="<%= y %>" <%= info.birthYear === y ? 'selected' : '' %>><%= y %></option><% } %></select>
+          </div>
+        </fieldset>
+        <p class="text-[0.8125rem] text-muted">Choose who sees your birth date and birth year separately with the audience selector next to each.</p>
+      <% formClose('basic-birthday'); } %>
+      <% if ((info.languages || []).length) row({ icon: 'i-translate', label: 'languages', field: 'languages', edit: 'basic-languages', html: escapeHtml(info.languages.join(', ')), sub: 'Languages' }); else addButton('basic-languages', 'Add a language'); %>
+      <% if (isSelf) textForm('basic-languages', 'languages', 'Languages', (info.languages || []).join(', '), { max: 400, placeholder: 'Vietnamese, English', hint: 'Separate languages with commas.' }); %>
+      <% if (!info.gender && !info.pronouns && !birthday && !info.birthYear && !(info.languages || []).length) emptyNote('No basic info to show.'); %>
+    <% } else if (aboutSection === 'relationship') { %>
+      <% heading('Relationship') %>
+      <% if (info.relationship) row({ icon: 'i-heart', label: 'relationship status', field: 'relationship', edit: 'rel-status', html: escapeHtml(RELATIONSHIP_LABELS[info.relationship]), sub: 'Relationship status' }); else addButton('rel-status', 'Add a relationship status'); %>
+      <% if (isSelf) selectForm('rel-status', 'relationship', 'Relationship status', info.relationship, RELATIONSHIP_LABELS); %>
+      <% if (!info.relationship) emptyNote('No relationship info to show.'); %>
+    <% } else if (aboutSection === 'details') { %>
+      <% heading('About ' + firstName(profile.displayName)) %>
+      <% if (info.about) row({ icon: 'i-info', label: 'about you', edit: 'details-about', html: `<span class="whitespace-pre-wrap">${escapeHtml(info.about)}</span>` }); else addButton('details-about', 'Write some details about yourself'); %>
+      <% if (isSelf) textForm('details-about', 'about', 'About you', info.about, { max: 1000, textarea: true }); %>
+      <% heading('Other names') %>
+      <% if (info.otherNames) row({ icon: 'i-user', label: 'other names', edit: 'details-names', html: escapeHtml(info.otherNames), sub: 'Nickname' }); else addButton('details-names', 'Add a nickname, a birth name…'); %>
+      <% if (isSelf) textForm('details-names', 'otherNames', 'Other name', info.otherNames, { max: 60 }); %>
+      <% heading('Favourite quotes') %>
+      <% if (info.quotes) row({ icon: 'i-quote', label: 'favourite quotes', edit: 'details-quotes', html: `<span class="whitespace-pre-wrap">${escapeHtml(info.quotes)}</span>` }); else addButton('details-quotes', 'Add your favourite quotations'); %>
+      <% if (isSelf) textForm('details-quotes', 'quotes', 'Favourite quotes', info.quotes, { max: 500, textarea: true }); %>
+      <% if (!info.about && !info.otherNames && !info.quotes) emptyNote('No details to show.'); %>
+    <% } else if (aboutSection === 'hobbies') { %>
+      <div class="flex items-center justify-between"><% heading('Hobbies') %><% if (isSelf && (info.hobbies || []).length) { %><button type="button" class="btn-ghost text-brand-600" data-toggle="hobbies-form">Edit</button><% } %></div>
+      <% if ((info.hobbies || []).length) { %><ul class="mt-2 flex flex-wrap gap-2"><% info.hobbies.forEach(function (hobby) { %><li class="chip pointer-events-none"><svg class="icon size-4 text-brand-600"><use href="#i-star"/></svg><%= hobby %></li><% }) %></ul><% } else addButton('hobbies-form', 'Add hobbies'); %>
+      <div class="mt-3"><% if (isSelf) textForm('hobbies-form', 'hobbies', 'Hobbies', (info.hobbies || []).join(', '), { max: 800, placeholder: 'Photography, Driving, Gaming', hint: 'Separate hobbies with commas. Up to 20.' }); %></div>
+      <% if (!(info.hobbies || []).length) emptyNote('No hobbies to show.'); %>
+    <% } %>
+    </div>
+  </div>
+</section>
