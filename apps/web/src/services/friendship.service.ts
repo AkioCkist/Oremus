@@ -51,6 +51,20 @@ export async function listFriendIds(userId: string): Promise<string[]> {
   return rows.map((row: any) => String(row.userAId) === String(userId) ? String(row.userBId) : String(row.userAId));
 }
 
+/** How many friends the user shares with each candidate, in one query. */
+export async function mutualFriendCounts(userId: string, candidateIds: string[]): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  const mine = await listFriendIds(userId);
+  if (!mine.length || !candidateIds.length) return counts;
+  const rows = await Friendship.find({ status: 'accepted', $or: [{ userAId: { $in: candidateIds }, userBId: { $in: mine } }, { userBId: { $in: candidateIds }, userAId: { $in: mine } }] }).select('userAId userBId').lean();
+  const candidates = new Set(candidateIds.map(String));
+  for (const row of rows as any[]) {
+    const candidate = candidates.has(String(row.userAId)) ? String(row.userAId) : String(row.userBId);
+    counts.set(candidate, (counts.get(candidate) || 0) + 1);
+  }
+  return counts;
+}
+
 export async function listFriends(userId: string, limit = 60) {
   const ids = (await listFriendIds(userId)).slice(0, limit);
   if (!ids.length) return [];

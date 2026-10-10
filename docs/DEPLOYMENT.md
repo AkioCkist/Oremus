@@ -66,6 +66,8 @@ Set in `.env` (see `.env.example`). Docker Compose overrides the database hosts 
 
 ## Health checks
 
+See [Caching](CACHING.md) for the complete HTTP and Redis cache policy and verification commands.
+
 | Check | How | Healthy response |
 |---|---|---|
 | Web | `GET /health` | `{ ok: true, infrastructure: { mongodb: "ok", redis: "ok" } }` |
@@ -114,5 +116,5 @@ Run the migration after every update that adds indexes. It is safe to run many t
 
 - **Web** can run several instances: sessions are stateless JWTs, rate limits and caches are in Redis, and Socket.IO uses the Redis adapter. Shared file storage is required first.
 - **Search** is stateless and can scale freely.
-- **Feed cache invalidation** deletes all `feed:*` keys on writes. This is fine for small traffic; for large traffic switch to per-user keys.
+- **Feed cache invalidation** increments a shared version in O(1); old generations expire after 45 seconds without a keyspace scan.
 - **Search** uses regex queries. For large data, move to MongoDB Atlas Search or OpenSearch behind the same `/v1/search` API.

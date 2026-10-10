@@ -50,6 +50,7 @@ services:
       - path: .env
         required: false
     environment:
+      NODE_ENV: production
       WEB_PORT: 3000
       MONGODB_URI: mongodb://mongo:27017/${MONGO_DB_NAME:-oremus}
       REDIS_URL: redis://redis:6379
@@ -77,6 +78,7 @@ services:
       - path: .env
         required: false
     environment:
+      NODE_ENV: production
       MONGODB_URI: mongodb://mongo:27017/${MONGO_DB_NAME:-oremus}
       REDIS_URL: redis://redis:6379
     volumes:

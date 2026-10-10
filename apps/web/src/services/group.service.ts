@@ -1,7 +1,7 @@
 import { Follow, Group, GroupInvite, GroupJoinRequest, GroupMember, Post, User } from '../models/index.js';
 import { slugify } from '../utils/slug.js';
 import { AppError } from '../utils/errors.js';
-import { cacheGet, cacheSet, invalidateByPrefix, invalidateSocialCaches } from './cache.service.js';
+import { cacheGet, cacheSet, invalidateCacheKeys, invalidateSocialCaches } from './cache.service.js';
 import { notify } from './notification.service.js';
 import { getPhotoLibrary } from './user.service.js';
 
@@ -41,7 +41,7 @@ async function addMember(groupId: unknown, userId: string, role: 'admin' | 'mode
   const result = await GroupMember.updateOne({ groupId, userId }, { $setOnInsert: { role } }, { upsert: true });
   if (result.upsertedCount) await Group.updateOne({ _id: groupId }, { $inc: { memberCount: 1 } });
   await GroupInvite.deleteMany({ groupId, userId });
-  await invalidateByPrefix(`group:${groupId}`);
+  await invalidateCacheKeys([`group:${groupId}`]);
 }
 
 export async function listGroups(userId?: string) {
@@ -61,7 +61,7 @@ export async function createGroup(ownerId: string, input: GroupInput, file?: Exp
   const group = await Group.create({ ...fields, coverUrl, slug, ownerId, memberCount: 1 });
   await GroupMember.create({ groupId: group.id, userId: ownerId, role: 'admin' });
   if (invite.length) await inviteMembers(ownerId, group.id, invite);
-  await invalidateSocialCaches([ownerId]);
+  await invalidateSocialCaches([ownerId], { search: true });
   return group;
 }
 
@@ -76,7 +76,7 @@ export async function updateGroup(userId: string, groupId: string, input: GroupI
   group.set({ ...fields, coverUrl });
   await group.save();
   if (invite.length) await inviteMembers(userId, groupId, invite);
-  await Promise.all([invalidateByPrefix(`group:${groupId}`), invalidateSocialCaches([userId])]);
+  await Promise.all([invalidateCacheKeys([`group:${groupId}`]), invalidateSocialCaches([userId], { search: true })]);
   return group;
 }
 
@@ -132,7 +132,7 @@ export async function leaveGroup(userId: string, groupId: string) {
   if (String((group as any).ownerId) === userId) throw new AppError(400, 'The group creator cannot leave the group.', 'OWNER_CANNOT_LEAVE');
   const result = await GroupMember.deleteOne({ groupId, userId });
   if (result.deletedCount) await Group.updateOne({ _id: groupId }, { $inc: { memberCount: -1 } });
-  await Promise.all([invalidateByPrefix(`group:${groupId}`), invalidateSocialCaches([userId])]);
+  await Promise.all([invalidateCacheKeys([`group:${groupId}`]), invalidateSocialCaches([userId])]);
 }
 
 export async function decideJoin(deciderId: string, requestId: string, decision: 'approve' | 'reject') {

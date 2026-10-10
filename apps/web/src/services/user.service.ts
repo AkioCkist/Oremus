@@ -70,7 +70,7 @@ export async function updateProfile(userId: string, input: any, files: { [fieldn
   if (avatar) update['profile.avatarUrl'] = `/uploads/${avatar.filename}`;
   if (cover) update['profile.coverUrl'] = `/uploads/${cover.filename}`;
   const user = await User.findByIdAndUpdate(userId, update, { new: true, runValidators: true });
-  await invalidateSocialCaches([userId]);
+  await invalidateSocialCaches([userId], { search: true });
   return user;
 }
 
@@ -126,7 +126,7 @@ export async function updateProfileDetails(userId: string, input: Record<string,
   }
   if (!Object.keys(update).length) throw new AppError(422, 'Nothing to update.', 'EMPTY_UPDATE');
   const user = await User.findByIdAndUpdate(userId, update, { new: true, runValidators: true });
-  await invalidateSocialCaches([userId]);
+  await invalidateSocialCaches([userId], { search: true });
   return user;
 }
 
@@ -178,7 +178,7 @@ export async function setProfilePhoto(userId: string, input: { kind: 'avatar' | 
   profile[historyField] = unique([url, profile[field], ...(profile[historyField] || [])]).slice(0, HISTORY_LIMIT);
   profile[field] = url;
   await user.save();
-  await invalidateSocialCaches([userId]);
+  await invalidateSocialCaches([userId], { search: true });
   return user;
 }
 
@@ -200,6 +200,6 @@ export async function deletePhoto(userId: string, url: string) {
     if (!post.content && !post.media.length && !post.feeling && !post.place) { post.deletedAt = new Date(); postsDeleted++; }
     await post.save();
   }
-  await invalidateSocialCaches([userId]);
+  await invalidateSocialCaches([userId], { search: true });
   return { postsUpdated: posts.length - postsDeleted, postsDeleted };
 }

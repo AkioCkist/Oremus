@@ -26,6 +26,18 @@ function assetVersion(): string {
   return hash.digest('hex').slice(0, 10);
 }
 
+export function assetCacheControl(filePath: string, production = env.NODE_ENV === 'production'): string {
+  if (!production) return 'no-store';
+  const bundle = ['app.js', 'styles.css'].includes(path.basename(filePath));
+  return bundle
+    ? 'public, max-age=31536000, immutable'
+    : 'public, max-age=604800';
+}
+
+function setAssetCacheHeaders(res: express.Response, filePath: string): void {
+  res.setHeader('Cache-Control', assetCacheControl(filePath));
+}
+
 export function createApp() {
   const app = express();
   app.set('trust proxy', 1);
@@ -41,8 +53,11 @@ export function createApp() {
   app.use((req, res, next) => { const theme = req.cookies?.theme; res.locals.theme = ['light', 'dark', 'system'].includes(theme) ? theme : 'system'; next(); });
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: false, limit: '1mb' }));
-  app.use('/assets', express.static(path.resolve(process.cwd(), 'public/assets'), { maxAge: env.NODE_ENV === 'production' ? '7d' : 0 }));
-  app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads'), { maxAge: '1d', fallthrough: false }));
+  app.use('/assets', express.static(path.resolve(process.cwd(), 'public/assets'), { setHeaders: setAssetCacheHeaders }));
+  // Upload filenames are UUIDs and are never overwritten, so they are safe to cache permanently.
+  app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads'), { maxAge: '1y', immutable: true, fallthrough: false }));
+  // Every remaining response is dynamic, personalized, or contains a CSRF token.
+  app.use((_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
   app.use(csrfToken);
   app.get('/health', asyncHandler(async (_req, res) => {
     const infrastructure = await checkInfrastructure();

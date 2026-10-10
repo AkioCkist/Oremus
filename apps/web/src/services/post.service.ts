@@ -47,7 +47,7 @@ export async function createPost(authorId: string, input: any, files: Express.Mu
   await enqueuePostVideos(post, media.map((item) => item.url));
   if (input.groupId) await GroupPost.create({ groupId: input.groupId, postId: post.id, authorId });
   if (groupStatus === 'pending') await notify({ recipientId: String(groupInfo.ownerId), actorId: authorId, type: 'group_post', entityType: 'Group', entityId: input.groupId, text: `posted in ${groupInfo.name} and is waiting for approval` });
-  await invalidateSocialCaches([authorId]);
+  await invalidateSocialCaches([authorId], { search: !input.groupId });
   return post;
 }
 
@@ -85,7 +85,7 @@ export async function updatePost(userId: string, postId: string, input: { conten
   if (isEmptyPost(post)) throw new AppError(422, 'A post needs text, a photo or video, or a check-in.', 'EMPTY_POST');
   post.editedAt = new Date(); await post.save();
   await enqueuePostVideos(post, files.map((file) => `/uploads/${file.filename}`));
-  await invalidateSocialCaches([userId]);
+  await invalidateSocialCaches([userId], { search: !post.groupId });
   return post;
 }
 
@@ -117,7 +117,7 @@ export async function deletePost(userId: string, postId: string) {
   if (!post) throw new AppError(404, 'Post not found.', 'POST_NOT_FOUND');
   await assertCanAccessPost(post, userId);
   assertOwner(post.authorId, userId, 'You can only delete your own posts.');
-  post.deletedAt = new Date(); await post.save(); await invalidateSocialCaches([userId]);
+  post.deletedAt = new Date(); await post.save(); await invalidateSocialCaches([userId], { search: !post.groupId });
 }
 
 export async function react(userId: string, postId: string, type: string) {

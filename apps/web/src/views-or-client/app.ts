@@ -159,19 +159,19 @@ async function confirmAction(title = 'Move to trash?', description = "This can't
 
 type FriendState = 'none' | 'outgoing' | 'incoming' | 'friends';
 
-function friendButton(action: string, label: string, icon: string, primary: boolean, compact: boolean, full: boolean) {
+function friendButton(action: string, label: string, icon: string, primary: boolean, compact: boolean, full: boolean, soft = false) {
   const button = document.createElement('button');
   button.type = 'button'; button.dataset.friendAction = action;
-  button.className = `${primary ? 'btn-primary' : 'btn-secondary'} ${compact ? 'btn-sm' : ''} ${full ? 'w-full' : ''}`.trim();
+  button.className = `${primary ? (soft ? 'btn-soft' : 'btn-primary') : 'btn-secondary'} ${compact ? 'btn-sm' : ''} ${full ? 'w-full' : ''}`.trim();
   button.append(svgUse(icon, 'icon size-4'), document.createTextNode(label));
   return button;
 }
 
 function paintFriendControls(container: HTMLElement, state: FriendState) {
-  const compact = container.dataset.compact === 'true', full = container.dataset.full === 'true';
+  const compact = container.dataset.compact === 'true', full = container.dataset.full === 'true', soft = container.dataset.soft === 'true';
   container.replaceChildren();
   if (state === 'incoming') {
-    container.append(friendButton('accept', 'Confirm', 'i-check', true, compact, full), friendButton('decline', 'Delete request', 'i-x', false, compact, full));
+    container.append(friendButton('accept', 'Confirm', 'i-check', true, compact, full, soft), friendButton('decline', 'Delete request', 'i-x', false, compact, full));
   } else if (state === 'outgoing') {
     container.append(friendButton('cancel', 'Cancel request', 'i-clock', false, compact, full));
   } else if (state === 'friends') {
@@ -184,7 +184,7 @@ function paintFriendControls(container: HTMLElement, state: FriendState) {
     const unfriend = friendButton('unfriend', 'Unfriend', 'i-user', false, false, false); unfriend.className = 'menu-item';
     items.append(pause, unfriend); menu.append(summary, items); container.appendChild(menu);
   } else {
-    container.append(friendButton('request', 'Add friend', 'i-user-plus', true, compact, full));
+    container.append(friendButton('request', 'Add friend', 'i-user-plus', true, compact, full, soft));
   }
   const error = document.createElement('p');
   error.className = 'hidden basis-full text-sm text-red-600'; error.dataset.friendError = ''; error.setAttribute('role', 'alert');
@@ -1584,6 +1584,7 @@ document.addEventListener('click', async (event) => {
       else await deleteCommentById(data.commentDelete!);
       return;
     }
+    if (data.dismissSuggestion) { dismissSuggestion(data.dismissSuggestion); return; }
     if (data.profileItemDelete) {
       if (!(await confirmAction('Remove from profile?', 'This detail will be removed from your About info.', 'Remove'))) return;
       await request(data.profileItemDelete, { method: 'DELETE' }); window.location.reload(); return;
@@ -1719,6 +1720,39 @@ $$('[data-reaction-toggle]').forEach((button) => {
   button.addEventListener('touchstart', () => { timer = window.setTimeout(() => button.parentElement?.querySelector('.reaction-bar')?.classList.add('is-open'), 450); }, { passive: true });
   button.addEventListener('touchend', () => window.clearTimeout(timer));
 });
+
+/* ---------- Group tabs: old #about style links ---------- */
+
+// Group sections used to be anchors on one page; they are now ?tab= pages.
+{
+  const legacy: Record<string, string> = { '#about': 'about', '#rules': 'about', '#requests': 'requests', '#pending-posts': 'pending', '#members': 'members' };
+  const target = legacy[window.location.hash];
+  if (target && $('[data-group-tabs]') && !new URLSearchParams(window.location.search).has('tab')) {
+    const url = new URL(window.location.href); url.searchParams.set('tab', target); url.hash = window.location.hash === '#rules' ? 'rules' : '';
+    window.location.replace(url.toString());
+  }
+}
+
+/* ---------- People you may know: dismissed suggestions ---------- */
+
+// Remembered in this browser only; the server keeps suggesting them elsewhere (search page).
+const DISMISSED_KEY = 'oremus:dismissed-suggestions';
+const readDismissed = (): string[] => { try { return JSON.parse(localStorage.getItem(DISMISSED_KEY) || '[]'); } catch { return []; } };
+function hideEmptySuggestions() {
+  const section = $('[data-suggestions]');
+  if (section && !$$('[data-suggestion]', section).length) { section.remove(); $('[data-suggestions-divider]')?.remove(); }
+}
+function dismissSuggestion(id: string) {
+  const ids = [...new Set([id, ...readDismissed()])].slice(0, 200);
+  try { localStorage.setItem(DISMISSED_KEY, JSON.stringify(ids)); } catch { /* storage unavailable: hide for this page only */ }
+  $$(`[data-suggestion="${id}"]`).forEach((item) => item.remove());
+  hideEmptySuggestions();
+}
+if ($('[data-suggestions]')) {
+  const dismissed = new Set(readDismissed());
+  $$<HTMLElement>('[data-suggestion]').forEach((item) => { if (dismissed.has(item.dataset.suggestion!)) item.remove(); });
+  hideEmptySuggestions();
+}
 
 /* ---------- Comment edit & delete ---------- */
 

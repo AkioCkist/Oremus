@@ -86,6 +86,22 @@ Pending and declined posts never appear in the group feed or the home feed. Admi
 - In the home feed of every member.
 - Not in search (search only returns public posts outside groups).
 
+## Group page tabs
+
+The group page is split into tabs. Each tab is its own URL, so it can be linked and reloaded.
+
+| Tab | URL | Who sees it | Content |
+|---|---|---|---|
+| Discussion | `/groups/:slug` | Everyone who can see the group | Composer, posts, short About card with **See more**, rules. Admins also get a "Needs your review" banner when there are requests or pending posts. |
+| About | `?tab=about` | Everyone | Description, privacy and visibility explained, type, location, tags, creation date; **Activity** (new posts today, posts and new members in the last month); rules; admins and moderators |
+| Members | `?tab=members` | Everyone (the full list only for public groups or members) | Admins and moderators, then the 200 newest members |
+| Member requests | `?tab=requests` | People who can approve requests | Pending join requests with answers |
+| Pending posts | `?tab=pending` | Admins and moderators | Posts waiting for approval |
+
+- An unknown tab, or a tab the viewer may not open, shows the Discussion.
+- Admins and moderators are listed on About and Members even for private groups, as on Facebook.
+- Old links that used anchors (`#about`, `#rules`, `#requests`, `#pending-posts`) are sent to the matching tab by `app.ts`.
+
 ## Caching
 
 Group details are cached for 3 minutes under `group:{id}` and cleared when settings or membership change. `memberCount` is updated with `$inc` when people join or leave.

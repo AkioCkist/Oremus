@@ -1,11 +1,12 @@
 import mongoose from 'mongoose';
 import { Follow, GroupMember, Post, Reaction } from '../models/index.js';
 import { env } from '../config/env.js';
-import { cacheGet, cacheSet } from './cache.service.js';
+import { cacheGet, cacheSet, feedCacheVersion } from './cache.service.js';
 import { blockedUserIds, feedExclusions, restrictedAuthorIds } from './social.service.js';
 
 export async function getFeed(userId: string, page = 1, limit = 15) {
-  const key = `feed:${userId}:${page}:${limit}`;
+  const version = await feedCacheVersion();
+  const key = `feed:${version}:${userId}:${page}:${limit}`;
   const cached = await cacheGet<any[]>(key);
   if (cached) return { items: cached, cached: true };
   const [follows, memberships, excluded, restricted] = await Promise.all([

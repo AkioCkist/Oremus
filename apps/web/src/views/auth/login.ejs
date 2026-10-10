@@ -7,13 +7,14 @@
             <label class="label" for="email">E-mail <span class="text-red-600" aria-hidden="true">*</span></label>
             <div class="input-icon mt-1.5"><svg class="icon size-[1.125rem]"><use href="#i-mail"/></svg><input class="input w-full" id="email" name="email" type="email" autocomplete="email" placeholder="email@example.com" required></div>
           </div>
-          <div>
-            <div class="flex items-baseline justify-between"><label class="label" for="password">Password <span class="text-red-600" aria-hidden="true">*</span></label><a class="text-[0.8125rem] font-semibold text-brand-600 hover:underline" href="/reset-password">Forgot password?</a></div>
+          <div class="relative">
+            <label class="label" for="password">Password <span class="text-red-600" aria-hidden="true">*</span></label>
             <div class="input-icon relative mt-1.5">
               <svg class="icon size-[1.125rem]"><use href="#i-key"/></svg>
               <input class="input w-full pr-11" id="password" name="password" type="password" autocomplete="current-password" placeholder="••••••••••" required>
               <button type="button" class="absolute right-1.5 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-hover" data-toggle-password="password" aria-label="Show password" aria-pressed="false"><svg class="icon size-[1.125rem]"><use href="#i-eye-off"/></svg></button>
             </div>
+            <a class="absolute right-0 top-0 text-[0.8125rem] font-semibold text-brand-600 hover:underline" href="/reset-password">Forgot password?</a>
           </div>
           <label class="flex cursor-pointer items-center gap-2.5 text-sm text-ink" for="remember"><input class="check" id="remember" name="remember" type="checkbox" value="true"><span>Remember me for 30 days</span></label>
           <p class="form-error hidden" data-form-error role="alert"></p>

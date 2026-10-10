@@ -40,7 +40,7 @@ Built files get a `?v=<hash>` suffix (`assetVersion()` in `app.ts`), so browsers
 | `/profile/:username` | `profile.ejs` — tabs: posts, about (`?tab=about&section=`), media (`?tab=media&type=&sort=`) | No |
 | `/posts/:postId` | `post.ejs` — single post with all comments | No (public posts) |
 | `/groups` | `groups/index.ejs` — directory | No |
-| `/groups/:slug`, `/g/:groupId` | `groups/detail.ejs` | No (visible groups) |
+| `/groups/:slug`, `/g/:groupId` | `groups/detail.ejs` — tabs: discussion, about, members, requests, pending (`?tab=`) | No (visible groups) |
 | `/stories`, `/stories/:username` | `stories/index.ejs` — full-screen viewer | Yes |
 | `/stories/archive` | `stories/archive.ejs` | Yes |
 | `/messages`, `/messages/:conversationId` | `messages.ejs` | Yes |

@@ -2,10 +2,12 @@
   const currentState = state || 'none';
   const small = compact ? 'btn-sm' : '';
   const width = full ? 'w-full' : '';
+  // soft: lighter primary buttons for dense lists such as "People you may know".
+  const primary = locals.soft ? 'btn-soft' : 'btn-primary';
 %>
-<div class="flex flex-wrap gap-2 <%= width %>" data-friend-controls data-user-id="<%= person._id || person.id %>" data-user-name="<%= person.displayName || person.title %>" data-compact="<%= compact ? 'true' : 'false' %>" data-full="<%= full ? 'true' : 'false' %>">
+<div class="flex flex-wrap gap-2 <%= width %>" data-friend-controls data-user-id="<%= person._id || person.id %>" data-user-name="<%= person.displayName || person.title %>" data-compact="<%= compact ? 'true' : 'false' %>" data-full="<%= full ? 'true' : 'false' %>" data-soft="<%= locals.soft ? 'true' : 'false' %>">
   <% if (currentState === 'incoming') { %>
-    <button type="button" class="btn-primary <%= small %> <%= width %>" data-friend-action="accept"><svg class="icon size-4"><use href="#i-check"/></svg>Confirm</button>
+    <button type="button" class="<%= primary %> <%= small %> <%= width %>" data-friend-action="accept"><svg class="icon size-4"><use href="#i-check"/></svg>Confirm</button>
     <button type="button" class="btn-secondary <%= small %> <%= width %>" data-friend-action="decline"><svg class="icon size-4"><use href="#i-x"/></svg>Delete request</button>
   <% } else if (currentState === 'outgoing') { %>
     <button type="button" class="btn-secondary <%= small %> <%= width %>" data-friend-action="cancel"><svg class="icon size-4"><use href="#i-clock"/></svg>Cancel request</button>
@@ -18,7 +20,7 @@
       </div>
     </details>
   <% } else { %>
-    <button type="button" class="btn-primary <%= small %> <%= width %>" data-friend-action="request"><svg class="icon size-4"><use href="#i-user-plus"/></svg>Add friend</button>
+    <button type="button" class="<%= primary %> <%= small %> <%= width %>" data-friend-action="request"><svg class="icon size-4"><use href="#i-user-plus"/></svg>Add friend</button>
   <% } %>
   <p class="hidden basis-full text-sm text-red-600" role="alert" data-friend-error></p>
 </div>

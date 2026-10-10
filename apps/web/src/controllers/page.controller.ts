@@ -7,7 +7,7 @@ import { getPostDetail, withReactionSummary } from '../services/post.service.js'
 import { GROUP_ARTWORK, GROUP_TYPE_LABELS, getGroup, inviteCandidates, listGroups } from '../services/group.service.js';
 import { countUnreadConversations, listConversations, listMessages, markConversationRead } from '../services/message.service.js';
 import { getStoryTray, listArchive } from '../services/story.service.js';
-import { getFriendshipStates, listFriends } from '../services/friendship.service.js';
+import { getFriendshipStates, listFriends, mutualFriendCounts } from '../services/friendship.service.js';
 import { blockedUserIds, restrictedAuthorIds } from '../services/social.service.js';
 import { AppError } from '../utils/errors.js';
 
@@ -41,7 +41,13 @@ export async function home(req: Request, res: Response) {
   const [result, friends, groups, tray, people, follows] = await Promise.all([getFeed(userId), listFriends(userId, 40), myGroups(userId), getStoryTray(userId), User.find({ _id: { $nin: [userId, ...blocked] }, deletedAt: null }).sort({ createdAt: -1 }).limit(20).select(AUTHOR_FIELDS).lean(), Follow.find({ followerId: userId }).select('followingId').lean()]);
   const followedIds = new Set(follows.map((row: any) => String(row.followingId)));
   const friendStates = await getFriendshipStates(userId, people.map((person: any) => String(person._id)));
-  const suggestions = people.map((person: any) => ({ ...person, friendState: friendStates.get(String(person._id)) || 'none', isFollowing: followedIds.has(String(person._id)) })).filter((person: any) => person.friendState !== 'friends').slice(0, 4);
+  const mutual = await mutualFriendCounts(userId, people.map((person: any) => String(person._id)));
+  // People you share friends with come first (Facebook's main signal); otherwise newest members.
+  const suggestions = people
+    .map((person: any) => ({ ...person, friendState: friendStates.get(String(person._id)) || 'none', isFollowing: followedIds.has(String(person._id)), mutualFriends: mutual.get(String(person._id)) || 0 }))
+    .filter((person: any) => person.friendState !== 'friends')
+    .sort((a: any, b: any) => b.mutualFriends - a.mutualFriends)
+    .slice(0, 6);
   const posts = await withReactionSummary(result.items, userId);
   res.render('home', { ...base(req, 'Home'), posts, suggestions, contacts: friends.slice(0, 12), groups, tray, cached: result.cached });
 }
@@ -95,15 +101,35 @@ export async function groups(req: Request, res: Response) {
   res.render('groups/index', { ...base(req, 'Groups'), groups: all, myGroups: mine, groupArtwork: GROUP_ARTWORK, groupTypes: GROUP_TYPE_LABELS, inviteCandidates: candidates, openCreate: req.query.create === '1' });
 }
 
+const GROUP_TABS = ['discussion', 'about', 'members', 'requests', 'pending'];
+
 export async function group(req: Request, res: Response) {
   const detail = await getGroup(param(req, 'slug'), req.user?.id);
-  const [posts, members, mine, candidates] = await Promise.all([
+  const groupId = detail.group._id;
+  const canSee = detail.group.privacy === 'public' || !!detail.member;
+  let tab = GROUP_TABS.includes(String(req.query.tab)) ? String(req.query.tab) : 'discussion';
+  // Tabs the viewer has no access to fall back to the discussion.
+  if ((tab === 'requests' && !detail.canApprove) || (tab === 'pending' && !detail.canManage)) tab = 'discussion';
+  const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000), monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const visiblePosts = { groupId, deletedAt: null, groupStatus: { $nin: ['pending', 'declined'] } };
+  const [posts, members, mine, candidates, staff, allMembers, activity] = await Promise.all([
     withReactionSummary(detail.posts, req.user?.id),
-    GroupMember.find({ groupId: detail.group._id }).sort({ createdAt: 1 }).limit(8).populate('userId', AUTHOR_FIELDS).lean(),
+    GroupMember.find({ groupId }).sort({ createdAt: 1 }).limit(8).populate('userId', AUTHOR_FIELDS).lean(),
     req.user ? myGroups(req.user.id, 20) : Promise.resolve([]),
-    req.user && detail.member ? inviteCandidates(req.user.id, detail.group._id) : Promise.resolve([])
+    req.user && detail.member ? inviteCandidates(req.user.id, groupId) : Promise.resolve([]),
+    // Admins and moderators are always listed on About, as on Facebook, even for private groups.
+    tab === 'about' || tab === 'members' ? GroupMember.find({ groupId, role: { $in: ['admin', 'moderator'] } }).sort({ role: 1, createdAt: 1 }).limit(20).populate('userId', AUTHOR_FIELDS).lean() : Promise.resolve([]),
+    tab === 'members' && canSee ? GroupMember.find({ groupId }).sort({ createdAt: -1 }).limit(200).populate('userId', AUTHOR_FIELDS).lean() : Promise.resolve([]),
+    tab === 'about' && canSee ? Promise.all([Post.countDocuments({ ...visiblePosts, createdAt: { $gte: dayAgo } }), Post.countDocuments({ ...visiblePosts, createdAt: { $gte: monthAgo } }), GroupMember.countDocuments({ groupId, createdAt: { $gte: monthAgo } })]) : Promise.resolve(null)
   ]);
-  res.render('groups/detail', { ...base(req, detail.group.name), ...detail, posts, members: members.map((item: any) => item.userId).filter(Boolean), myGroups: mine, groupArtwork: GROUP_ARTWORK, groupTypes: GROUP_TYPE_LABELS, inviteCandidates: candidates });
+  const withUser = (rows: any[]) => rows.filter((row) => row.userId).map((row) => ({ ...row.userId, role: row.role, joinedAt: row.createdAt }));
+  res.render('groups/detail', {
+    ...base(req, detail.group.name), ...detail, posts, tab,
+    members: members.map((item: any) => item.userId).filter(Boolean),
+    staff: withUser(staff), allMembers: withUser(allMembers),
+    activity: activity ? { postsToday: activity[0], postsMonth: activity[1], newMembersMonth: activity[2] } : null,
+    myGroups: mine, groupArtwork: GROUP_ARTWORK, groupTypes: GROUP_TYPE_LABELS, inviteCandidates: candidates
+  });
 }
 
 /** Stable link for notifications that only know the group id. */

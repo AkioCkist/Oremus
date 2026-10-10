@@ -23,6 +23,14 @@ describe('authentication boundaries', () => {
       error: { code: 'AUTH_REQUIRED', message: 'Please sign in to continue.' },
     });
   });
+
+  it('places the password field before the password reset link in keyboard order', async () => {
+    const response = await request(app).get('/login').set('Accept', 'text/html');
+
+    expect(response.status).toBe(200);
+    expect(response.text.indexOf('id="email"')).toBeLessThan(response.text.indexOf('id="password"'));
+    expect(response.text.indexOf('id="password"')).toBeLessThan(response.text.indexOf('href="/reset-password"'));
+  });
 });
 
 describe('validation responses', () => {

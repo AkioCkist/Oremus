@@ -45,12 +45,19 @@
             <% } %>
           </div>
         </div>
-        <nav aria-label="Group sections" class="flex"><span class="tab tab-active" aria-current="page">Discussion</span><a class="tab" href="#about">About</a><% if (rules.length) { %><a class="tab" href="#rules">Rules</a><% } %><% if (requests.length) { %><a class="tab" href="#requests">Requests (<%= requests.length %>)</a><% } %><% if (pendingPosts.length) { %><a class="tab" href="#pending-posts">Pending posts (<%= pendingPosts.length %>)</a><% } %></nav>
+        <% const groupTab = (key) => `/groups/${group.slug}${key === 'discussion' ? '' : '?tab=' + key}`;
+           const tabs = [['discussion', 'Discussion'], ['about', 'About'], ['members', 'Members']];
+           if (canApprove) tabs.push(['requests', 'Member requests' + (requests.length ? ` (${requests.length})` : '')]);
+           if (canManage) tabs.push(['pending', 'Pending posts' + (pendingPosts.length ? ` (${pendingPosts.length})` : '')]); -%>
+        <nav aria-label="Group sections" class="scrollbar-none flex overflow-x-auto" data-group-tabs>
+          <% tabs.forEach(function ([key, label]) { %><a class="tab shrink-0 <%= tab === key ? 'tab-active' : '' %>" href="<%= groupTab(key) %>" <%= tab === key ? 'aria-current=page' : '' %>><%= label %></a><% }) %>
+        </nav>
       </div>
     </div>
   </section>
 
   <div class="mx-auto mt-4 grid max-w-[71.25rem] gap-4 px-0 sm:px-4 lg:grid-cols-[minmax(0,1fr)_22rem] lg:px-8">
+  <% if (tab === 'discussion') { %>
     <section class="min-w-0 space-y-4" aria-label="Discussion">
       <% if (invite && !member) { %>
       <div class="card flex flex-wrap items-center gap-3 p-4">
@@ -62,21 +69,14 @@
       <% if (myPending) { %><div class="card flex items-center gap-3 p-4 text-15"><span class="icon-btn shrink-0 bg-brand-50 text-brand-600"><svg class="icon"><use href="#i-clock"/></svg></span>You have <%= plural(myPending, 'post') %> waiting for admin approval.</div><% } %>
       <% if (member && canPost) { %><%- include('../partials/composer', { composerGroup: group }) %><% } else if (member) { %><div class="card flex items-center gap-3 p-4 text-15 text-muted"><svg class="icon"><use href="#i-lock"/></svg>Only admins can post in this group.</div><% } %>
 
-      <% if (pendingPosts.length) { %>
-      <section id="pending-posts" class="card p-4">
-        <h2 class="card-title">Pending posts</h2>
-        <p class="text-[0.8125rem] text-muted">Approve posts to publish them to the group.</p>
-        <ul class="mt-3 space-y-3">
-          <% pendingPosts.forEach(function (p) { %>
-          <li class="rounded-lg border border-line p-3">
-            <div class="flex items-center gap-2"><%- include('../partials/avatar', { person: p.authorId, size: 'size-9 text-xs' }) %><p class="flex-1 text-15"><strong class="font-semibold"><%= p.authorId.displayName %></strong> <span class="text-[0.8125rem] text-muted">· <%= timeAgo(p.createdAt) %></span></p></div>
-            <% if (p.content) { %><p class="mt-2 line-clamp-4 whitespace-pre-wrap text-15"><%= p.content %></p><% } %>
-            <% if (p.media && p.media.length) { %><div class="mt-2 flex gap-1"><% p.media.forEach(function (m) { %><% if (m.poster) { %><img class="size-16 rounded-md object-cover" src="<%= m.poster %>" alt=""><% } else if (String(m.mimeType || '').startsWith('video/')) { %><video class="size-16 rounded-md bg-black object-cover" src="<%= m.url %>#t=0.1" muted preload="metadata"></video><% } else { %><img class="size-16 rounded-md object-cover" src="<%= m.url %>" alt=""><% } %><% }) %></div><% } %>
-            <div class="mt-3 flex gap-2"><button type="button" class="btn-primary btn-sm" data-post-decision="approve" data-post="<%= p._id %>">Approve</button><button type="button" class="btn-secondary btn-sm" data-post-decision="reject" data-post="<%= p._id %>">Decline</button></div>
-          </li>
-          <% }) %>
-        </ul>
-      </section>
+
+      <% if (pendingPosts.length || requests.length) { %>
+      <div class="card flex flex-wrap items-center gap-2 p-3">
+        <span class="icon-btn shrink-0 bg-brand-50 text-brand-600"><svg class="icon"><use href="#i-shield"/></svg></span>
+        <p class="min-w-0 flex-1 text-15">Needs your review:<% if (requests.length) { %> <strong class="font-semibold"><%= plural(requests.length, 'member request') %></strong><% } %><% if (requests.length && pendingPosts.length) { %> ·<% } %><% if (pendingPosts.length) { %> <strong class="font-semibold"><%= plural(pendingPosts.length, 'pending post') %></strong><% } %></p>
+        <% if (requests.length) { %><a class="btn-secondary btn-sm" href="<%= groupTab('requests') %>">Review requests</a><% } %>
+        <% if (pendingPosts.length) { %><a class="btn-primary btn-sm" href="<%= groupTab('pending') %>">Review posts</a><% } %>
+      </div>
       <% } %>
 
       <% if (!canSee) { %>
@@ -88,7 +88,7 @@
 
     <aside class="space-y-4">
       <section id="about" class="card p-4">
-        <h2 class="card-title">About</h2>
+        <div class="flex items-center justify-between"><h2 class="card-title">About</h2><a class="rounded-md px-2 py-1 text-15 text-brand-600 hover:bg-hover" href="<%= groupTab('about') %>">See more</a></div>
         <% if (group.description) { %><p class="mt-2 whitespace-pre-wrap text-15"><%= group.description %></p><% } %>
         <ul class="mt-3 space-y-3 text-15">
           <li class="flex gap-3"><svg class="icon mt-0.5 shrink-0 text-subtle"><use href="#<%= group.privacy === 'private' ? 'i-lock' : 'i-globe' %>"/></svg><span><strong class="block font-semibold"><%= group.privacy === 'private' ? 'Private' : 'Public' %></strong><span class="text-[0.8125rem] text-muted"><%= group.privacy === 'private' ? "Only members can see who's in the group and what they post." : "Anyone can see who's in the group and what they post." %></span></span></li>
@@ -100,7 +100,6 @@
         </ul>
         <% if (group.tags && group.tags.length) { %><div class="mt-3 flex flex-wrap gap-1.5"><% group.tags.forEach(function (tag) { %><a class="rounded-full bg-field px-2.5 py-1 text-[0.8125rem] font-semibold text-ink hover:bg-line" href="/search?kind=group&q=<%= encodeURIComponent(tag) %>">#<%= tag %></a><% }) %></div><% } %>
       </section>
-
       <% if (rules.length) { %>
       <section id="rules" class="card p-4">
         <h2 class="card-title">Group rules from the admins</h2>
@@ -109,7 +108,84 @@
         </ol>
       </section>
       <% } %>
+    </aside>
 
+  <% } else if (tab === 'about') { %>
+    <section class="min-w-0 space-y-4" aria-label="About this group">
+      <section id="about" class="card p-4">
+        <h2 class="card-title text-xl">About this group</h2>
+        <% if (group.description) { %><p class="mt-2 whitespace-pre-wrap text-15"><%= group.description %></p><% } %>
+        <ul class="mt-3 space-y-3 text-15">
+          <li class="flex gap-3"><svg class="icon mt-0.5 shrink-0 text-subtle"><use href="#<%= group.privacy === 'private' ? 'i-lock' : 'i-globe' %>"/></svg><span><strong class="block font-semibold"><%= group.privacy === 'private' ? 'Private' : 'Public' %></strong><span class="text-[0.8125rem] text-muted"><%= group.privacy === 'private' ? "Only members can see who's in the group and what they post." : "Anyone can see who's in the group and what they post." %></span></span></li>
+          <li class="flex gap-3"><svg class="icon mt-0.5 shrink-0 text-subtle"><use href="#<%= group.visibility === 'hidden' ? 'i-eye-off' : 'i-eye' %>"/></svg><span><strong class="block font-semibold"><%= group.visibility === 'hidden' ? 'Hidden' : 'Visible' %></strong><span class="text-[0.8125rem] text-muted"><%= group.visibility === 'hidden' ? 'Only members and invited people can find this group.' : 'Anyone can find this group.' %></span></span></li>
+          <li class="flex gap-3"><svg class="icon mt-0.5 shrink-0 text-subtle"><use href="#i-briefcase"/></svg><span><strong class="block font-semibold"><%= groupTypes[group.groupType || 'general'] %></strong><span class="text-[0.8125rem] text-muted">Group type</span></span></li>
+          <% if (group.location) { %><li class="flex gap-3"><svg class="icon mt-0.5 shrink-0 text-subtle"><use href="#i-pin"/></svg><span><strong class="block font-semibold"><%= group.location %></strong><span class="text-[0.8125rem] text-muted">Location</span></span></li><% } %>
+          <li class="flex gap-3"><svg class="icon mt-0.5 shrink-0 text-subtle"><use href="#i-clock"/></svg><span><strong class="block font-semibold">History</strong><span class="text-[0.8125rem] text-muted">Group created on <%= new Date(group.createdAt).toLocaleDateString('en', { month: 'long', day: 'numeric', year: 'numeric' }) %></span></span></li>
+          <% if (settings.postApproval) { %><li class="flex gap-3"><svg class="icon mt-0.5 shrink-0 text-subtle"><use href="#i-shield"/></svg><span><strong class="block font-semibold">Posts are reviewed</strong><span class="text-[0.8125rem] text-muted">Admins approve member posts before they appear.</span></span></li><% } %>
+        </ul>
+        <% if (group.tags && group.tags.length) { %><div class="mt-3 flex flex-wrap gap-1.5"><% group.tags.forEach(function (tag) { %><a class="rounded-full bg-field px-2.5 py-1 text-[0.8125rem] font-semibold text-ink hover:bg-line" href="/search?kind=group&q=<%= encodeURIComponent(tag) %>">#<%= tag %></a><% }) %></div><% } %>
+      </section>
+      <% if (canSee && activity) { %>
+      <section class="card p-4" aria-labelledby="group-activity-title">
+        <h2 id="group-activity-title" class="card-title text-xl">Activity</h2>
+        <ul class="mt-3 space-y-3 text-15">
+          <li class="flex gap-3"><svg class="icon mt-0.5 shrink-0 text-subtle"><use href="#i-feed"/></svg><span><strong class="font-semibold"><%= plural(activity.postsToday, 'new post') %></strong> today</span></li>
+          <li class="flex gap-3"><svg class="icon mt-0.5 shrink-0 text-subtle"><use href="#i-comment"/></svg><span><strong class="font-semibold"><%= plural(activity.postsMonth, 'post') %></strong> in the last month</span></li>
+          <li class="flex gap-3"><svg class="icon mt-0.5 shrink-0 text-subtle"><use href="#i-users"/></svg><span><strong class="font-semibold"><%= plural(group.memberCount, 'member') %></strong> in total<% if (activity.newMembersMonth) { %> · +<%= compact(activity.newMembersMonth) %> in the last month<% } %></span></li>
+          <li class="flex gap-3"><svg class="icon mt-0.5 shrink-0 text-subtle"><use href="#i-clock"/></svg><span>Created <%= new Date(group.createdAt).toLocaleDateString('en', { day: 'numeric', month: 'long', year: 'numeric' }) %></span></li>
+        </ul>
+      </section>
+      <% } %>
+      <% if (rules.length) { %>
+      <section id="rules" class="card p-4">
+        <h2 class="card-title">Group rules from the admins</h2>
+        <ol class="mt-3 space-y-3">
+          <% rules.forEach(function (rule, i) { %><li class="flex gap-3"><span class="grid size-7 shrink-0 place-items-center rounded-full bg-field text-[0.8125rem] font-bold"><%= i + 1 %></span><div><p class="font-semibold"><%= rule.title %></p><% if (rule.details) { %><p class="mt-0.5 whitespace-pre-wrap text-[0.8125rem] text-muted"><%= rule.details %></p><% } %></div></li><% }) %>
+        </ol>
+      </section>
+      <% } %>
+    </section>
+    <aside class="space-y-4">
+      <section class="card p-4" aria-labelledby="group-staff-title">
+        <div class="flex items-center justify-between"><h2 id="group-staff-title" class="card-title">Members · <%= compact(group.memberCount) %></h2><a class="rounded-md px-2 py-1 text-15 text-brand-600 hover:bg-hover" href="<%= groupTab('members') %>">See all</a></div>
+        <% if (members.length && canSee) { %><div class="mt-3 flex -space-x-2"><% members.forEach(function (p) { %><a href="/profile/<%= p.username %>" title="<%= p.displayName %>"><%- include('../partials/avatar', { person: p, size: 'size-9 text-xs ring-2 ring-surface' }) %></a><% }) %></div><% } %>
+        <h3 class="mt-4 text-15 font-semibold">Admins and moderators</h3>
+        <% if (staff.length) { %>
+        <ul class="mt-2 space-y-3">
+          <% staff.forEach(function (p) { %><li class="flex items-center gap-3">
+              <a href="/profile/<%= p.username %>" class="shrink-0"><%- include('../partials/avatar', { person: p, size: 'size-12 text-base' }) %></a>
+              <div class="min-w-0 flex-1"><a class="block truncate font-semibold hover:underline" href="/profile/<%= p.username %>"><%= p.displayName %></a><p class="truncate text-[0.8125rem] text-muted"><%= p.role === 'admin' ? 'Admin' : p.role === 'moderator' ? 'Moderator' : 'Member' %> · Joined <%= timeAgo(p.joinedAt) %></p></div>
+            </li><% }) %>
+        </ul>
+        <% } else { %><p class="mt-1 text-15 text-muted">No admins listed.</p><% } %>
+      </section>
+    </aside>
+
+  <% } else if (tab === 'members') { %>
+    <section class="card min-w-0 p-4 lg:col-span-2" aria-labelledby="group-members-title">
+      <h2 id="group-members-title" class="card-title text-xl">Members · <%= compact(group.memberCount) %></h2>
+      <% if (!canSee) { %>
+        <p class="mt-3 flex items-center gap-2 text-muted"><svg class="icon"><use href="#i-lock"/></svg>Join this group to see everyone in it.</p>
+      <% } %>
+      <h3 class="mt-4 text-15 font-semibold">Admins and moderators</h3>
+      <ul class="mt-2 grid gap-3 sm:grid-cols-2"><% staff.forEach(function (p) { %><li class="flex items-center gap-3">
+              <a href="/profile/<%= p.username %>" class="shrink-0"><%- include('../partials/avatar', { person: p, size: 'size-12 text-base' }) %></a>
+              <div class="min-w-0 flex-1"><a class="block truncate font-semibold hover:underline" href="/profile/<%= p.username %>"><%= p.displayName %></a><p class="truncate text-[0.8125rem] text-muted"><%= p.role === 'admin' ? 'Admin' : p.role === 'moderator' ? 'Moderator' : 'Member' %> · Joined <%= timeAgo(p.joinedAt) %></p></div>
+            </li><% }) %></ul>
+      <% if (canSee) { const others = allMembers.filter(function (p) { return p.role === 'member'; }); %>
+      <div class="divider my-4"></div>
+      <h3 class="text-15 font-semibold">Members<% if (others.length) { %> · newest first<% } %></h3>
+      <% if (others.length) { %><ul class="mt-2 grid gap-3 sm:grid-cols-2"><% others.forEach(function (p) { %><li class="flex items-center gap-3">
+              <a href="/profile/<%= p.username %>" class="shrink-0"><%- include('../partials/avatar', { person: p, size: 'size-12 text-base' }) %></a>
+              <div class="min-w-0 flex-1"><a class="block truncate font-semibold hover:underline" href="/profile/<%= p.username %>"><%= p.displayName %></a><p class="truncate text-[0.8125rem] text-muted"><%= p.role === 'admin' ? 'Admin' : p.role === 'moderator' ? 'Moderator' : 'Member' %> · Joined <%= timeAgo(p.joinedAt) %></p></div>
+            </li><% }) %></ul>
+      <% } else { %><p class="mt-1 text-15 text-muted">No other members yet.</p><% } %>
+      <% if (group.memberCount > allMembers.length) { %><p class="mt-3 text-[0.8125rem] text-muted">Showing the <%= allMembers.length %> newest members.</p><% } %>
+      <% } %>
+    </section>
+
+  <% } else if (tab === 'requests') { %>
+    <div class="min-w-0 lg:col-span-2">
       <% if (requests.length) { %>
       <section id="requests" class="card p-4">
         <h2 class="card-title">Member requests</h2>
@@ -128,8 +204,33 @@
           <% }) %>
         </ul>
       </section>
+      <% } else { %>
+      <div class="empty-state"><div class="empty-icon"><svg class="icon size-7"><use href="#i-user-plus"/></svg></div><h2 class="mt-4 text-xl font-bold">No member requests</h2><p class="mt-1 text-muted">New requests to join will show up here.</p></div>
       <% } %>
-    </aside>
+    </div>
+
+  <% } else if (tab === 'pending') { %>
+    <div class="min-w-0 lg:col-span-2">
+      <% if (pendingPosts.length) { %>
+      <section id="pending-posts" class="card p-4">
+        <h2 class="card-title">Pending posts</h2>
+        <p class="text-[0.8125rem] text-muted">Approve posts to publish them to the group.</p>
+        <ul class="mt-3 space-y-3">
+          <% pendingPosts.forEach(function (p) { %>
+          <li class="rounded-lg border border-line p-3">
+            <div class="flex items-center gap-2"><%- include('../partials/avatar', { person: p.authorId, size: 'size-9 text-xs' }) %><p class="flex-1 text-15"><strong class="font-semibold"><%= p.authorId.displayName %></strong> <span class="text-[0.8125rem] text-muted">· <%= timeAgo(p.createdAt) %></span></p></div>
+            <% if (p.content) { %><p class="mt-2 line-clamp-4 whitespace-pre-wrap text-15"><%= p.content %></p><% } %>
+            <% if (p.media && p.media.length) { %><div class="mt-2 flex gap-1"><% p.media.forEach(function (m) { %><% if (m.poster) { %><img class="size-16 rounded-md object-cover" src="<%= m.poster %>" alt=""><% } else if (String(m.mimeType || '').startsWith('video/')) { %><video class="size-16 rounded-md bg-black object-cover" src="<%= m.url %>#t=0.1" muted preload="metadata"></video><% } else { %><img class="size-16 rounded-md object-cover" src="<%= m.url %>" alt=""><% } %><% }) %></div><% } %>
+            <div class="mt-3 flex gap-2"><button type="button" class="btn-primary btn-sm" data-post-decision="approve" data-post="<%= p._id %>">Approve</button><button type="button" class="btn-secondary btn-sm" data-post-decision="reject" data-post="<%= p._id %>">Decline</button></div>
+          </li>
+          <% }) %>
+        </ul>
+      </section>
+      <% } else { %>
+      <div class="empty-state"><div class="empty-icon"><svg class="icon size-7"><use href="#i-shield"/></svg></div><h2 class="mt-4 text-xl font-bold">No pending posts</h2><p class="mt-1 text-muted">Posts waiting for approval will show up here.</p></div>
+      <% } %>
+    </div>
+  <% } %>
   </div>
 </main>
 

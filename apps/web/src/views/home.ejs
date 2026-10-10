@@ -22,24 +22,29 @@
   <aside class="hidden xl:block" aria-label="Contacts and suggestions">
     <div class="rail-sticky space-y-1 pr-2">
       <% if (suggestions.length) { %>
-      <section class="pb-2">
-        <div class="flex items-center justify-between px-2 pb-1 pt-1"><h2 class="font-display text-[1.0625rem] font-bold text-muted">People you may know</h2><a class="text-15 text-brand-600 hover:underline" href="/search?kind=user">See all</a></div>
-        <ul>
+      <section class="pb-2" data-suggestions>
+        <div class="flex items-center justify-between px-2 pb-1 pt-1"><h2 class="font-display text-[1.0625rem] font-bold text-muted">People you may know</h2><a class="rounded-md px-1.5 py-0.5 text-15 text-brand-600 hover:bg-rail-hover" href="/search?kind=user">See all</a></div>
+        <ul class="space-y-0.5">
           <% suggestions.forEach(function (person) { %>
-          <li class="flex flex-wrap items-center gap-3 rounded-lg p-2 hover:bg-rail-hover">
-            <a href="/profile/<%= person.username %>" class="flex min-w-0 flex-1 items-center gap-3">
-              <%- include('partials/avatar', { person, size: 'size-10 text-sm' }) %>
-              <span class="min-w-0"><span class="block truncate font-semibold"><%= person.displayName %></span><span class="block truncate text-[0.8125rem] text-muted">@<%= person.username %></span></span>
-            </a>
-            <div class="flex w-full flex-wrap gap-2 pl-12">
-              <%- include('partials/friend-controls', { person, state: person.friendState, compact: true, full: false }) %>
-              <%- include('partials/follow-button', { person, following: person.isFollowing, compact: true, full: false }) %>
+          <li class="group/suggestion relative flex gap-3 rounded-xl p-2 transition-colors hover:bg-rail-hover" data-suggestion="<%= person._id %>">
+            <a href="/profile/<%= person.username %>" class="shrink-0" tabindex="-1" aria-hidden="true"><%- include('partials/avatar', { person, size: 'size-12 text-base' }) %></a>
+            <div class="min-w-0 flex-1">
+              <a href="/profile/<%= person.username %>" class="block truncate pr-6 text-15 font-semibold leading-tight hover:underline"><%= person.displayName %></a>
+              <p class="mt-0.5 truncate text-[0.8125rem] text-muted">
+                <% if (person.mutualFriends) { %><svg class="icon -mt-0.5 mr-0.5 inline size-3.5"><use href="#i-users"/></svg><%= plural(person.mutualFriends, 'mutual friend') %><% } else { %>@<%= person.username %><% } %>
+              </p>
+              <%# Buttons share one row; icons are hidden here so both labels fit the narrow rail. -%>
+              <div class="mt-2 grid grid-cols-2 gap-1.5 [&_button>svg]:hidden [&_button]:px-2 [&_button]:text-[0.8125rem] [&_summary>svg]:hidden [&_summary]:px-2 [&_summary]:text-[0.8125rem]">
+                <%- include('partials/friend-controls', { person, state: person.friendState, compact: true, full: true, soft: true }) %>
+                <%- include('partials/follow-button', { person, following: person.isFollowing, compact: true, full: true }) %>
+              </div>
             </div>
+            <button type="button" class="absolute right-1.5 top-1.5 grid size-7 place-items-center rounded-full text-muted transition-opacity hover:bg-control focus-visible:opacity-100 group-hover/suggestion:opacity-100 xl:opacity-0" data-dismiss-suggestion="<%= person._id %>" aria-label="Remove <%= person.displayName %> from suggestions" title="Remove"><svg class="icon size-4"><use href="#i-x"/></svg></button>
           </li>
           <% }) %>
         </ul>
       </section>
-      <div class="divider mx-2"></div>
+      <div class="divider mx-2" data-suggestions-divider></div>
       <% } %>
 
       <% if (groups.length) { %>

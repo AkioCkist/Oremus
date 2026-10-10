@@ -141,14 +141,16 @@ Every JSON response has the same shape, so the client handles them in one place.
 
 ## Caching
 
-Redis caches expensive reads for a short time. Writes delete the matching keys so users see fresh data quickly.
+Redis caches expensive reads for a short time. Writes invalidate only the affected cache domains so users see fresh data quickly without scanning the full keyspace.
+
+See [Caching](CACHING.md) for HTTP cache headers, Redis key ownership, invalidation rules, diagnostics and the change checklist.
 
 | Data | Key | TTL | Deleted when |
 |---|---|---:|---|
-| Home feed page | `feed:{user}:{page}:{limit}` | 45 s | post, reaction, comment, follow, membership change |
+| Home feed page | `feed:{version}:{user}:{page}:{limit}` | 45 s | feed version increments after post, reaction, comment, follow or membership change |
 | Profile summary | `profile:{user}` | 120 s | profile or follow change |
 | Group details | `group:{group}` | 180 s | group or membership change |
-| Search results (FastAPI) | `search:{sha256(query)}:{limit}` | 30 s | social or content change |
+| Search results (FastAPI) | `search:{sha256(query)}:{limit}` | 30 s | indexed profile, group or post content changes |
 | Place search | `places:v2:...` | 24 h | never (expires only) |
 
 ```mermaid
@@ -156,12 +158,12 @@ flowchart LR
   Read["Read request"] --> Hit{"Key in Redis?"}
   Hit -- yes --> Return["Return cached value<br/>(hits++)"]
   Hit -- no --> Query["Query MongoDB<br/>(misses++)"] --> Save["SET key with TTL"] --> Return
-  Write["Write request"] --> Invalidate["invalidateSocialCaches()<br/>delete feed:*, search:*, profile:{id}"]
+  Write["Write request"] --> Invalidate["invalidateSocialCaches()<br/>INCR feed version + DEL exact profiles<br/>search only when indexed content changes"]
 ```
 
 Hit and miss counts are stored in the `cache:stats` hash. Signed-in developers can see them at `/api/dev/cache`.
 
-Invalidation is intentionally broad (all `feed:*` keys). This is simple and always correct for a small app. At a larger scale, replace it with per-follower keys.
+Feed invalidation is O(1): incrementing `cache:version:feed` makes old feed keys unreachable and their 45-second TTL removes them naturally. Exact profile/group keys use `DEL`; only the short-lived search namespace needs a prefix scan.
 
 ## Rate limits
 
