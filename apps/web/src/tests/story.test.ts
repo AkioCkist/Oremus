@@ -3,6 +3,7 @@ import { buildStoryTray, canViewStory } from '../services/story.service.js';
 import { groupJoinSchema, groupSchema, postEditSchema, postSchema, profileDetailsSchema, profileListItemSchemas, profilePhotoSchema, searchRecordSchema, storyReactionSchema, storyReplySchema, storySchema } from '../validators/index.js';
 import { extractLinks, initials, timeAgo, toneOf } from '../utils/view-helpers.js';
 import { describeFeeling } from '../shared/feelings.js';
+import { storyInk, storyTextAttrs } from '../shared/story-style.js';
 
 const author = (id: string, name: string) => ({ _id: id, username: name.toLowerCase(), displayName: name, profile: { avatarUrl: '' } });
 const story = (id: string, who: ReturnType<typeof author>, minutesAgo: number) => ({ _id: id, authorId: who, text: id, background: 'ocean', media: null, viewCount: 2, createdAt: new Date(Date.now() - minutesAgo * 60_000) });
@@ -47,6 +48,14 @@ describe('story validation', () => {
     expect(storySchema.parse({}).background).toBe('ocean');
     expect(() => storySchema.parse({ text: 'x'.repeat(251) })).toThrow();
     expect(() => storySchema.parse({ background: 'neon' })).toThrow();
+  });
+  it('folds the flat text-style fields into a style object', () => {
+    const parsed = storySchema.parse({ text: 'Hi', font: 'script', textColor: '#FF3B30', textAlign: 'left', textEffect: 'neon', textAnimation: 'bounce', textSize: '1.5', textX: '20', textY: '80' });
+    expect(parsed.style).toEqual({ font: 'script', color: '#ff3b30', align: 'left', effect: 'neon', animation: 'bounce', size: 1.5, x: 20, y: 80 });
+    expect(storySchema.parse({}).style).toMatchObject({ font: 'classic', color: '#ffffff', effect: 'shadow', x: 50, y: 50 });
+    expect(() => storySchema.parse({ font: 'comic' })).toThrow();
+    expect(() => storySchema.parse({ textColor: 'red' })).toThrow();
+    expect(() => storySchema.parse({ textSize: '9' })).toThrow();
   });
   it('accepts the five story reactions only', () => {
     expect(storyReactionSchema.parse({ type: 'haha' }).type).toBe('haha');
@@ -177,5 +186,25 @@ describe('comment editing', () => {
     expect(commentEditSchema.parse({ content: '  fixed typo ' })).toEqual({ content: 'fixed typo' });
     expect(() => commentEditSchema.parse({ content: '   ' })).toThrow();
     expect(() => commentEditSchema.parse({ content: 'x'.repeat(1501) })).toThrow();
+  });
+});
+
+describe('story text styling', () => {
+  it('builds classes and CSS variables, animating only on request', () => {
+    const attrs = storyTextAttrs({ font: 'retro', effect: 'highlight', align: 'right', animation: 'zoom', color: '#FFCC00', size: 2, x: 30, y: 70 });
+    expect(attrs.className).toBe('story-text story-font-retro story-fx-highlight story-align-right');
+    expect(attrs.style).toContain('--story-color:#ffcc00;--story-ink:#000000;--story-size:2;left:30%;top:70%');
+    expect(storyTextAttrs({ animation: 'zoom' }, true).className).toContain('story-anim-zoom');
+  });
+  it('falls back to safe defaults for unknown or out-of-range values', () => {
+    const attrs = storyTextAttrs({ font: 'x' as never, color: 'url(evil)', size: 99, x: -5 });
+    expect(attrs.className).toContain('story-font-classic');
+    expect(attrs.style).toContain('--story-color:#ffffff');
+    expect(attrs.style).toContain('--story-size:2.5');
+    expect(attrs.style).toContain('left:0%');
+  });
+  it('picks a readable ink colour', () => {
+    expect(storyInk('#ffffff')).toBe('#000000');
+    expect(storyInk('#0a84ff')).toBe('#ffffff');
   });
 });

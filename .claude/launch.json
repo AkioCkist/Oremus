@@ -4,10 +4,31 @@
     {
       "name": "oremus-web-local",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["tsx", "src/server.ts"],
+      "runtimeArgs": [
+        "tsx",
+        "src/server.ts"
+      ],
       "cwd": "apps/web",
-      "env": { "WEB_PORT": "3001", "APP_ORIGIN": "http://localhost:3001" },
+      "env": {
+        "WEB_PORT": "3001",
+        "APP_ORIGIN": "http://localhost:3001"
+      },
       "port": 3001
+    },
+    {
+      "name": "oremus-web-story",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "tsx",
+        "src/server.ts"
+      ],
+      "cwd": "apps/web",
+      "env": {
+        "WEB_PORT": "3002",
+        "APP_ORIGIN": "http://localhost:3002"
+      },
+      "port": 3002,
+      "autoPort": false
     }
   ]
 }

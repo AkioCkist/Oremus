@@ -1,10 +1,11 @@
 import mongoose, { type InferSchemaType, type Model } from 'mongoose';
+import { STORY_ALIGNS, STORY_ANIMATIONS, STORY_BACKGROUNDS, STORY_EFFECTS, STORY_FONTS, STORY_SIZE_RANGE } from '../shared/story-style.js';
 
 const { Schema, model, models } = mongoose;
 
 export const REACTION_TYPES = ['like', 'love', 'haha', 'wow', 'sad', 'angry'] as const;
 export const STORY_REACTIONS = ['love', 'haha', 'angry', 'sad', 'like'] as const;
-export const STORY_BACKGROUNDS = ['sunset', 'ocean', 'forest', 'night', 'candy', 'sun'] as const;
+export { STORY_BACKGROUNDS };
 export const STORY_TTL_MS = 24 * 60 * 60 * 1000;
 export const GROUP_TYPES = ['general', 'social', 'learning', 'hobbies', 'buy_sell', 'gaming', 'jobs', 'parenting', 'work'] as const;
 
@@ -266,6 +267,17 @@ const storySchema = new Schema({
   media: { type: new Schema({ url: { type: String, required: true }, mimeType: { type: String, required: true } }, { _id: false }), default: null },
   text: { type: String, maxlength: 250, default: '' },
   background: { type: String, enum: STORY_BACKGROUNDS, default: 'ocean' },
+  // Text styling from the composer; null on stories created before styling existed (rendered as plain text / caption).
+  style: { type: new Schema({
+    font: { type: String, enum: STORY_FONTS, default: 'classic' },
+    color: { type: String, match: /^#[0-9a-f]{6}$/, default: '#ffffff' },
+    align: { type: String, enum: STORY_ALIGNS, default: 'center' },
+    effect: { type: String, enum: STORY_EFFECTS, default: 'shadow' },
+    animation: { type: String, enum: STORY_ANIMATIONS, default: 'none' },
+    size: { type: Number, min: STORY_SIZE_RANGE.min, max: STORY_SIZE_RANGE.max, default: 1 },
+    x: { type: Number, min: 0, max: 100, default: 50 },
+    y: { type: Number, min: 0, max: 100, default: 50 }
+  }, { _id: false }), default: null },
   audience: { type: String, enum: ['public', 'followers'], default: 'followers' },
   viewCount: { type: Number, default: 0 },
   expiresAt: { type: Date, required: true },

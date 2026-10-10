@@ -1,20 +1,34 @@
 # Stories
 
-Stories are photos or short texts that disappear after 24 hours.
+Stories are photos, videos or short texts that disappear after 24 hours.
 
 Main files:
 
 - [`services/story.service.ts`](../apps/web/src/services/story.service.ts)
 - [`controllers/story.controller.ts`](../apps/web/src/controllers/story.controller.ts)
-- Views: `partials/story-tray.ejs` (the row at the top of home), `stories/index.ejs` (full-screen viewer), `stories/archive.ejs`
+- [`shared/story-style.ts`](../apps/web/src/shared/story-style.ts) — fonts, effects, animations, backgrounds and `storyTextAttrs()`, shared by server and browser
+- Views: `partials/story-tray.ejs` (the row at the top of home), `partials/story-thumb.ejs` (static card used by the tray and archive), `stories/index.ejs` (full-screen viewer), `stories/archive.ejs`; the composer dialog lives in `partials/foot.ejs`
 
 ## Creating a story
 
-A story has either a photo or text on a coloured background (`sunset`, `ocean`, `forest`, `night`, `candy`, `sun`). Text can be added on top of a photo too (max 250 characters).
+A story has a photo, a video, or text on a background (12 gradients/solids, see `STORY_BACKGROUNDS`). Text (max 250 characters) can sit on top of any of them and is styled like Facebook stories:
 
-`POST /api/stories` (multipart: `media`, `text`, `background`, `audience`)
+| Field | Values |
+| --- | --- |
+| `font` | `classic`, `serif`, `script`, `typewriter`, `strong`, `retro` (Google Fonts with Vietnamese glyphs, loaded in `head.ejs`) |
+| `textColor` | any `#rrggbb` |
+| `textAlign` | `left`, `center`, `right` |
+| `textEffect` | `none`, `shadow`, `outline`, `highlight`, `glow`, `neon` |
+| `textAnimation` | `none`, `fade`, `zoom`, `slide`, `bounce`, `pulse` (disabled under `prefers-reduced-motion`) |
+| `textSize` | 0.5 – 2.5 (multiplier) |
+| `textX`, `textY` | 0 – 100, the text's centre as a % of the card (set by dragging the text in the composer, or arrow keys) |
 
-- The photo is compressed like every other image (see [Media](MEDIA.md)).
+`POST /api/stories` (multipart: `media`, `text`, `background`, `audience` + the fields above). The validator folds the text fields into `story.style`; stories created before styling have `style: null` and keep the old look (centred text, or a caption under the photo).
+
+- Photos are compressed like every other image (see [Media](MEDIA.md)).
+- Videos: MP4, WebM or MOV, up to 100 MB. The composer rejects clips over 60 seconds; the viewer plays at most 60 seconds. Story videos are served as uploaded (they are not sent to the media worker).
+- Text size uses container query units (`cqw`), so the composer preview, the viewer and the thumbnails all render the same layout at different sizes.
+- The CSP forbids inline `style` attributes, so server-rendered thumbnails carry `data-story-style` and the client bundle applies it.
 - `audience` is `public` or `followers`. If not sent, the user's default from Settings is used (`PATCH /api/stories/settings`).
 - `expiresAt` is set to 24 hours from now. Expired stories are filtered out by every query; nothing has to delete them.
 
@@ -67,6 +81,7 @@ sequenceDiagram
   S-->>A: message:new
 ```
 
+- Video stories drive the progress bar from playback time and advance when the clip ends. Playback tries sound first and falls back to muted if the browser blocks autoplay; the speaker button (or `M`) toggles sound.
 - Story reactions: `love`, `haha`, `angry`, `sad`, `like`.
 - You cannot react or reply to your own story.
 - Replies need a friendship, because they are delivered in Messages.

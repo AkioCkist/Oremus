@@ -1,6 +1,8 @@
 import sanitizeHtml from 'sanitize-html';
 import { Follow, Story, StoryView, User, STORY_TTL_MS } from '../models/index.js';
+import type { StoryStyle } from '../shared/story-style.js';
 import { AppError } from '../utils/errors.js';
+import type { StoryInput } from '../validators/index.js';
 import { createConversation, sendMessage } from './message.service.js';
 import { notify } from './notification.service.js';
 import { assertOwner } from './permissions.js';
@@ -11,7 +13,7 @@ const AUTHOR_FIELDS = 'username displayName profile.avatarUrl';
 const activeFilter = () => ({ deletedAt: null, expiresAt: { $gt: new Date() } });
 const idOf = (value: any) => String(value?._id ?? value);
 
-export type TrayStory = { id: string; mediaUrl: string | null; text: string; background: string; createdAt: Date; seen: boolean; myReaction: string | null; viewCount?: number };
+export type TrayStory = { id: string; mediaUrl: string | null; mediaType: 'image' | 'video' | null; text: string; style: StoryStyle | null; background: string; createdAt: Date; seen: boolean; myReaction: string | null; viewCount?: number };
 export type TrayGroup = { author: { _id: string; username: string; displayName: string; avatarUrl: string }; isSelf: boolean; hasUnseen: boolean; latestAt: Date; startIndex: number; stories: TrayStory[] };
 
 /** Audience rule: authors always see their own stories; others need a public story or to follow the author. */
@@ -34,7 +36,7 @@ export function buildStoryTray(stories: any[], views: any[], viewerId: string): 
       groups.set(authorId, group);
     }
     const view = viewByStory.get(String(story._id));
-    group.stories.push({ id: String(story._id), mediaUrl: story.media?.url || null, text: story.text || '', background: story.background || 'ocean', createdAt: story.createdAt, seen: isSelf || !!view, myReaction: view?.reaction ?? null, ...(isSelf ? { viewCount: story.viewCount || 0 } : {}) });
+    group.stories.push({ id: String(story._id), mediaUrl: story.media?.url || null, mediaType: story.media ? (String(story.media.mimeType).startsWith('video/') ? 'video' : 'image') : null, text: story.text || '', style: story.style || null, background: story.background || 'ocean', createdAt: story.createdAt, seen: isSelf || !!view, myReaction: view?.reaction ?? null, ...(isSelf ? { viewCount: story.viewCount || 0 } : {}) });
     if (story.createdAt > group.latestAt) group.latestAt = story.createdAt;
   }
   const tray = [...groups.values()].map((group) => {
@@ -73,13 +75,13 @@ async function getAccessibleStory(storyId: string, viewerId: string) {
   return story;
 }
 
-export async function createStory(authorId: string, input: { text: string; background: string; audience?: string }, file?: Express.Multer.File) {
+export async function createStory(authorId: string, input: Pick<StoryInput, 'text' | 'background' | 'audience'> & { style?: StoryStyle }, file?: Express.Multer.File) {
   const text = clean(input.text || '');
-  if (!file && !text) throw new AppError(422, 'Add a photo or write something for your story.', 'EMPTY_STORY');
+  if (!file && !text) throw new AppError(422, 'Add a photo or video, or write something for your story.', 'EMPTY_STORY');
   const author = await User.findById(authorId).select('profile.storyAudience').lean();
   const audience = input.audience || (author as any)?.profile?.storyAudience || 'followers';
   return Story.create({
-    authorId, text, background: input.background, audience,
+    authorId, text, background: input.background, audience, style: input.style ?? null,
     media: file ? { url: `/uploads/${file.filename}`, mimeType: file.mimetype } : null,
     expiresAt: new Date(Date.now() + STORY_TTL_MS)
   });

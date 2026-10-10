@@ -3,7 +3,7 @@ import * as controller from '../controllers/api.controller.js';
 import * as story from '../controllers/story.controller.js';
 import { requireAuth } from '../middleware/auth.js';
 import { rateLimit } from '../middleware/rate-limit.js';
-import { enforcePostMediaSize, postUpload, upload } from '../middleware/upload.js';
+import { enforcePostMediaSize, postUpload, storyUpload, upload } from '../middleware/upload.js';
 import { compressUploadedImages } from '../media/image.js';
 import { asyncHandler } from '../utils/async-handler.js';
 
@@ -44,7 +44,7 @@ apiRoutes.post('/group-requests/:requestId/decision', asyncHandler(controller.de
 apiRoutes.post('/conversations', asyncHandler(controller.createConversation));
 apiRoutes.post('/conversations/:conversationId/messages', rateLimit('message', 120, 60), asyncHandler(controller.sendMessage));
 apiRoutes.get('/stories', asyncHandler(story.tray));
-apiRoutes.post('/stories', rateLimit('story', 30, 3600), upload.single('media'), compressUploadedImages, asyncHandler(story.create));
+apiRoutes.post('/stories', rateLimit('story', 30, 3600), storyUpload.single('media'), enforcePostMediaSize, compressUploadedImages, asyncHandler(story.create));
 apiRoutes.patch('/stories/settings', asyncHandler(story.settings));
 apiRoutes.post('/stories/:storyId/view', asyncHandler(story.view));
 apiRoutes.post('/stories/:storyId/reactions', asyncHandler(story.react));

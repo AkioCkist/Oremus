@@ -66,8 +66,9 @@
 
       <div class="flex h-full max-h-[52rem] flex-col items-center justify-center gap-4">
         <div class="relative aspect-[9/16] h-full max-h-[calc(100dvh-8rem)] max-w-[calc(100vw-1rem)] overflow-hidden rounded-xl bg-stage shadow-pop sm:max-h-[calc(100dvh-9rem)]" data-story-card>
-          <div class="absolute inset-0 grid place-items-center" data-story-body>
+          <div class="story-canvas absolute inset-0 grid place-items-center" data-story-body>
             <img class="absolute inset-0 hidden size-full object-cover" alt="" data-story-image>
+            <video class="absolute inset-0 hidden size-full object-cover" playsinline preload="auto" data-story-video></video>
             <p class="relative z-10 hidden max-w-[85%] whitespace-pre-wrap break-words text-center font-display text-2xl font-bold leading-snug text-white text-shadow" data-story-text></p>
           </div>
           <div class="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/55 to-transparent"></div>
@@ -83,6 +84,7 @@
                 <span class="avatar size-10 bg-field text-sm" data-story-avatar></span>
                 <span class="min-w-0 leading-tight"><span class="block truncate text-15 font-semibold text-white" data-story-author></span><span class="block text-[0.8125rem] text-white/80" data-story-time></span></span>
               </a>
+              <button type="button" class="hidden size-9 place-items-center rounded-full text-white hover:bg-white/15" data-story-mute aria-label="Mute"><svg class="icon"><use href="#i-volume"/></svg></button>
               <button type="button" class="grid size-9 place-items-center rounded-full text-white hover:bg-white/15" data-story-pause aria-label="Pause"><svg class="icon"><use href="#i-pause" data-story-pause-icon/></svg></button>
               <details class="relative" data-menu>
                 <summary class="grid size-9 cursor-pointer list-none place-items-center rounded-full text-white hover:bg-white/15" aria-label="Story options"><svg class="icon"><use href="#i-more"/></svg></summary>

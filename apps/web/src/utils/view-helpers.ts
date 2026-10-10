@@ -1,5 +1,6 @@
 // Formatting helpers exposed to every EJS view through app.locals.
 import { describeFeeling } from '../shared/feelings.js';
+import { STORY_ANIMATION_LABELS, STORY_BACKGROUNDS, STORY_COLORS, STORY_EFFECT_LABELS, STORY_FONT_LABELS, storyTextAttrs } from '../shared/story-style.js';
 
 const MINUTE = 60_000, HOUR = 60 * MINUTE, DAY = 24 * HOUR;
 
@@ -108,4 +109,4 @@ export function escapeHtml(value: unknown): string {
   return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!));
 }
 
-export const viewHelpers = { escapeHtml, describeFeeling, timeAgo, longTime, clockTime, toneOf, initials, firstName, compact, plural, extractLinks, REACTION_LABELS, RELATIONSHIP_LABELS, GENDER_LABELS, PLATFORM_LABELS, AUDIENCE_LABELS, MONTHS, shortDate, duration, birthdayText, linkLabel };
+export const viewHelpers = { escapeHtml, describeFeeling, timeAgo, longTime, clockTime, toneOf, initials, firstName, compact, plural, extractLinks, REACTION_LABELS, RELATIONSHIP_LABELS, GENDER_LABELS, PLATFORM_LABELS, AUDIENCE_LABELS, MONTHS, shortDate, duration, birthdayText, linkLabel, storyTextAttrs, STORY_BACKGROUNDS, STORY_COLORS, STORY_FONT_LABELS, STORY_EFFECT_LABELS, STORY_ANIMATION_LABELS };

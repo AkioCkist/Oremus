@@ -12,14 +12,14 @@
     </button>
     <% if (mine) { const last = mine.stories[mine.stories.length - 1]; %>
     <a class="story-card snap-start" href="/stories/<%= mine.author.username %>" aria-label="Your story">
-      <% if (last.mediaUrl) { %><img class="story-thumb" src="<%= last.mediaUrl %>" alt=""><% } else { %><span class="grid size-full place-items-center bg-story-<%= last.background %> p-3 text-center font-display text-sm font-bold text-white"><%= last.text.slice(0, 60) %></span><% } %>
+      <%- include('story-thumb', { story: last }) %>
       <span class="absolute left-3 top-3 z-10"><%- include('avatar', { person: mine.author, size: 'size-8 text-xs', ring: 'seen' }) %></span>
       <span class="text-shadow absolute inset-x-3 bottom-2.5 z-10 truncate text-[0.8125rem] font-semibold text-white">Your story</span>
     </a>
     <% } %>
     <% others.forEach(function (g) { const cover = g.stories[g.startIndex] || g.stories[0]; %>
     <a class="story-card snap-start" href="/stories/<%= g.author.username %>" aria-label="<%= g.author.displayName %>'s story<%= g.hasUnseen ? ', new' : '' %>">
-      <% if (cover.mediaUrl) { %><img class="story-thumb" src="<%= cover.mediaUrl %>" alt="" loading="lazy"><% } else { %><span class="grid size-full place-items-center bg-story-<%= cover.background %> p-3 text-center font-display text-sm font-bold text-white"><%= cover.text.slice(0, 60) %></span><% } %>
+      <%- include('story-thumb', { story: cover }) %>
       <span class="absolute left-3 top-3 z-10"><%- include('avatar', { person: g.author, size: 'size-8 text-xs', ring: g.hasUnseen ? 'unseen' : 'seen' }) %></span>
       <span class="text-shadow absolute inset-x-3 bottom-2.5 z-10 line-clamp-2 text-[0.8125rem] font-semibold leading-tight text-white"><%= g.author.displayName %></span>
     </a>

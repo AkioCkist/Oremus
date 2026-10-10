@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { AUDIENCE_FIELDS, AUDIENCES, GENDERS, GROUP_TYPES, INTRO_ITEMS, PRONOUNS, REACTION_TYPES, RELATIONSHIPS, SOCIAL_PLATFORMS, STORY_BACKGROUNDS, STORY_REACTIONS } from '../models/index.js';
 import { ACTIVITIES, FEELINGS } from '../shared/feelings.js';
+import { STORY_ALIGNS, STORY_ANIMATIONS, STORY_EFFECTS, STORY_FONTS, STORY_SIZE_RANGE } from '../shared/story-style.js';
 
 const username = z.string().trim().toLowerCase().regex(/^[a-z0-9_]{3,24}$/, 'Username must contain 3–24 letters, numbers, or underscores.');
 const password = z.string({ required_error: 'Enter a password.' })
@@ -128,7 +129,24 @@ export const blockActionSchema = z.object({ blocked: z.boolean() });
 export const conversationSchema = z.object({ memberId: z.string().min(1) });
 export const messageSchema = z.object({ content: z.string().trim().min(1).max(3000) });
 
-export const storySchema = z.object({ text: z.string().trim().max(250).default(''), background: z.enum(STORY_BACKGROUNDS).default('ocean'), audience: z.enum(['public', 'followers']).optional() });
+// Multipart fields arrive flat (font, textColor, …); they are folded into the stored `style` object.
+export const storySchema = z.object({
+  text: z.string().trim().max(250).default(''),
+  background: z.enum(STORY_BACKGROUNDS).default('ocean'),
+  audience: z.enum(['public', 'followers']).optional(),
+  font: z.enum(STORY_FONTS).default('classic'),
+  textColor: z.string().regex(/^#[0-9a-f]{6}$/i).default('#ffffff').transform((value) => value.toLowerCase()),
+  textAlign: z.enum(STORY_ALIGNS).default('center'),
+  textEffect: z.enum(STORY_EFFECTS).default('shadow'),
+  textAnimation: z.enum(STORY_ANIMATIONS).default('none'),
+  textSize: z.coerce.number().min(STORY_SIZE_RANGE.min).max(STORY_SIZE_RANGE.max).default(1),
+  textX: z.coerce.number().min(0).max(100).default(50),
+  textY: z.coerce.number().min(0).max(100).default(50)
+}).transform(({ font, textColor, textAlign, textEffect, textAnimation, textSize, textX, textY, ...rest }) => ({
+  ...rest,
+  style: { font, color: textColor, align: textAlign, effect: textEffect, animation: textAnimation, size: Math.round(textSize * 100) / 100, x: Math.round(textX * 10) / 10, y: Math.round(textY * 10) / 10 }
+}));
+export type StoryInput = z.infer<typeof storySchema>;
 export const storyReactionSchema = z.object({ type: z.enum(STORY_REACTIONS) });
 export const storyReplySchema = z.object({ content: z.string().trim().min(1).max(1000) });
 export const storySettingsSchema = z.object({ audience: z.enum(['public', 'followers']) });

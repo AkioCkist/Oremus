@@ -1,4 +1,5 @@
 import { ACTIVITIES, FEELINGS, describeFeeling } from '../shared/feelings.js';
+import { STORY_VIDEO_MAX_SECONDS, storyTextAttrs, type StoryStyle } from '../shared/story-style.js';
 import { EMOJI_CATEGORIES } from './emoji-data.js';
 import './search-box.js';
 
@@ -585,37 +586,141 @@ if (composer) initPostExtras(composer);
 
 /* ---------- Story composer ---------- */
 
+// The CSP forbids inline style attributes, so server-rendered story styling ships as data and is applied here.
+$$('[data-story-style]').forEach((element) => { element.style.cssText = element.dataset.storyStyle || ''; });
+
+const STORY_IMAGE_TYPES = 'image/jpeg,image/png,image/webp,image/gif';
+const STORY_VIDEO_TYPES = 'video/mp4,video/webm,video/quicktime';
+const STORY_VIDEO_MAX_BYTES = 100 * 1024 * 1024;
+const LIGHT_STORY_BACKGROUNDS = new Set(['sun', 'mint', 'paper', 'candy']);
+
+/** Reads a video's length without attaching it to the page; NaN when the browser cannot decode it. */
+function videoDuration(url: string): Promise<number> {
+  return new Promise((resolve) => {
+    const probe = document.createElement('video');
+    probe.preload = 'metadata'; probe.muted = true;
+    probe.addEventListener('loadedmetadata', () => resolve(probe.duration), { once: true });
+    probe.addEventListener('error', () => resolve(Number.NaN), { once: true });
+    probe.src = url;
+  });
+}
+
 const storyDialog = $<HTMLDialogElement>('#story-dialog');
 if (storyDialog) {
+  const form = $<HTMLFormElement>('form', storyDialog)!;
   const preview = $('[data-story-preview]', storyDialog)!;
   const previewText = $('[data-story-preview-text]', storyDialog)!;
   const previewImage = $<HTMLImageElement>('[data-story-preview-image]', storyDialog)!;
+  const previewVideo = $<HTMLVideoElement>('[data-story-preview-video]', storyDialog)!;
   const textInput = $<HTMLTextAreaElement>('[data-story-text]', storyDialog)!;
-  const bgInput = $<HTMLInputElement>('[data-story-background]', storyDialog)!;
   const fileInput = $<HTMLInputElement>('[data-story-file]', storyDialog)!;
-  const setBackground = (bg: string) => {
+  const xInput = $<HTMLInputElement>('[data-story-x]', storyDialog)!;
+  const yInput = $<HTMLInputElement>('[data-story-y]', storyDialog)!;
+  const counter = $('[data-story-count]', storyDialog)!;
+  const backgrounds = $('[data-story-bg-section]', storyDialog)!;
+  const mediaActions = $('[data-story-photo-actions]', storyDialog)!;
+  const customRadio = $<HTMLInputElement>('[data-story-custom-radio]', storyDialog)!;
+  const customColor = $<HTMLInputElement>('[data-story-custom-color]', storyDialog)!;
+  const customSwatch = $('[data-story-custom-swatch]', storyDialog)!;
+  let mediaUrl: string | null = null;
+
+  const field = (name: string) => String((form.elements.namedItem(name) as RadioNodeList | HTMLInputElement | null)?.value ?? '');
+  const setField = (name: string, value: string) => { const input = $<HTMLInputElement>(`input[name="${name}"][value="${value}"]`, form); if (input) input.checked = true; };
+  const currentStyle = (): Partial<StoryStyle> => ({
+    font: field('font') as StoryStyle['font'], color: field('textColor'), align: field('textAlign') as StoryStyle['align'],
+    effect: field('textEffect') as StoryStyle['effect'], animation: field('textAnimation') as StoryStyle['animation'],
+    size: Number(field('textSize')), x: Number(xInput.value), y: Number(yInput.value)
+  });
+
+  const paint = () => {
+    const hasMedia = !!fileInput.files?.length;
     [...preview.classList].filter((name) => name.startsWith('bg-story-')).forEach((name) => preview.classList.remove(name));
-    preview.classList.add(`bg-story-${bg}`); bgInput.value = bg;
-    $$('[data-story-bg]', storyDialog).forEach((button) => button.setAttribute('aria-checked', String(button.dataset.storyBg === bg)));
+    if (!hasMedia) preview.classList.add(`bg-story-${field('background')}`);
+    backgrounds.classList.toggle('hidden', hasMedia);
+    const attrs = storyTextAttrs(currentStyle(), true);
+    previewText.className = `${attrs.className} cursor-move`;
+    previewText.style.cssText = attrs.style;
+    const text = textInput.value;
+    previewText.firstElementChild!.textContent = text || 'Start typing';
+    previewText.toggleAttribute('data-empty', !text);
+    previewText.classList.toggle('hidden', hasMedia && !text);
+    counter.textContent = `${text.length}/250`;
   };
-  const syncText = () => {
-    const hasImage = !previewImage.classList.contains('hidden');
-    previewText.textContent = textInput.value || (hasImage ? '' : 'Start typing');
-    previewText.className = hasImage
-      ? 'absolute inset-x-3 bottom-6 z-10 whitespace-pre-wrap break-words text-center text-15 font-semibold text-white text-shadow'
-      : 'relative z-10 whitespace-pre-wrap break-words px-5 text-center font-display text-xl font-bold text-white text-shadow';
+
+  const showMedia = () => {
+    const file = fileInput.files?.[0] ?? null;
+    const isVideo = !!file?.type.startsWith('video/');
+    if (mediaUrl) URL.revokeObjectURL(mediaUrl);
+    mediaUrl = file ? URL.createObjectURL(file) : null;
+    if (file && !isVideo) previewImage.src = mediaUrl!; else previewImage.removeAttribute('src');
+    previewImage.classList.toggle('hidden', !file || isVideo);
+    previewVideo.classList.toggle('hidden', !isVideo);
+    if (isVideo) { previewVideo.src = mediaUrl!; void previewVideo.play().catch(() => undefined); }
+    else { previewVideo.pause(); previewVideo.removeAttribute('src'); previewVideo.load(); }
+    mediaActions.classList.toggle('hidden', !file); mediaActions.classList.toggle('flex', !!file);
+    paint();
   };
-  textInput.addEventListener('input', syncText);
-  $$('[data-story-bg]', storyDialog).forEach((button) => button.addEventListener('click', () => setBackground(button.dataset.storyBg!)));
-  fileInput.addEventListener('change', async () => {
-    const file = fileInput.files?.[0];
-    if (file) { previewImage.src = await readAsDataUrl(file); previewImage.classList.remove('hidden'); }
-    else { previewImage.removeAttribute('src'); previewImage.classList.add('hidden'); }
-    syncText();
+
+  const useFile = async (file: File | undefined) => {
+    if (!file) return;
+    if (file.type.startsWith('video/')) {
+      if (file.size > STORY_VIDEO_MAX_BYTES) { showToast('Story videos must be 100 MB or smaller.', 'error'); return; }
+      const url = URL.createObjectURL(file);
+      const seconds = await videoDuration(url); URL.revokeObjectURL(url);
+      if (Number.isNaN(seconds)) { showToast('This video can’t be played in your browser. Try an MP4 file.', 'error'); return; }
+      if (seconds > STORY_VIDEO_MAX_SECONDS + 0.5) { showToast(`Story videos can be up to ${STORY_VIDEO_MAX_SECONDS} seconds long.`, 'error'); return; }
+    }
+    setInputFiles(fileInput, [file]); showMedia();
+  };
+
+  const moveText = (x: number, y: number) => {
+    const clampPercent = (value: number) => Math.round(Math.min(Math.max(value, 5), 95) * 10) / 10;
+    xInput.value = String(clampPercent(x)); yInput.value = String(clampPercent(y)); paint();
+  };
+
+  form.addEventListener('input', paint);
+  form.addEventListener('change', (event) => {
+    const target = event.target as HTMLInputElement;
+    // Keep text readable when switching between light and dark backgrounds.
+    if (target.name === 'background' && ['#ffffff', '#000000'].includes(field('textColor'))) setField('textColor', LIGHT_STORY_BACKGROUNDS.has(target.value) ? '#000000' : '#ffffff');
+    paint();
+    if (target.name === 'textAnimation') previewText.getAnimations().forEach((animation) => { animation.cancel(); animation.play(); });
   });
+  customColor.addEventListener('input', () => { customRadio.value = customColor.value; customRadio.checked = true; customSwatch.style.background = customColor.value; paint(); });
+  customColor.addEventListener('click', () => { customRadio.checked = true; paint(); });
+
+  $$('[data-story-pick]', storyDialog).forEach((button) => button.addEventListener('click', async () => {
+    const [file] = await pickImageFiles(false, button.dataset.storyPick === 'video' ? STORY_VIDEO_TYPES : STORY_IMAGE_TYPES); await useFile(file);
+  }));
+  $$('[data-story-photo]', storyDialog).forEach((button) => button.addEventListener('click', async () => {
+    if (button.dataset.storyPhoto === 'replace') { const [file] = await pickImageFiles(false, `${STORY_IMAGE_TYPES},${STORY_VIDEO_TYPES}`); await useFile(file); }
+    else { setInputFiles(fileInput, []); showMedia(); }
+  }));
+
+  // Drag the text anywhere on the card (pointer) or nudge it with the arrow keys.
+  previewText.addEventListener('pointerdown', (event) => {
+    event.preventDefault(); previewText.focus(); previewText.setPointerCapture(event.pointerId);
+    const rect = preview.getBoundingClientRect();
+    const start = { x: event.clientX, y: event.clientY, left: Number(xInput.value), top: Number(yInput.value) };
+    const move = (moveEvent: PointerEvent) => moveText(start.left + ((moveEvent.clientX - start.x) / rect.width) * 100, start.top + ((moveEvent.clientY - start.y) / rect.height) * 100);
+    const stop = () => { previewText.removeEventListener('pointermove', move); previewText.removeEventListener('pointerup', stop); previewText.removeEventListener('pointercancel', stop); };
+    previewText.addEventListener('pointermove', move); previewText.addEventListener('pointerup', stop); previewText.addEventListener('pointercancel', stop);
+  });
+  previewText.addEventListener('keydown', (event) => {
+    const step = event.shiftKey ? 10 : 2;
+    const delta = ({ ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] } as Record<string, [number, number]>)[event.key];
+    if (!delta) return;
+    event.preventDefault(); moveText(Number(xInput.value) + delta[0], Number(yInput.value) + delta[1]);
+  });
+  $('[data-story-center]', storyDialog)?.addEventListener('click', () => moveText(50, 50));
+
+  storyDialog.addEventListener('close', () => previewVideo.pause());
+  storyDialog.addEventListener('focusin', () => { if (previewVideo.getAttribute('src') && previewVideo.paused) void previewVideo.play().catch(() => undefined); });
   $('[data-story-reset]', storyDialog)?.addEventListener('click', () => {
-    ($('form', storyDialog) as HTMLFormElement).reset(); previewImage.classList.add('hidden'); setBackground('ocean'); syncText(); storyDialog.close();
+    // Hidden inputs keep script-set values through reset(), so put the text back in the middle explicitly.
+    form.reset(); xInput.value = '50'; yInput.value = '50'; customSwatch.style.background = ''; setInputFiles(fileInput, []); showMedia(); storyDialog.close();
   });
+  paint();
 }
 
 /* ---------- Profile photo picker (Choose profile picture / cover photo) ---------- */
@@ -1049,18 +1154,6 @@ editPostForm?.addEventListener('submit', async (event) => {
   catch (caught) { error.textContent = caught instanceof Error ? caught.message : 'Could not save the post.'; error.classList.remove('hidden'); }
   finally { submit.disabled = false; }
 });
-
-/* Story composer: replace / remove the photo */
-if (storyDialog) {
-  const storyFile = $<HTMLInputElement>('[data-story-file]', storyDialog)!;
-  const storyActions = $('[data-story-photo-actions]', storyDialog)!;
-  storyFile.addEventListener('change', () => { const has = !!storyFile.files?.length; storyActions.classList.toggle('hidden', !has); storyActions.classList.toggle('flex', has); });
-  $$('[data-story-photo]', storyDialog).forEach((button) => button.addEventListener('click', async () => {
-    if (button.dataset.storyPhoto === 'replace') { const [file] = await pickImageFiles(); if (!file) return; setInputFiles(storyFile, [file]); }
-    else setInputFiles(storyFile, []);
-    storyFile.dispatchEvent(new Event('change'));
-  }));
-}
 
 /* "…" menus on photos (post images, profile picture, cover) */
 async function photoMenuFor(trigger: HTMLElement): Promise<PhotoMenuItem[]> {
@@ -1943,7 +2036,7 @@ if (typeof io === 'function' && me.id) {
 
 /* ---------- Story viewer ---------- */
 
-type Story = { id: string; mediaUrl: string | null; text: string; background: string; createdAt: string; seen: boolean; myReaction: string | null; viewCount?: number };
+type Story = { id: string; mediaUrl: string | null; mediaType: 'image' | 'video' | null; text: string; background: string; style: Partial<StoryStyle> | null; createdAt: string; seen: boolean; myReaction: string | null; viewCount?: number };
 type StoryGroup = { author: { _id: string; username: string; displayName: string; avatarUrl: string }; isSelf: boolean; hasUnseen: boolean; startIndex: number; stories: Story[] };
 
 const viewer = $('[data-story-viewer]');
@@ -1958,7 +2051,11 @@ if (viewer && storyData && Number(viewer.dataset.activeIndex) >= 0) {
   const card = $('[data-story-card]', viewer)!;
   const body = $('[data-story-body]', viewer)!;
   const image = $<HTMLImageElement>('[data-story-image]', viewer)!;
+  const video = $<HTMLVideoElement>('[data-story-video]', viewer)!;
+  const muteButton = $('[data-story-mute]', viewer)!;
   const textEl = $('[data-story-text]', viewer)!;
+  const legacyTextClass = textEl.className.replace(/\bhidden\b/, '').trim();
+  let muted = false, playPending = false, autoplayBlocked = false;
   const caption = $('[data-story-caption]', viewer)!;
   const progress = $('[data-story-progress]', viewer)!;
   const reply = $<HTMLFormElement>('[data-story-reply]', viewer)!;
@@ -1974,8 +2071,13 @@ if (viewer && storyData && Number(viewer.dataset.activeIndex) >= 0) {
     side.replaceChildren(); side.classList.toggle('invisible', !group);
     if (!group) return;
     const cover = group.stories[group.startIndex] || group.stories[0]!;
-    if (cover.mediaUrl) { const img = document.createElement('img'); img.src = cover.mediaUrl; img.alt = ''; img.className = 'absolute inset-0 size-full object-cover'; side.appendChild(img); }
-    else { const block = document.createElement('div'); block.className = `absolute inset-0 grid place-items-center p-3 text-center font-display text-sm font-bold text-white bg-story-${cover.background}`; block.textContent = cover.text.slice(0, 80); side.appendChild(block); }
+    if (cover.mediaUrl && cover.mediaType === 'video') { const clip = document.createElement('video'); clip.src = `${cover.mediaUrl}#t=0.1`; clip.muted = true; clip.preload = 'metadata'; clip.className = 'absolute inset-0 size-full object-cover'; side.appendChild(clip); }
+    else if (cover.mediaUrl) { const img = document.createElement('img'); img.src = cover.mediaUrl; img.alt = ''; img.className = 'absolute inset-0 size-full object-cover'; side.appendChild(img); }
+    if (cover.style && cover.text) {
+      const canvas = document.createElement('div'); canvas.className = `story-canvas absolute inset-0 ${cover.mediaUrl ? '' : `bg-story-${cover.background}`}`;
+      const attrs = storyTextAttrs(cover.style); const text = document.createElement('p'); text.className = attrs.className; text.style.cssText = attrs.style;
+      const span = document.createElement('span'); span.textContent = cover.text; text.appendChild(span); canvas.appendChild(text); side.appendChild(canvas);
+    } else if (!cover.mediaUrl) { const block = document.createElement('div'); block.className = `absolute inset-0 grid place-items-center p-3 text-center font-display text-sm font-bold text-white bg-story-${cover.background}`; block.textContent = cover.text.slice(0, 80); side.appendChild(block); }
     const shade = document.createElement('div'); shade.className = 'absolute inset-0 bg-black/30'; side.appendChild(shade);
     const head = document.createElement('div'); head.className = 'absolute left-3 top-3 flex items-center gap-2 text-left';
     const who = document.createElement('div'); who.className = 'leading-tight';
@@ -2011,12 +2113,25 @@ if (viewer && storyData && Number(viewer.dataset.activeIndex) >= 0) {
     $<HTMLAnchorElement>('[data-story-profile-link]', viewer)!.href = `/profile/${group.author.username}`;
     // Content
     [...body.classList].filter((name) => name.startsWith('bg-story-')).forEach((name) => body.classList.remove(name));
-    if (story.mediaUrl) {
-      image.src = story.mediaUrl; image.alt = story.text ? story.text : `Story from ${group.author.displayName}`; image.classList.remove('hidden');
-      textEl.classList.add('hidden'); caption.textContent = story.text; caption.classList.toggle('hidden', !story.text);
+    const isVideo = !!story.mediaUrl && story.mediaType === 'video';
+    if (story.mediaUrl && !isVideo) { image.src = story.mediaUrl; image.alt = story.text ? story.text : `Story from ${group.author.displayName}`; image.classList.remove('hidden'); }
+    else { image.classList.add('hidden'); image.removeAttribute('src'); }
+    video.classList.toggle('hidden', !isVideo); muteButton.classList.toggle('hidden', !isVideo); muteButton.classList.toggle('grid', isVideo);
+    if (isVideo) { video.src = story.mediaUrl!; video.muted = muted; video.setAttribute('aria-label', story.text || `Story video from ${group.author.displayName}`); autoplayBlocked = false; void playVideo(); }
+    else if (video.getAttribute('src')) { video.pause(); video.removeAttribute('src'); video.load(); }
+    if (!story.mediaUrl) body.classList.add(`bg-story-${story.background}`);
+    if (story.style) {
+      // Styled text sits where the author placed it, over the background, photo or video.
+      const attrs = storyTextAttrs(story.style, true);
+      textEl.className = attrs.className; textEl.style.cssText = attrs.style;
+      const span = document.createElement('span'); span.textContent = story.text; textEl.replaceChildren(span);
+      textEl.classList.toggle('hidden', !story.text); caption.classList.add('hidden');
+      textEl.getAnimations().forEach((animation) => { animation.cancel(); animation.play(); });
     } else {
-      image.classList.add('hidden'); image.removeAttribute('src'); body.classList.add(`bg-story-${story.background}`);
-      textEl.textContent = story.text; textEl.classList.remove('hidden'); caption.classList.add('hidden');
+      // Stories from before text styling: centred text on a background, or a caption under the photo.
+      textEl.className = legacyTextClass; textEl.style.cssText = ''; textEl.textContent = story.text;
+      textEl.classList.toggle('hidden', !!story.mediaUrl);
+      caption.textContent = story.text; caption.classList.toggle('hidden', !story.mediaUrl || !story.text);
     }
     // Own vs others
     reply.classList.toggle('hidden', group.isSelf); reply.classList.toggle('flex', !group.isSelf);
@@ -2046,8 +2161,24 @@ if (viewer && storyData && Number(viewer.dataset.activeIndex) >= 0) {
     render();
   };
 
+  const setMuted = (value: boolean) => {
+    muted = value; video.muted = value;
+    muteButton.setAttribute('aria-label', value ? 'Unmute' : 'Mute');
+    $('use', muteButton)?.setAttribute('href', value ? '#i-volume-off' : '#i-volume');
+  };
+  // Browsers may refuse autoplay with sound; fall back to muted playback, as Facebook does.
+  const playVideo = async () => {
+    playPending = true;
+    try { await video.play(); }
+    catch (caught) {
+      if ((caught as DOMException).name !== 'NotAllowedError') return;
+      if (!video.muted) { setMuted(true); try { await video.play(); return; } catch { /* still blocked */ } }
+      autoplayBlocked = true;
+    } finally { playPending = false; }
+  };
+
   const setPaused = (value: boolean) => {
-    paused = value;
+    paused = value; autoplayBlocked = false;
     pauseButton.setAttribute('aria-label', paused ? 'Play' : 'Pause');
     $('use', pauseButton)?.setAttribute('href', paused ? '#i-play' : '#i-pause');
   };
@@ -2055,9 +2186,16 @@ if (viewer && storyData && Number(viewer.dataset.activeIndex) >= 0) {
   const tick = (now: number) => {
     const delta = now - last; last = now;
     const blocked = paused || holdPause || document.hidden || !!document.querySelector('dialog[open]') || reply.contains(document.activeElement) || !!$('details[data-menu][open]', card);
-    if (!blocked) {
+    const fill = progress.children[storyIndex]?.firstElementChild as HTMLElement | undefined;
+    if (video.getAttribute('src')) {
+      // Videos drive their own progress bar and advance when they end (or reach the story length limit).
+      if (blocked) { if (!video.paused) video.pause(); }
+      else if (video.paused && !video.ended && !playPending && !autoplayBlocked) void playVideo();
+      const total = Math.min(Number.isFinite(video.duration) ? video.duration : 0, STORY_VIDEO_MAX_SECONDS);
+      if (fill && total) fill.style.width = `${Math.min(video.currentTime / total, 1) * 100}%`;
+      if (video.ended || (total && video.currentTime >= total)) go(1);
+    } else if (!blocked) {
       elapsed += delta;
-      const fill = progress.children[storyIndex]?.firstElementChild as HTMLElement | undefined;
       if (fill) fill.style.width = `${Math.min(elapsed / DURATION, 1) * 100}%`;
       if (elapsed >= DURATION) go(1);
     }
@@ -2071,6 +2209,9 @@ if (viewer && storyData && Number(viewer.dataset.activeIndex) >= 0) {
   }));
   $$('[data-story-jump]').forEach((button) => button.addEventListener('click', () => { groupIndex = Number(button.dataset.storyJump); storyIndex = tray[groupIndex]!.startIndex; setPaused(false); render(); }));
   pauseButton.addEventListener('click', () => setPaused(!paused));
+  muteButton.addEventListener('click', () => setMuted(!muted));
+  // A video that cannot be decoded should not freeze the viewer.
+  video.addEventListener('error', () => { if (video.getAttribute('src')) go(1); });
   card.addEventListener('pointerdown', (event) => { if ((event.target as HTMLElement).closest('[data-story-nav]')) { holdPause = true; } });
   window.addEventListener('pointerup', () => { holdPause = false; });
   document.addEventListener('keydown', (event) => {
@@ -2078,6 +2219,7 @@ if (viewer && storyData && Number(viewer.dataset.activeIndex) >= 0) {
     if (event.key === 'ArrowRight') go(1);
     else if (event.key === 'ArrowLeft') go(-1);
     else if (event.key === ' ') { event.preventDefault(); setPaused(!paused); }
+    else if (event.key.toLowerCase() === 'm' && video.getAttribute('src')) setMuted(!muted);
     else if (event.key === 'Escape' && !$('details[data-menu][open]')) window.location.assign('/');
   });
 

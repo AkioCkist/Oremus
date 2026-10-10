@@ -1,0 +1,8 @@
+<%# Static story preview (tray cards, archive). Locals: story { mediaUrl, mediaType, text, background, style }, textClass (legacy text-only fallback). -%>
+<% const s = locals.story; const styled = !!s.style; const attrs = storyTextAttrs(s.style); -%>
+<% if (s.mediaUrl && s.mediaType === 'video') { %><video class="story-thumb size-full object-cover" src="<%= s.mediaUrl %>#t=0.1" muted playsinline preload="metadata" aria-hidden="true"></video>
+<% } else if (s.mediaUrl) { %><img class="story-thumb size-full object-cover" src="<%= s.mediaUrl %>" alt="" loading="lazy">
+<% } %>
+<% if (styled && s.text) { %><span class="story-canvas pointer-events-none absolute inset-0 <%= s.mediaUrl ? '' : 'bg-story-' + s.background %>"><span class="<%= attrs.className %>" data-story-style="<%= attrs.style %>"><span><%= s.text %></span></span></span>
+<% } else if (!s.mediaUrl) { %><span class="grid size-full place-items-center bg-story-<%= s.background %> text-center font-display font-bold text-white <%= locals.textClass || 'p-3 text-sm' %>"><%= s.text %></span>
+<% } %>

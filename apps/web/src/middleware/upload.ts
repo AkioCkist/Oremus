@@ -8,6 +8,7 @@ import { AppError } from '../utils/errors.js';
 // Generous caps: everything is re-encoded server-side, so originals never reach viewers for long.
 const IMAGE_MAX_BYTES = 20 * 1024 * 1024;
 const VIDEO_MAX_BYTES = 200 * 1024 * 1024;
+const STORY_VIDEO_MAX_BYTES = 100 * 1024 * 1024;
 const imageTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 const videoTypes = new Set(['video/mp4', 'video/webm', 'video/quicktime']);
 const extension: Record<string, string> = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif', 'video/mp4': '.mp4', 'video/webm': '.webm', 'video/quicktime': '.mov' };
@@ -27,6 +28,13 @@ export const upload = multer({
 export const postUpload = multer({
   storage,
   limits: { fileSize: VIDEO_MAX_BYTES },
+  fileFilter: (_req, file, done) => imageTypes.has(file.mimetype) || videoTypes.has(file.mimetype) ? done(null, true) : done(new AppError(415, 'Only JPEG, PNG, WebP, GIF images and MP4, WebM, MOV videos are accepted.', 'INVALID_MEDIA'))
+});
+
+/** Story media: one photo or video (videos are capped lower than posts; the composer also limits their length). */
+export const storyUpload = multer({
+  storage,
+  limits: { fileSize: STORY_VIDEO_MAX_BYTES, files: 1 },
   fileFilter: (_req, file, done) => imageTypes.has(file.mimetype) || videoTypes.has(file.mimetype) ? done(null, true) : done(new AppError(415, 'Only JPEG, PNG, WebP, GIF images and MP4, WebM, MOV videos are accepted.', 'INVALID_MEDIA'))
 });
 
