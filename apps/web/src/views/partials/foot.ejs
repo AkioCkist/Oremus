@@ -6,9 +6,67 @@
   <div class="flex justify-end gap-2 px-4 pb-4"><button class="btn text-brand-600 hover:bg-hover" value="cancel">Cancel</button><button class="btn-primary px-6" value="confirm" data-confirm-label>Delete</button></div>
 </dialog>
 
-<dialog id="lightbox" class="dialog-dark m-0 h-dvh max-h-none w-screen max-w-none bg-transparent p-0" aria-label="Photo viewer">
-  <button class="icon-btn absolute right-4 top-4 z-10 bg-black/50 text-white hover:bg-black/70" data-close-dialog="lightbox" aria-label="Close photo"><svg class="icon"><use href="#i-x"/></svg></button>
-  <div class="grid size-full place-items-center p-4" data-close-dialog="lightbox"><img class="max-h-full max-w-full rounded-lg object-contain" alt="" data-lightbox-image></div>
+<dialog id="lightbox" class="dialog-dark m-0 h-dvh max-h-none w-screen max-w-none overflow-hidden bg-black p-0" aria-label="Photo viewer" data-photo-viewer>
+  <div class="flex h-full">
+    <!-- Stage: the photo always fits between top and bottom; empty space stays black -->
+    <div class="relative flex min-w-0 flex-1 select-none items-center justify-center overflow-hidden bg-black" data-viewer-stage>
+      <img class="size-full object-contain transition-transform duration-150 will-change-transform" alt="" draggable="false" data-lightbox-image>
+      <div class="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/60 to-transparent"></div>
+      <div class="absolute left-3 top-3 flex items-center gap-2">
+        <button type="button" class="grid size-10 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20" data-close-dialog="lightbox" aria-label="Close photo viewer"><svg class="icon"><use href="#i-x"/></svg></button>
+        <img src="/assets/brand/logo.svg" alt="" class="size-10">
+      </div>
+      <div class="absolute right-3 top-3 flex items-center gap-1.5">
+        <button type="button" class="grid size-10 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20 disabled:opacity-40" data-viewer-zoom="in" aria-label="Zoom in" title="Zoom in"><svg class="icon"><use href="#i-zoom-in"/></svg></button>
+        <button type="button" class="grid size-10 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20 disabled:opacity-40" data-viewer-zoom="out" aria-label="Zoom out" title="Zoom out"><svg class="icon"><use href="#i-zoom-out"/></svg></button>
+        <button type="button" class="grid size-10 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20" data-viewer-fullscreen aria-label="Enter full screen" title="Full screen"><svg class="icon"><use href="#i-expand"/></svg></button>
+        <button type="button" class="hidden size-10 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20 lg:hidden" data-viewer-toggle-panel aria-label="Show comments" title="Comments"><svg class="icon"><use href="#i-comment"/></svg></button>
+      </div>
+      <button type="button" class="absolute left-4 top-1/2 hidden size-12 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white hover:bg-white/25" data-viewer-nav="-1" aria-label="Previous photo"><svg class="icon size-6"><use href="#i-chevron-left"/></svg></button>
+      <button type="button" class="absolute right-4 top-1/2 hidden size-12 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white hover:bg-white/25" data-viewer-nav="1" aria-label="Next photo"><svg class="icon size-6"><use href="#i-chevron-right"/></svg></button>
+      <span class="absolute bottom-4 left-1/2 hidden -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-[0.8125rem] font-semibold text-white" data-viewer-counter></span>
+    </div>
+
+    <!-- Post panel (Facebook-style right column) -->
+    <aside class="hidden w-full shrink-0 flex-col bg-surface text-ink max-lg:absolute max-lg:inset-x-0 max-lg:bottom-0 max-lg:top-16 max-lg:rounded-t-2xl lg:w-[22.5rem]" data-viewer-panel aria-label="Post details">
+      <div class="flex items-center gap-2.5 px-4 pb-2 pt-4">
+        <a data-viewer-author-link class="shrink-0"><span data-viewer-avatar></span></a>
+        <div class="min-w-0 flex-1 leading-tight">
+          <p class="text-15" data-viewer-title></p>
+          <p class="mt-0.5 flex items-center gap-1 text-[0.8125rem] text-muted"><a class="hover:underline" data-viewer-time></a><span aria-hidden="true">·</span><svg class="icon size-3.5"><use href="#i-globe" data-viewer-privacy/></svg></p>
+        </div>
+        <button type="button" class="icon-btn-ghost lg:hidden" data-viewer-toggle-panel aria-label="Hide comments"><svg class="icon"><use href="#i-x"/></svg></button>
+      </div>
+      <div class="min-h-0 flex-1 overflow-y-auto" data-viewer-scroll>
+        <p class="whitespace-pre-wrap break-words px-4 text-15 leading-[1.4]" data-viewer-content></p>
+        <div class="mx-4 mt-2 flex min-h-[2.5rem] items-center justify-between gap-3 text-15 text-muted">
+          <span class="flex items-center gap-1.5" data-viewer-reactions></span>
+          <span data-viewer-comment-count></span>
+        </div>
+        <div class="mx-4 flex gap-1 border-y border-line py-1">
+          <div class="reaction-wrap relative flex flex-1" data-viewer-react-wrap>
+            <button type="button" class="action-button" data-viewer-like><svg class="icon"><use href="#i-like"/></svg><span>Like</span></button>
+            <div class="reaction-bar" role="toolbar" aria-label="Reactions" data-viewer-reaction-bar></div>
+          </div>
+          <button type="button" class="action-button" data-viewer-focus-comment><svg class="icon"><use href="#i-comment"/></svg><span>Comment</span></button>
+          <button type="button" class="action-button" data-viewer-share><svg class="icon"><use href="#i-share"/></svg><span>Share</span></button>
+        </div>
+        <ul class="space-y-3 px-4 py-3" data-viewer-comments></ul>
+      </div>
+      <form class="border-t border-line p-3" data-viewer-comment-form>
+        <p class="mb-1.5 hidden items-center justify-between text-xs text-muted" data-viewer-replying><span></span><button type="button" class="font-semibold hover:underline" data-viewer-cancel-reply>Cancel</button></p>
+        <div class="flex items-center gap-2">
+          <span data-viewer-me></span>
+          <label class="sr-only" for="viewer-comment">Write a comment</label>
+          <div class="relative flex-1">
+            <input id="viewer-comment" class="pill-input h-9 pr-16" placeholder="Write a comment…" maxlength="1500" autocomplete="off" required>
+            <button type="button" class="absolute right-8 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-line" data-emoji-for="#viewer-comment" aria-label="Insert emoji"><svg class="icon size-4"><use href="#i-smile"/></svg></button>
+            <button type="submit" class="absolute right-1 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full text-brand-600 hover:bg-line" aria-label="Post comment"><svg class="icon size-4"><use href="#i-send"/></svg></button>
+          </div>
+        </div>
+      </form>
+    </aside>
+  </div>
 </dialog>
 
 <% if (typeof currentUser !== 'undefined' && currentUser) { %>
@@ -30,7 +88,7 @@
             <label class="sr-only" for="composer-visibility">Who can see this post</label>
             <div class="relative mt-1 inline-flex" data-visibility-wrap>
               <svg class="icon pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2"><use href="#i-globe"/></svg>
-              <select id="composer-visibility" name="visibility" class="h-7 appearance-none rounded-md bg-[#e4e6eb] pl-7 pr-7 text-[0.8125rem] font-semibold focus:outline-none focus:ring-2 focus:ring-brand-200">
+              <select id="composer-visibility" name="visibility" class="h-7 appearance-none rounded-md bg-control pl-7 pr-7 text-[0.8125rem] font-semibold focus:outline-none focus:ring-2 focus:ring-brand-200">
                 <option value="public">Public</option><option value="followers">Followers</option><option value="private">Only me</option>
               </select>
               <svg class="icon pointer-events-none absolute right-2 top-1/2 size-3.5 -translate-y-1/2"><use href="#i-chevron-down"/></svg>
@@ -46,12 +104,12 @@
         <div class="relative mt-2 hidden overflow-hidden rounded-lg border border-line" data-composer-place-card>
           <div class="relative h-36 bg-field" data-map></div>
           <div class="flex items-center gap-2 px-3 py-2"><svg class="icon shrink-0 text-[#f5533d]"><use href="#i-pin"/></svg><div class="min-w-0"><p class="truncate font-semibold" data-composer-place-name></p><p class="truncate text-[0.8125rem] text-muted" data-composer-place-address></p></div></div>
-          <button type="button" class="icon-btn absolute right-2 top-2 size-8 bg-white shadow-card" data-composer-clear="place" aria-label="Remove location"><svg class="icon size-4"><use href="#i-x"/></svg></button>
+          <button type="button" class="icon-btn absolute right-2 top-2 size-8 bg-surface shadow-card" data-composer-clear="place" aria-label="Remove location"><svg class="icon size-4"><use href="#i-x"/></svg></button>
         </div>
         <p class="form-error mt-3 hidden" data-form-error role="alert"></p>
       </div>
       <div class="px-4 pb-4">
-        <div class="flex items-center justify-between rounded-lg border border-[#ccd0d5] px-4 py-2">
+        <div class="flex items-center justify-between rounded-lg border border-strong px-4 py-2">
           <span class="text-15 font-semibold">Add to your post</span>
           <div class="flex items-center gap-1">
             <label class="icon-btn-ghost cursor-pointer text-[#45bd62]" title="Photo/video"><svg class="icon size-6"><use href="#i-image"/></svg><span class="sr-only">Add photos</span><input class="sr-only" name="images" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple data-composer-files></label>
@@ -76,7 +134,7 @@
       <div class="p-3">
         <div class="relative" data-feeling-search-wrap><svg class="icon pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"><use href="#i-search"/></svg><input type="search" class="pill-input pl-9" placeholder="Search" data-feeling-search aria-label="Search feelings"></div>
         <div class="mt-3 hidden" data-activity-detail>
-          <div class="flex items-center gap-2 rounded-lg bg-field p-2"><span class="grid size-9 place-items-center rounded-full bg-white text-xl" data-activity-emoji></span><span class="font-semibold" data-activity-verb></span></div>
+          <div class="flex items-center gap-2 rounded-lg bg-field p-2"><span class="grid size-9 place-items-center rounded-full bg-surface text-xl" data-activity-emoji></span><span class="font-semibold" data-activity-verb></span></div>
           <input class="input mt-2 w-full" maxlength="80" data-activity-text>
           <div class="mt-2 flex justify-end gap-2"><button type="button" class="btn-secondary" data-activity-cancel>Back</button><button type="button" class="btn-primary" data-activity-done>Done</button></div>
         </div>
@@ -147,8 +205,8 @@
       <div class="relative grid aspect-[9/16] w-full max-w-[16rem] place-items-center overflow-hidden rounded-xl bg-story-ocean shadow-float" data-story-preview>
         <img class="absolute inset-0 hidden size-full object-cover" alt="" data-story-preview-image>
         <div class="absolute right-2 top-2 z-20 hidden gap-1.5" data-story-photo-actions>
-          <button type="button" class="grid size-9 place-items-center rounded-full bg-white/90 text-ink shadow-float hover:bg-white" data-story-photo="replace" aria-label="Replace photo" title="Replace photo"><svg class="icon size-[1.125rem]"><use href="#i-edit"/></svg></button>
-          <button type="button" class="grid size-9 place-items-center rounded-full bg-white/90 text-ink shadow-float hover:bg-white" data-story-photo="remove" aria-label="Remove photo" title="Remove photo"><svg class="icon size-[1.125rem]"><use href="#i-x"/></svg></button>
+          <button type="button" class="grid size-9 place-items-center rounded-full bg-surface/90 text-ink shadow-float hover:bg-surface" data-story-photo="replace" aria-label="Replace photo" title="Replace photo"><svg class="icon size-[1.125rem]"><use href="#i-edit"/></svg></button>
+          <button type="button" class="grid size-9 place-items-center rounded-full bg-surface/90 text-ink shadow-float hover:bg-surface" data-story-photo="remove" aria-label="Remove photo" title="Remove photo"><svg class="icon size-[1.125rem]"><use href="#i-x"/></svg></button>
         </div>
         <p class="relative z-10 whitespace-pre-wrap break-words px-5 text-center font-display text-xl font-bold text-white text-shadow" data-story-preview-text>Start typing</p>
       </div>

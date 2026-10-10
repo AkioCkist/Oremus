@@ -63,6 +63,34 @@ function readAsDataUrl(file: File): Promise<string> {
 
 function openDialog(id: string) { const dialog = document.getElementById(id) as HTMLDialogElement | null; if (dialog && !dialog.open) dialog.showModal(); return dialog; }
 
+/* ---------- Theme (light / dark / system) ---------- */
+
+type ThemeChoice = 'light' | 'dark' | 'system';
+const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+const currentTheme = (): ThemeChoice => (document.documentElement.dataset.theme as ThemeChoice) || 'system';
+const isDark = (theme = currentTheme()) => theme === 'dark' || (theme === 'system' && darkQuery.matches);
+
+function syncThemeControls() {
+  const dark = isDark();
+  $$<HTMLButtonElement>('[data-theme-toggle]').forEach((button) => {
+    button.setAttribute('aria-checked', String(dark));
+    const track = $('[data-theme-switch]', button);
+    track?.classList.toggle('bg-brand-600', dark); track?.classList.toggle('bg-strong', !dark); track?.classList.toggle('after:translate-x-5', dark);
+  });
+  $$<HTMLInputElement>('[data-theme-choice]').forEach((input) => { input.checked = input.value === currentTheme(); });
+}
+
+function setTheme(theme: ThemeChoice) {
+  document.documentElement.dataset.theme = theme;
+  document.cookie = `theme=${theme}; Path=/; Max-Age=31536000; SameSite=Lax`;
+  syncThemeControls();
+}
+
+$$<HTMLInputElement>('[data-theme-choice]').forEach((input) => input.addEventListener('change', () => { if (input.checked) setTheme(input.value as ThemeChoice); }));
+$$('[data-theme-toggle]').forEach((button) => button.addEventListener('click', () => setTheme(isDark() ? 'light' : 'dark')));
+darkQuery.addEventListener('change', syncThemeControls);
+syncThemeControls();
+
 /* ---------- API forms ---------- */
 
 $$<HTMLFormElement>('[data-api-form]').forEach((form) => {
@@ -150,7 +178,7 @@ function paintReaction(card: Element, active: string | null, count: number) {
   if (countLabel) countLabel.textContent = new Intl.NumberFormat('en', { notation: 'compact' }).format(count);
   summary?.classList.toggle('invisible', count === 0);
   if (icons && active && !$(`use[href="#r-${active}"]`, icons)) {
-    icons.prepend(svgUse(`r-${active}`, 'size-[1.125rem] rounded-full ring-2 ring-white'));
+    icons.prepend(svgUse(`r-${active}`, 'size-[1.125rem] rounded-full ring-2 ring-surface'));
     while (icons.children.length > 3) icons.lastElementChild?.remove();
   }
   if (icons && count === 0) icons.replaceChildren();
@@ -202,7 +230,7 @@ function renderMap(container: HTMLElement, lat: number, lon: number, zoom = 15) 
   }
   const pin = svgUse('i-pin', 'absolute left-1/2 top-1/2 size-9 -translate-x-1/2 -translate-y-full fill-[#f5533d] stroke-white drop-shadow');
   pin.setAttribute('stroke-width', '1.5');
-  const credit = Object.assign(document.createElement('span'), { className: 'absolute bottom-1 right-1 rounded bg-white/80 px-1 text-2xs text-muted', textContent: '© OpenStreetMap' });
+  const credit = Object.assign(document.createElement('span'), { className: 'absolute bottom-1 right-1 rounded bg-surface/80 px-1 text-2xs text-muted', textContent: '© OpenStreetMap' });
   container.replaceChildren(tiles, pin, credit);
 }
 $$('[data-map][data-lat]').forEach((map) => renderMap(map, Number(map.dataset.lat), Number(map.dataset.lon)));
@@ -226,7 +254,7 @@ function closeEmojiPicker() { emojiPopover?.remove(); emojiPopover = null; }
 function openEmojiPicker(anchor: HTMLElement, field: HTMLInputElement | HTMLTextAreaElement) {
   closeEmojiPicker();
   const popover = document.createElement('div');
-  popover.className = 'fixed z-[70] flex h-[22rem] w-[20rem] max-w-[calc(100vw-1rem)] animate-pop-in flex-col overflow-hidden rounded-xl bg-white shadow-pop';
+  popover.className = 'fixed z-[70] flex h-[22rem] w-[20rem] max-w-[calc(100vw-1rem)] animate-pop-in flex-col overflow-hidden rounded-xl bg-surface shadow-pop';
   popover.setAttribute('role', 'dialog'); popover.setAttribute('aria-label', 'Emoji picker');
   const search = Object.assign(document.createElement('input'), { type: 'search', className: 'pill-input h-9', placeholder: 'Search emoji' });
   search.setAttribute('aria-label', 'Search emoji');
@@ -236,7 +264,7 @@ function openEmojiPicker(anchor: HTMLElement, field: HTMLInputElement | HTMLText
 
   const grid = (title: string, items: Array<[string, string]>, id?: string) => {
     const section = document.createElement('section'); if (id) section.dataset.emojiSection = id;
-    section.appendChild(Object.assign(document.createElement('p'), { className: 'sticky top-0 bg-white py-1.5 text-xs font-semibold text-muted', textContent: title }));
+    section.appendChild(Object.assign(document.createElement('p'), { className: 'sticky top-0 bg-surface py-1.5 text-xs font-semibold text-muted', textContent: title }));
     const wrap = document.createElement('div'); wrap.className = 'grid grid-cols-8';
     items.forEach(([emoji, words]) => {
       const button = Object.assign(document.createElement('button'), { type: 'button', className: 'grid size-9 place-items-center rounded-lg text-2xl hover:bg-hover', textContent: emoji, title: words.split(' ')[0] });
@@ -372,7 +400,7 @@ if (composer) {
       }));
     feelingGrid.replaceChildren(...(buttons.length ? buttons : [Object.assign(document.createElement('p'), { className: 'col-span-2 py-8 text-center text-muted', textContent: 'No matches' })]));
     if (current) {
-      const clear = Object.assign(document.createElement('button'), { type: 'button', className: 'col-span-2 mt-1 rounded-lg p-2 text-15 font-semibold text-red-600 hover:bg-red-50', textContent: 'Remove feeling/activity' });
+      const clear = Object.assign(document.createElement('button'), { type: 'button', className: 'col-span-2 mt-1 rounded-lg p-2 text-15 font-semibold text-red-600 hover:bg-red-500/10', textContent: 'Remove feeling/activity' });
       clear.addEventListener('click', () => { composerState.feeling = null; paintComposerMeta(); showView('main'); });
       feelingGrid.appendChild(clear);
     }
@@ -540,7 +568,7 @@ function layoutCropFrame() {
   if (pickerKind === 'avatar') {
     const side = Math.min(320, Math.round(window.innerWidth * 0.72));
     frame.style.width = `${side}px`; frame.style.height = `${side}px`; frame.classList.remove('rounded-lg'); frame.classList.add('rounded-md');
-    mask.className = 'pointer-events-none absolute inset-0 rounded-full shadow-[0_0_0_9999px_rgba(255,255,255,0.55)] ring-2 ring-white';
+    mask.className = 'pointer-events-none absolute inset-0 rounded-full shadow-[0_0_0_9999px_rgba(255,255,255,0.55)] ring-2 ring-surface';
   } else {
     const width = Math.min(picker!.clientWidth - 48, 640);
     frame.style.width = `${width}px`; frame.style.height = `${Math.round(width * 6 / 16)}px`; frame.classList.add('rounded-lg');
@@ -637,7 +665,7 @@ function pickerSection(title: string, urls: string[], deletable = true) {
     tile.appendChild(button);
     if (deletable) {
       const remove = document.createElement('button'); remove.type = 'button';
-      remove.className = 'absolute right-1 top-1 grid size-7 place-items-center rounded-full bg-white/95 text-ink shadow-float transition-opacity hover:bg-white sm:opacity-0 sm:group-hover/tile:opacity-100 sm:focus-visible:opacity-100';
+      remove.className = 'absolute right-1 top-1 grid size-7 place-items-center rounded-full bg-surface/95 text-ink shadow-float transition-opacity hover:bg-surface sm:opacity-0 sm:group-hover/tile:opacity-100 sm:focus-visible:opacity-100';
       remove.setAttribute('aria-label', 'Delete this photo'); remove.title = 'Delete photo';
       remove.appendChild(svgUse('i-trash', 'icon size-4')); remove.addEventListener('click', () => void deleteLibraryPhoto(url));
       tile.appendChild(remove);
@@ -781,7 +809,7 @@ function renderPhotoTiles(container: HTMLElement, tiles: Array<{ src: string }>,
   const single = tiles.length === 1 && !(actions.add && tiles.length < actions.max);
   const tileButton = (icon: string, label: string, onClick: () => void) => {
     const button = document.createElement('button'); button.type = 'button';
-    button.className = 'grid size-8 place-items-center rounded-full bg-white/95 text-ink shadow-float hover:bg-white';
+    button.className = 'grid size-8 place-items-center rounded-full bg-surface/95 text-ink shadow-float hover:bg-surface';
     button.setAttribute('aria-label', label); button.title = label;
     button.appendChild(svgUse(icon, 'icon size-4')); button.addEventListener('click', onClick);
     return button;
@@ -796,7 +824,7 @@ function renderPhotoTiles(container: HTMLElement, tiles: Array<{ src: string }>,
   });
   if (actions.add && tiles.length < actions.max) {
     const add = document.createElement('button'); add.type = 'button';
-    add.className = 'grid aspect-square place-items-center rounded-md border-2 border-dashed border-[#ccd0d5] text-muted hover:bg-hover';
+    add.className = 'grid aspect-square place-items-center rounded-md border-2 border-dashed border-strong text-muted hover:bg-hover';
     const inner = document.createElement('span'); inner.className = 'flex flex-col items-center gap-1 text-[0.8125rem] font-semibold';
     inner.append(svgUse('i-plus', 'icon size-6'), `Add photos (${tiles.length}/${actions.max})`);
     add.appendChild(inner); add.addEventListener('click', actions.add); nodes.push(add);
@@ -887,7 +915,7 @@ if (storyDialog) {
 /* "…" menus on photos (post images, profile picture, cover) */
 async function photoMenuFor(trigger: HTMLElement): Promise<PhotoMenuItem[]> {
   const { photoMenu: kind, url = '', post, media } = trigger.dataset;
-  const view: PhotoMenuItem = { label: kind === 'avatar' ? 'View profile picture' : kind === 'cover' ? 'View cover photo' : 'View photo', icon: 'i-eye', run: () => { const box = openDialog('lightbox'); const img = box && $<HTMLImageElement>('[data-lightbox-image]', box); if (img) img.src = url; } };
+  const view: PhotoMenuItem = { label: kind === 'avatar' ? 'View profile picture' : kind === 'cover' ? 'View cover photo' : 'View photo', icon: 'i-eye', run: () => openPhotoViewer(url, post) };
   if (kind === 'post') {
     return [view,
       { label: 'Replace photo', icon: 'i-edit', run: async () => {
@@ -924,6 +952,201 @@ document.addEventListener('click', async (event) => {
   if (photoMenuEl && !photoMenuEl.contains(event.target as Node)) closePhotoMenu();
 }, true);
 document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && photoMenuEl) { event.preventDefault(); event.stopPropagation(); closePhotoMenu(); } }, true);
+
+/* ---------- Photo viewer (Facebook "theater": photo on black + post column) ---------- */
+
+const photoViewer = $<HTMLDialogElement>('[data-photo-viewer]');
+let openPhotoViewer: (url: string, postId?: string) => void = () => undefined;
+
+if (photoViewer) {
+  const stage = $('[data-viewer-stage]', photoViewer)!;
+  const image = $<HTMLImageElement>('[data-lightbox-image]', photoViewer)!;
+  const panel = $('[data-viewer-panel]', photoViewer)!;
+  const commentsList = $('[data-viewer-comments]', photoViewer)!;
+  const commentForm = $<HTMLFormElement>('[data-viewer-comment-form]', photoViewer)!;
+  const commentInput = $<HTMLInputElement>('#viewer-comment', photoViewer)!;
+  const MAX_ZOOM = 3;
+  let photos: string[] = [];
+  let index = 0;
+  let post: any = null;
+  let comments: any[] = [];
+  let replyTo: { id: string; name: string } | null = null;
+  let zoom = 1, panX = 0, panY = 0;
+  let loadToken = 0;
+
+  /* Photo + zoom */
+  const applyZoom = () => {
+    if (zoom === 1) { panX = 0; panY = 0; }
+    image.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+    image.style.cursor = zoom > 1 ? 'grab' : 'zoom-in';
+    $<HTMLButtonElement>('[data-viewer-zoom="in"]', photoViewer)!.disabled = zoom >= MAX_ZOOM;
+    $<HTMLButtonElement>('[data-viewer-zoom="out"]', photoViewer)!.disabled = zoom <= 1;
+  };
+  const setZoom = (value: number) => { zoom = Math.min(MAX_ZOOM, Math.max(1, Math.round(value * 100) / 100)); applyZoom(); };
+  const showPhoto = (next: number) => {
+    index = (next + photos.length) % photos.length;
+    image.src = photos[index]!; image.alt = post?.media?.[index]?.alt || `Photo ${index + 1}`;
+    zoom = 1; applyZoom();
+    const multiple = photos.length > 1;
+    $$('[data-viewer-nav]', photoViewer).forEach((button) => { button.classList.toggle('hidden', !multiple); button.classList.toggle('grid', multiple); });
+    const counter = $('[data-viewer-counter]', photoViewer)!; counter.classList.toggle('hidden', !multiple); counter.textContent = `${index + 1} / ${photos.length}`;
+  };
+  $$('[data-viewer-nav]', photoViewer).forEach((button) => button.addEventListener('click', () => showPhoto(index + Number(button.dataset.viewerNav))));
+  $$('[data-viewer-zoom]', photoViewer).forEach((button) => button.addEventListener('click', () => setZoom(zoom + (button.dataset.viewerZoom === 'in' ? 0.5 : -0.5))));
+  image.addEventListener('dblclick', () => setZoom(zoom > 1 ? 1 : 2));
+  image.addEventListener('click', () => { if (zoom === 1) setZoom(2); });
+  stage.addEventListener('wheel', (event) => { if (!image.src) return; event.preventDefault(); setZoom(zoom + (event.deltaY < 0 ? 0.25 : -0.25)); }, { passive: false });
+  let drag: { x: number; y: number; panX: number; panY: number } | null = null;
+  image.addEventListener('pointerdown', (event) => { if (zoom === 1) return; drag = { x: event.clientX, y: event.clientY, panX, panY }; image.setPointerCapture(event.pointerId); image.style.cursor = 'grabbing'; image.classList.remove('transition-transform'); });
+  image.addEventListener('pointermove', (event) => { if (!drag) return; panX = drag.panX + event.clientX - drag.x; panY = drag.panY + event.clientY - drag.y; applyZoom(); });
+  const endDrag = () => { if (!drag) return; drag = null; image.classList.add('transition-transform'); applyZoom(); };
+  image.addEventListener('pointerup', endDrag); image.addEventListener('pointercancel', endDrag);
+
+  const fullscreenButton = $('[data-viewer-fullscreen]', photoViewer)!;
+  fullscreenButton.addEventListener('click', () => { if (document.fullscreenElement) void document.exitFullscreen(); else void stage.requestFullscreen?.(); });
+  document.addEventListener('fullscreenchange', () => {
+    const on = document.fullscreenElement === stage;
+    fullscreenButton.setAttribute('aria-label', on ? 'Exit full screen' : 'Enter full screen');
+    $('use', fullscreenButton)?.setAttribute('href', on ? '#i-shrink' : '#i-expand');
+  });
+  photoViewer.addEventListener('keydown', (event) => {
+    if ((event.target as HTMLElement).closest('input, textarea')) return;
+    if (event.key === 'ArrowRight' && photos.length > 1) showPhoto(index + 1);
+    else if (event.key === 'ArrowLeft' && photos.length > 1) showPhoto(index - 1);
+    else if (event.key === '+' || event.key === '=') setZoom(zoom + 0.5);
+    else if (event.key === '-') setZoom(zoom - 0.5);
+  });
+  // `close` fires asynchronously; skip the reset if the viewer was reopened in the meantime.
+  photoViewer.addEventListener('close', () => { if (document.fullscreenElement) void document.exitFullscreen(); if (!photoViewer.open) { image.removeAttribute('src'); loadToken++; } });
+
+  /* Post column */
+  const togglePanelButtons = $$('[data-viewer-toggle-panel]', photoViewer);
+  togglePanelButtons.forEach((button) => button.addEventListener('click', () => panel.classList.toggle('max-lg:hidden')));
+
+  const paintReactions = () => {
+    const holder = $('[data-viewer-reactions]', photoViewer)!;
+    const top: string[] = post.topReactions?.length ? post.topReactions : post.reactionCount ? ['like'] : [];
+    const icons = document.createElement('span'); icons.className = 'flex -space-x-1';
+    top.forEach((type) => icons.appendChild(svgUse(`r-${type}`, 'size-[1.125rem] rounded-full ring-2 ring-surface')));
+    holder.replaceChildren(...(post.reactionCount ? [icons, document.createTextNode(new Intl.NumberFormat('en', { notation: 'compact' }).format(post.reactionCount))] : []));
+    $('[data-viewer-comment-count]', photoViewer)!.textContent = post.commentCount ? `${post.commentCount} ${post.commentCount === 1 ? 'comment' : 'comments'}` : '';
+    const like = $<HTMLButtonElement>('[data-viewer-like]', photoViewer)!;
+    Object.values(REACTION_STYLE).forEach((style) => like.classList.remove(style.color));
+    like.replaceChildren();
+    if (post.myReaction) { like.classList.add(REACTION_STYLE[post.myReaction]!.color); like.appendChild(svgUse(`r-${post.myReaction}`, 'size-[1.125rem]')); }
+    else like.appendChild(svgUse('i-like', 'icon'));
+    like.append(Object.assign(document.createElement('span'), { textContent: post.myReaction ? REACTION_STYLE[post.myReaction]!.label : 'Like' }));
+    like.setAttribute('aria-pressed', String(!!post.myReaction));
+  };
+
+  const commentNode = (comment: any, isReply: boolean) => {
+    const author = comment.authorId || {};
+    const item = document.createElement('li'); item.className = `flex gap-2 ${isReply ? 'ml-10' : ''}`;
+    const link = Object.assign(document.createElement('a'), { href: `/profile/${author.username}`, className: 'shrink-0' });
+    link.appendChild(avatarEl({ displayName: author.displayName, avatarUrl: author.profile?.avatarUrl || author.avatarUrl }, isReply ? 'size-7 text-2xs' : 'size-8 text-xs'));
+    const body = document.createElement('div'); body.className = 'min-w-0';
+    const bubble = document.createElement('div'); bubble.className = 'comment-bubble';
+    bubble.append(Object.assign(document.createElement('a'), { href: `/profile/${author.username}`, className: 'block text-[0.8125rem] font-semibold hover:underline', textContent: author.displayName }),
+      Object.assign(document.createElement('p'), { className: 'whitespace-pre-wrap break-words text-15 leading-snug', textContent: comment.content }));
+    const meta = document.createElement('div'); meta.className = 'mt-0.5 flex gap-3 px-3 text-xs font-semibold text-muted';
+    meta.append(Object.assign(document.createElement('span'), { className: 'font-normal', textContent: timeAgo(comment.createdAt) }));
+    const reply = Object.assign(document.createElement('button'), { type: 'button', className: 'hover:underline', textContent: 'Reply' });
+    reply.addEventListener('click', () => {
+      replyTo = { id: String(comment.parentId || comment._id), name: author.displayName };
+      const banner = $('[data-viewer-replying]', photoViewer)!; banner.classList.remove('hidden'); banner.classList.add('flex');
+      $('span', banner)!.textContent = `Replying to ${author.displayName}`; commentInput.focus();
+    });
+    meta.appendChild(reply);
+    body.append(bubble, meta); item.append(link, body); return item;
+  };
+  const paintComments = () => {
+    const roots = comments.filter((comment) => !comment.parentId);
+    const nodes: HTMLElement[] = [];
+    roots.forEach((root) => {
+      nodes.push(commentNode(root, false));
+      comments.filter((comment) => String(comment.parentId) === String(root._id)).forEach((child) => nodes.push(commentNode(child, true)));
+    });
+    commentsList.replaceChildren(...(nodes.length ? nodes : [Object.assign(document.createElement('li'), { className: 'py-6 text-center text-15 text-muted', textContent: 'No comments yet. Be the first to comment.' })]));
+  };
+  const clearReply = () => { replyTo = null; const banner = $('[data-viewer-replying]', photoViewer)!; banner.classList.add('hidden'); banner.classList.remove('flex'); };
+  $('[data-viewer-cancel-reply]', photoViewer)!.addEventListener('click', clearReply);
+
+  const paintPanel = () => {
+    const author = post.authorId || {};
+    const avatarHolder = $('[data-viewer-avatar]', photoViewer)!;
+    avatarHolder.replaceChildren(avatarEl({ displayName: author.displayName, avatarUrl: author.profile?.avatarUrl }, 'size-10 text-sm'));
+    $<HTMLAnchorElement>('[data-viewer-author-link]', photoViewer)!.href = `/profile/${author.username}`;
+    const title = $('[data-viewer-title]', photoViewer)!;
+    title.replaceChildren(Object.assign(document.createElement('a'), { href: `/profile/${author.username}`, className: 'font-semibold hover:underline', textContent: author.displayName }));
+    const feeling = describeFeeling(post.feeling);
+    if (feeling || post.place) title.append(` is${feeling ? ` ${feeling.emoji} ${feeling.text}` : ''}${post.place ? ` at ${post.place.name}` : ''}.`);
+    const time = $<HTMLAnchorElement>('[data-viewer-time]', photoViewer)!; time.href = `/posts/${post._id}`; time.textContent = timeAgo(post.createdAt);
+    $('[data-viewer-privacy]', photoViewer)!.setAttribute('href', post.visibility === 'private' ? '#i-lock' : post.visibility === 'followers' ? '#i-users' : '#i-globe');
+    const content = $('[data-viewer-content]', photoViewer)!; content.textContent = post.content || ''; content.classList.toggle('hidden', !post.content);
+    $('[data-viewer-me]', photoViewer)!.replaceChildren(avatarEl({ displayName: me.name, avatarUrl: me.avatar }, 'size-8 text-xs'));
+    paintReactions(); paintComments(); clearReply();
+  };
+
+  // Reaction bar (built once).
+  const bar = $('[data-viewer-reaction-bar]', photoViewer)!;
+  Object.entries(REACTION_STYLE).forEach(([type, style]) => {
+    const button = Object.assign(document.createElement('button'), { type: 'button', className: 'reaction-choice', title: style.label });
+    button.setAttribute('aria-label', style.label); button.appendChild(svgUse(`r-${type}`, '')); button.addEventListener('click', () => void react(type));
+    bar.appendChild(button);
+  });
+  async function react(type: string) {
+    if (!post) return;
+    try {
+      const result = await postJson(`/api/posts/${post._id}/reactions`, { type });
+      post.myReaction = result.active; post.reactionCount = result.count;
+      post.topReactions = post.topReactions || [];
+      if (result.active && !post.topReactions.includes(result.active)) post.topReactions = [result.active, ...post.topReactions].slice(0, 3);
+      if (!result.count) post.topReactions = [];
+      paintReactions();
+      const card = document.querySelector(`[data-post-id="${post._id}"]`); if (card) paintReaction(card, result.active, result.count);
+      const wrap = $('[data-viewer-react-wrap]', photoViewer)!; wrap.classList.add('reaction-done'); wrap.addEventListener('mouseleave', () => wrap.classList.remove('reaction-done'), { once: true });
+    } catch (caught) { showToast(caught instanceof Error ? caught.message : 'Could not react.', 'error'); }
+  }
+  $('[data-viewer-like]', photoViewer)!.addEventListener('click', () => void react(post?.myReaction || 'like'));
+  $('[data-viewer-share]', photoViewer)!.addEventListener('click', async () => { if (!post) return; await navigator.clipboard.writeText(`${window.location.origin}/posts/${post._id}`); showToast('Link copied to clipboard.'); });
+  $('[data-viewer-focus-comment]', photoViewer)!.addEventListener('click', () => { panel.classList.remove('max-lg:hidden'); commentInput.focus(); });
+
+  commentForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const content = commentInput.value.trim(); if (!content || !post) return;
+    commentInput.disabled = true;
+    try {
+      const result = await postJson(`/api/posts/${post._id}/comments`, { content, ...(replyTo ? { parentId: replyTo.id } : {}) });
+      comments.push({ ...result.comment, authorId: { username: me.username, displayName: me.name, profile: { avatarUrl: me.avatar } } });
+      post.commentCount = (post.commentCount || 0) + 1;
+      commentInput.value = ''; clearReply(); paintComments(); paintReactions();
+      const scroller = $('[data-viewer-scroll]', photoViewer)!; scroller.scrollTop = scroller.scrollHeight;
+      const card = document.querySelector(`[data-post-id="${post._id}"]`);
+      const counter = card && $('[data-comment-count]', card);
+      if (counter) { counter.textContent = String(post.commentCount); $('[data-comment-count-label]', card!)?.classList.remove('invisible'); }
+    } catch (caught) { showToast(caught instanceof Error ? caught.message : 'Could not post comment.', 'error'); }
+    finally { commentInput.disabled = false; commentInput.focus(); }
+  });
+
+  openPhotoViewer = (url: string, postId?: string) => {
+    const token = ++loadToken;
+    photos = [url]; post = null; comments = [];
+    panel.classList.add('hidden'); panel.classList.remove('flex');
+    togglePanelButtons[0]?.classList.add('hidden');
+    showPhoto(0);
+    if (!photoViewer.open) photoViewer.showModal();
+    if (!postId || !me.id) return;
+    request(`/api/posts/${postId}`).then((data) => {
+      if (token !== loadToken) return;
+      post = data.post; comments = data.comments || [];
+      const urls = (post.media || []).map((media: any) => media.url);
+      if (urls.length) { photos = urls; showPhoto(Math.max(0, urls.indexOf(url))); }
+      panel.classList.remove('hidden'); panel.classList.add('flex', 'max-lg:hidden');
+      togglePanelButtons[0]?.classList.remove('hidden'); togglePanelButtons[0]?.classList.add('grid');
+      paintPanel();
+    }).catch(() => { /* photo still viewable without the post column */ });
+  };
+}
 
 /* ---------- Group create / edit popup ---------- */
 
@@ -1194,7 +1417,7 @@ document.addEventListener('click', async (event) => {
     }
     if (data.openComposer !== undefined) { openComposer(target); return; }
     if (data.openStoryComposer !== undefined) { storyDialog?.showModal(); $<HTMLTextAreaElement>('[data-story-text]', storyDialog!)?.focus(); return; }
-    if (data.lightbox) { const box = openDialog('lightbox'); const img = box && $<HTMLImageElement>('[data-lightbox-image]', box); if (img) img.src = data.lightbox; return; }
+    if (data.lightbox) { openPhotoViewer(data.lightbox, data.post || target.closest<HTMLElement>('[data-post-id]')?.dataset.postId); return; }
     if (data.togglePassword) {
       const input = document.getElementById(data.togglePassword) as HTMLInputElement | null; if (!input) return;
       const show = input.type === 'password'; input.type = show ? 'text' : 'password';

@@ -2,20 +2,20 @@
 <% const isSelf = currentUser && String(profile._id) === String(currentUser._id); const info = profile.profile || {}; const tabHref = (t) => `/profile/${profile.username}${t === 'posts' ? '' : '?tab=' + t}`; -%>
 <main id="main" class="pb-24 md:pb-10">
   <!-- Header -->
-  <section class="bg-white shadow-card">
+  <section class="bg-surface shadow-card">
     <div class="mx-auto max-w-[71.25rem]">
       <div class="relative aspect-[16/6] max-h-[25rem] w-full overflow-hidden bg-field sm:rounded-b-xl">
         <% if (isSelf) { %><button type="button" class="block size-full" data-photo-menu="cover" data-url="<%= info.coverUrl || '' %>" aria-label="Cover photo options"><% } else if (info.coverUrl) { %><button type="button" class="block size-full" data-lightbox="<%= info.coverUrl %>" aria-label="View cover photo"><% } %>
         <img class="size-full object-cover" src="<%= info.coverUrl || '/assets/img/default-cover.svg' %>" alt="<%= info.coverUrl ? profile.displayName + `'s cover photo` : '' %>">
         <% if (isSelf || info.coverUrl) { %></button><% } %>
-        <% if (isSelf) { %><button type="button" class="btn absolute bottom-4 right-4 bg-white text-ink shadow-card hover:bg-hover" data-photo-menu="cover" data-url="<%= info.coverUrl || '' %>"><svg class="icon"><use href="#i-camera"/></svg><span class="hidden sm:inline"><%= info.coverUrl ? 'Edit cover photo' : 'Add cover photo' %></span></button><% } %>
+        <% if (isSelf) { %><button type="button" class="btn absolute bottom-4 right-4 bg-surface text-ink shadow-card hover:bg-hover" data-photo-menu="cover" data-url="<%= info.coverUrl || '' %>"><svg class="icon"><use href="#i-camera"/></svg><span class="hidden sm:inline"><%= info.coverUrl ? 'Edit cover photo' : 'Add cover photo' %></span></button><% } %>
       </div>
       <div class="px-4 lg:px-8">
         <div class="flex flex-col items-center gap-4 border-b border-line pb-4 md:flex-row md:items-end">
           <div class="relative -mt-20 shrink-0 md:-mt-8">
-            <% if (hasStory) { %><a href="/stories/<%= profile.username %>" aria-label="View <%= profile.displayName %>'s story" class="block rounded-full bg-white p-1 ring-[3px] ring-brand-600"><% } %>
+            <% if (hasStory) { %><a href="/stories/<%= profile.username %>" aria-label="View <%= profile.displayName %>'s story" class="block rounded-full bg-surface p-1 ring-[3px] ring-brand-600"><% } %>
             <% if (!hasStory && isSelf) { %><button type="button" class="block rounded-full" data-photo-menu="avatar" data-url="<%= info.avatarUrl || '' %>" aria-label="Profile picture options"><% } else if (!hasStory && info.avatarUrl) { %><button type="button" class="block rounded-full" data-lightbox="<%= info.avatarUrl %>" aria-label="View profile picture"><% } %>
-            <%- include('partials/avatar', { person: profile, size: 'size-[10.5rem] text-5xl ring-4 ring-white' }) %>
+            <%- include('partials/avatar', { person: profile, size: 'size-[10.5rem] text-5xl ring-4 ring-surface' }) %>
             <% if (!hasStory && (isSelf || info.avatarUrl)) { %></button><% } %>
             <% if (hasStory) { %></a><% } %>
             <% if (isSelf) { %><button type="button" class="icon-btn absolute bottom-2 right-2" data-photo-menu="avatar" data-url="<%= info.avatarUrl || '' %>" aria-label="Update profile picture"><svg class="icon"><use href="#i-camera"/></svg></button><% } %>
@@ -25,7 +25,7 @@
             <p class="mt-1 font-semibold text-muted"><%= plural(profile.followers, 'follower') %> · <%= compact(profile.following) %> following</p>
             <% if (followingPreview.length) { %>
             <div class="mt-2 flex justify-center -space-x-2 md:justify-start">
-              <% followingPreview.slice(0, 8).forEach(function (p) { %><a href="/profile/<%= p.username %>" title="<%= p.displayName %>"><%- include('partials/avatar', { person: p, size: 'size-8 text-2xs ring-2 ring-white' }) %></a><% }) %>
+              <% followingPreview.slice(0, 8).forEach(function (p) { %><a href="/profile/<%= p.username %>" title="<%= p.displayName %>"><%- include('partials/avatar', { person: p, size: 'size-8 text-2xs ring-2 ring-surface' }) %></a><% }) %>
             </div>
             <% } %>
           </div>
@@ -75,7 +75,7 @@
         <div class="flex items-center justify-between"><h2 class="card-title text-xl">Photos</h2><% if (photos.length) { %><a class="rounded-md px-2 py-1 text-15 text-brand-600 hover:bg-hover" href="<%= tabHref('photos') %>">See all photos</a><% } %></div>
         <% if (photos.length) { %>
         <div class="mt-3 grid grid-cols-3 gap-1 overflow-hidden rounded-lg">
-          <% photos.forEach(function (photo) { %><div class="group/photo relative aspect-square overflow-hidden bg-field"><button type="button" class="block size-full" data-lightbox="<%= photo.url %>" aria-label="Open photo"><img class="size-full object-cover transition-transform hover:scale-105" src="<%= photo.url %>" alt="<%= photo.alt || '' %>" loading="lazy"></button><% if (isSelf) { %><button type="button" class="absolute right-1.5 top-1.5 grid size-8 place-items-center rounded-full bg-white/90 text-ink shadow-float transition-opacity hover:bg-white sm:opacity-0 sm:group-hover/photo:opacity-100 sm:focus-visible:opacity-100" data-photo-menu="post" data-post="<%= photo.postId %>" data-media="<%= photo.mediaId %>" data-url="<%= photo.url %>" aria-label="Photo options"><svg class="icon size-[1.125rem]"><use href="#i-more"/></svg></button><% } %></div><% }) %>
+          <% photos.forEach(function (photo) { %><div class="group/photo relative aspect-square overflow-hidden bg-field"><button type="button" class="block size-full" data-lightbox="<%= photo.url %>" data-post="<%= photo.postId %>" aria-label="Open photo"><img class="size-full object-cover transition-transform hover:scale-105" src="<%= photo.url %>" alt="<%= photo.alt || '' %>" loading="lazy"></button><% if (isSelf) { %><button type="button" class="absolute right-1.5 top-1.5 grid size-8 place-items-center rounded-full bg-surface/90 text-ink shadow-float transition-opacity hover:bg-surface sm:opacity-0 sm:group-hover/photo:opacity-100 sm:focus-visible:opacity-100" data-photo-menu="post" data-post="<%= photo.postId %>" data-media="<%= photo.mediaId %>" data-url="<%= photo.url %>" aria-label="Photo options"><svg class="icon size-[1.125rem]"><use href="#i-more"/></svg></button><% } %></div><% }) %>
         </div>
         <% } else { %><p class="mt-3 text-15 text-muted">No photos to show.</p><% } %>
       </section>
@@ -110,7 +110,7 @@
       <h2 class="card-title text-xl">Photos</h2>
       <% if (photos.length) { %>
       <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-        <% photos.forEach(function (photo) { %><div class="group/photo relative aspect-square overflow-hidden rounded-lg bg-field"><button type="button" class="block size-full" data-lightbox="<%= photo.url %>" aria-label="Open photo"><img class="size-full object-cover transition-transform hover:scale-105" src="<%= photo.url %>" alt="<%= photo.alt || '' %>" loading="lazy"></button><% if (isSelf) { %><button type="button" class="absolute right-1.5 top-1.5 grid size-8 place-items-center rounded-full bg-white/90 text-ink shadow-float transition-opacity hover:bg-white sm:opacity-0 sm:group-hover/photo:opacity-100 sm:focus-visible:opacity-100" data-photo-menu="post" data-post="<%= photo.postId %>" data-media="<%= photo.mediaId %>" data-url="<%= photo.url %>" aria-label="Photo options"><svg class="icon size-[1.125rem]"><use href="#i-more"/></svg></button><% } %></div><% }) %>
+        <% photos.forEach(function (photo) { %><div class="group/photo relative aspect-square overflow-hidden rounded-lg bg-field"><button type="button" class="block size-full" data-lightbox="<%= photo.url %>" data-post="<%= photo.postId %>" aria-label="Open photo"><img class="size-full object-cover transition-transform hover:scale-105" src="<%= photo.url %>" alt="<%= photo.alt || '' %>" loading="lazy"></button><% if (isSelf) { %><button type="button" class="absolute right-1.5 top-1.5 grid size-8 place-items-center rounded-full bg-surface/90 text-ink shadow-float transition-opacity hover:bg-surface sm:opacity-0 sm:group-hover/photo:opacity-100 sm:focus-visible:opacity-100" data-photo-menu="post" data-post="<%= photo.postId %>" data-media="<%= photo.mediaId %>" data-url="<%= photo.url %>" aria-label="Photo options"><svg class="icon size-[1.125rem]"><use href="#i-more"/></svg></button><% } %></div><% }) %>
       </div>
       <% } else { %><p class="mt-3 text-muted">No photos to show.</p><% } %>
     </section>

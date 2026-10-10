@@ -15,6 +15,7 @@ apiRoutes.patch('/profile/details', asyncHandler(controller.updateDetails));
 apiRoutes.post('/profile/photo', rateLimit('profile-photo', 30, 3600), upload.single('photo'), asyncHandler(controller.updatePhoto));
 apiRoutes.post('/users/:userId/follow', asyncHandler(controller.toggleFollow));
 apiRoutes.post('/posts', rateLimit('post', 20, 3600), upload.array('images', 4), asyncHandler(controller.createPost));
+apiRoutes.get('/posts/:postId', asyncHandler(controller.postDetail));
 apiRoutes.patch('/posts/:postId', upload.array('images', 4), asyncHandler(controller.updatePost));
 apiRoutes.put('/posts/:postId/media/:mediaId', upload.single('photo'), asyncHandler(controller.replacePostMedia));
 apiRoutes.delete('/posts/:postId/media/:mediaId', asyncHandler(controller.removePostMedia));

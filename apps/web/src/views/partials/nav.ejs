@@ -1,5 +1,5 @@
 <% const unreadN = locals.unreadNotifications || 0, unreadM = locals.unreadMessages || 0; -%>
-<header class="sticky top-0 z-40 h-14 border-b border-line bg-white shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+<header class="sticky top-0 z-40 h-14 border-b border-line bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
   <div class="flex h-full items-center gap-2 px-3 sm:px-4">
     <!-- Brand + search -->
     <div class="flex min-w-0 items-center gap-2 xl:w-[20rem]">
@@ -48,6 +48,7 @@
           </a>
           <div class="divider"></div>
           <button type="button" class="menu-item" data-open-dialog="edit-profile-dialog"><span class="menu-icon"><svg class="icon"><use href="#i-edit"/></svg></span>Edit profile</button>
+          <button type="button" class="menu-item" role="switch" aria-checked="false" data-theme-toggle><span class="menu-icon"><svg class="icon"><use href="#i-moon"/></svg></span><span class="flex-1">Dark mode</span><span class="relative h-6 w-11 shrink-0 rounded-full bg-strong transition-colors after:absolute after:left-0.5 after:top-0.5 after:size-5 after:rounded-full after:bg-white after:shadow after:transition-transform" data-theme-switch aria-hidden="true"></span></button>
           <a class="menu-item" href="/settings"><span class="menu-icon"><svg class="icon"><use href="#i-settings"/></svg></span>Settings &amp; privacy</a>
           <a class="menu-item" href="/stories/archive"><span class="menu-icon"><svg class="icon"><use href="#i-archive"/></svg></span>Story archive</a>
           <a class="menu-item" href="/notifications"><span class="menu-icon"><svg class="icon"><use href="#i-bell"/></svg></span>Notifications</a>

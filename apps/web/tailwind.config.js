@@ -1,29 +1,40 @@
 /** @type {import('tailwindcss').Config} */
+
+// Theme colours are CSS variables (RGB channels) defined in styles.css for light / dark / system.
+const themed = (name) => `rgb(var(--c-${name}) / <alpha-value>)`;
+
 export default {
   content: ['./src/views/**/*.ejs', './src/views-or-client/**/*.ts', './src/utils/view-helpers.ts'],
   // Built from data at render time (avatar tones, story backgrounds), so the scanner cannot see them.
   safelist: [{ pattern: /^tone-[0-7]$/ }, { pattern: /^bg-story-(sunset|ocean|forest|night|candy|sun)$/ }],
+  darkMode: ['variant', ['&:is([data-theme="dark"] *)', '@media (prefers-color-scheme: dark) { &:is([data-theme="system"] *) }']],
   theme: {
     extend: {
       colors: {
-        // Text + surfaces follow Facebook's neutral ramp; brand follows the reference mockups.
-        ink: '#050505',
-        muted: '#65676b',
-        subtle: '#8a8d91',
-        canvas: '#f0f2f5',
-        field: '#f0f2f5',
-        hover: '#f2f2f2',
-        line: '#e4e6eb',
+        ink: themed('ink'),
+        muted: themed('muted'),
+        subtle: themed('subtle'),
+        canvas: themed('canvas'),
+        surface: themed('surface'),
+        field: themed('field'),
+        hover: themed('hover'),
+        line: themed('line'),
+        control: themed('control'),
+        'control-hover': themed('control-hover'),
+        'rail-hover': themed('rail-hover'),
+        strong: themed('strong'),
+        'primary-hover': themed('primary-hover'),
         stage: '#18191a',
         online: '#31a24c',
-        brand: { 50: '#eef0fc', 100: '#dde1f9', 200: '#bcc3f2', 400: '#6c78e0', 500: '#4f5bd5', 600: '#4150cf', 700: '#3540b0', 800: '#2b3490' },
-        // Kept as an alias so older markup keeps working.
-        accent: { 50: '#eef0fc', 100: '#dde1f9', 500: '#4f5bd5', 600: '#4150cf', 700: '#3540b0' },
-        paper: '#f0f2f5'
+        brand: { 50: themed('brand-50'), 100: themed('brand-100'), 200: themed('brand-200'), 400: themed('brand-400'), 500: themed('brand-500'), 600: themed('brand-600'), 700: themed('brand-700'), 800: themed('brand-800') },
+        // Kept as aliases so older markup keeps working.
+        accent: { 50: themed('brand-50'), 100: themed('brand-100'), 500: themed('brand-500'), 600: themed('brand-600'), 700: themed('brand-700') },
+        paper: themed('canvas')
       },
       fontFamily: {
-        sans: ['"Red Hat Text"', 'Segoe UI', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        display: ['"Red Hat Display"', '"Red Hat Text"', 'Segoe UI', 'ui-sans-serif', 'sans-serif']
+        // Be Vietnam Pro is designed for Vietnamese: stacked diacritics render correctly at every weight.
+        sans: ['"Be Vietnam Pro"', 'Segoe UI', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ['"Be Vietnam Pro"', 'Segoe UI', 'ui-sans-serif', 'system-ui', 'sans-serif']
       },
       fontSize: { '2xs': ['0.6875rem', '1rem'], 15: ['0.9375rem', '1.35rem'] },
       boxShadow: {

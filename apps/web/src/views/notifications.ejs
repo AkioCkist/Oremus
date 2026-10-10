@@ -38,7 +38,7 @@
           <a class="flex items-center gap-3 rounded-lg p-2 hover:bg-hover" href="<%= hrefOf(n) %>" data-unread="<%= n.readAt ? 'false' : 'true' %>">
             <span class="relative shrink-0">
               <%- include('partials/avatar', { person: n.actorId, size: 'size-14 text-lg' }) %>
-              <span class="absolute -bottom-1 -right-1 grid size-7 place-items-center rounded-full text-white ring-2 ring-white <%= m.bg %>">
+              <span class="absolute -bottom-1 -right-1 grid size-7 place-items-center rounded-full text-white ring-2 ring-surface <%= m.bg %>">
                 <% if (m.fill) { %><svg class="size-7"><use href="#<%= m.icon %>"/></svg><% } else { %><svg class="icon size-4"><use href="#<%= m.icon %>"/></svg><% } %>
               </span>
             </span>

@@ -6,7 +6,7 @@
   const gap = 20 * 60 * 1000;
 -%>
 <main id="main" class="mx-auto h-[calc(100dvh-3.5rem)] max-w-[100rem] pb-[3.75rem] md:p-4 md:pb-4">
-  <section class="flex h-full overflow-hidden bg-white md:rounded-2xl md:shadow-card">
+  <section class="flex h-full overflow-hidden bg-surface md:rounded-2xl md:shadow-card">
     <!-- Icon rail -->
     <nav aria-label="Chat sections" class="hidden w-[4.5rem] shrink-0 flex-col items-center gap-2 border-r border-line py-4 lg:flex">
       <a href="/" class="msg-rail-link" aria-label="Back to home"><svg class="icon size-6"><use href="#i-arrow-left"/></svg></a>
@@ -53,7 +53,7 @@
     </aside>
 
     <!-- Active chat -->
-    <section class="min-w-0 flex-1 flex-col bg-white <%= activeConversation ? 'flex' : 'hidden md:flex' %>" data-conversation="<%= activeConversation || '' %>" aria-label="Conversation">
+    <section class="min-w-0 flex-1 flex-col bg-surface <%= activeConversation ? 'flex' : 'hidden md:flex' %>" data-conversation="<%= activeConversation || '' %>" aria-label="Conversation">
       <% if (activeConversation && partner) { %>
       <header class="flex h-[4.5rem] shrink-0 items-center gap-3 border-b border-line px-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:px-4">
         <a class="icon-btn-ghost text-brand-600 md:hidden" href="/messages" aria-label="Back to chats"><svg class="icon"><use href="#i-arrow-left"/></svg></a>
@@ -65,7 +65,7 @@
         <button type="button" class="icon-btn-ghost text-brand-600" data-toggle-details aria-controls="chat-details" aria-expanded="true" aria-label="Conversation information"><svg class="icon"><use href="#i-info"/></svg></button>
       </header>
 
-      <div class="flex-1 overflow-y-auto bg-[#fafafb] px-3 py-4 sm:px-4" id="message-list" aria-live="polite">
+      <div class="flex-1 overflow-y-auto bg-canvas px-3 py-4 sm:px-4" id="message-list" aria-live="polite">
         <div class="flex flex-col items-center pb-6 pt-4 text-center">
           <%- include('partials/avatar', { person: partner, size: 'size-20 text-2xl' }) %>
           <p class="mt-2 text-lg font-bold"><%= partner.displayName %></p>

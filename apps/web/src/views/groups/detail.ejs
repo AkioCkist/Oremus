@@ -9,11 +9,11 @@
   const needsJoinForm = group.privacy === 'private' && !(invite && invite.byAdmin) && (rules.length || questions.length);
 -%>
 <main id="main" class="pb-24 md:pb-10">
-  <section class="bg-white shadow-card">
+  <section class="bg-surface shadow-card">
     <div class="mx-auto max-w-[71.25rem]">
       <div class="relative aspect-[16/6] max-h-[25rem] overflow-hidden bg-field sm:rounded-b-xl">
         <img class="size-full object-cover" src="<%= group.coverUrl || '/assets/img/default-cover.svg' %>" alt="">
-        <% if (isAdmin) { %><button type="button" class="btn absolute bottom-4 right-4 bg-white text-ink shadow-card hover:bg-hover" data-open-group-dialog data-group-step-open="personalize"><svg class="icon"><use href="#i-camera"/></svg><span class="hidden sm:inline">Edit cover</span></button><% } %>
+        <% if (isAdmin) { %><button type="button" class="btn absolute bottom-4 right-4 bg-surface text-ink shadow-card hover:bg-hover" data-open-group-dialog data-group-step-open="personalize"><svg class="icon"><use href="#i-camera"/></svg><span class="hidden sm:inline">Edit cover</span></button><% } %>
       </div>
       <div class="px-4 lg:px-8">
         <div class="flex flex-col gap-4 border-b border-line py-5 md:flex-row md:items-end md:justify-between">
@@ -21,7 +21,7 @@
             <h1 class="text-balance font-display text-[2rem] font-extrabold leading-tight"><%= group.name %></h1>
             <p class="mt-1 flex flex-wrap items-center gap-1.5 font-semibold text-muted"><svg class="icon size-4"><use href="#<%= privacyIcon %>"/></svg><%= privacyLabel %> group · <%= plural(group.memberCount, 'member') %><% if (group.groupType && group.groupType !== 'general') { %> · <%= groupTypes[group.groupType] %><% } %></p>
             <% if (members.length) { %>
-            <div class="mt-3 flex -space-x-2"><% members.forEach(function (p) { %><a href="/profile/<%= p.username %>" title="<%= p.displayName %>"><%- include('../partials/avatar', { person: p, size: 'size-9 text-xs ring-2 ring-white' }) %></a><% }) %></div>
+            <div class="mt-3 flex -space-x-2"><% members.forEach(function (p) { %><a href="/profile/<%= p.username %>" title="<%= p.displayName %>"><%- include('../partials/avatar', { person: p, size: 'size-9 text-xs ring-2 ring-surface' }) %></a><% }) %></div>
             <% } %>
           </div>
           <div class="flex flex-wrap gap-2">
