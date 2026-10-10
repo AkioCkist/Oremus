@@ -1,0 +1,8 @@
+<%#
+  Avatar. Locals: person ({ displayName, profile?.avatarUrl | avatarUrl }), size (Tailwind size + text classes),
+  optional: ring (false | 'unseen' | 'seen'), online (bool), extra (classes).
+-%>
+<% const p = locals.person || {}; const avatarUrl = p.avatarUrl || (p.profile && p.profile.avatarUrl); const avatarName = p.displayName || 'Oremus member'; const ring = locals.ring || false; const extra = locals.extra || ''; -%>
+<% if (ring) { %><span class="avatar-ring <%= ring === 'seen' ? 'avatar-ring-seen' : '' %> inline-grid shrink-0 bg-white <%= extra %>"><% } -%>
+<span class="avatar <%= locals.size || 'size-10 text-sm' %> <%= avatarUrl ? 'bg-field' : toneOf(avatarName) %> <%= ring ? '' : extra %>"><% if (avatarUrl) { %><img src="<%= avatarUrl %>" alt="" loading="lazy" decoding="async"><% } else { %><span aria-hidden="true"><%= initials(avatarName) %></span><% } %><% if (locals.online) { %><span class="online-dot"></span><% } %></span>
+<% if (ring) { %></span><% } -%>

@@ -1,6 +1,72 @@
 <%- include('partials/head') %><%- include('partials/nav') %>
-<main id="main" class="app-grid mx-auto max-w-screen-2xl px-4 py-6 lg:px-6"><%- include('partials/sidebar') %><section class="min-w-0 space-y-5" aria-label="Home feed">
-  <section class="card p-4"><form data-api-form data-reset data-reload action="/api/posts" method="post" enctype="multipart/form-data"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><label class="sr-only" for="post-content">Create a post</label><textarea class="input min-h-24 w-full resize-y" id="post-content" name="content" maxlength="5000" placeholder="What would you like to share, <%= currentUser.displayName.split(' ')[0] %>?"></textarea><div class="mt-3 flex flex-wrap items-center justify-between gap-3"><label class="button-secondary cursor-pointer"><span>Add images</span><input class="sr-only" name="images" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple></label><select class="input py-2" name="visibility" aria-label="Post visibility"><option value="public">Public</option><option value="followers">Followers</option><option value="private">Only me</option></select><button class="button-primary" type="submit">Publish</button></div><p class="form-error hidden" data-form-error role="alert"></p></form></section>
-  <% if (posts.length) { posts.forEach(function(item) { %><%- include('partials/post-card', { item }) %><% }) } else { %><section class="empty-state"><h2 class="text-xl font-semibold">Your feed is ready for a first story</h2><p class="mt-2 text-stone-600">Follow someone or publish a post to start the conversation.</p><a class="button-primary mt-5 inline-flex" href="/search?q=people">Find people</a></section><% } %>
-</section><aside class="hidden xl:block"><div class="sticky top-24 space-y-5"><section class="card p-5"><h2 class="font-semibold">People to discover</h2><ul class="mt-4 space-y-4"><% suggestions.forEach(function(person) { %><li class="flex items-center gap-3"><a class="avatar size-9" href="/profile/<%= person.username %>"><%= person.displayName.charAt(0) %></a><div class="min-w-0 flex-1"><a class="block truncate font-medium hover:underline" href="/profile/<%= person.username %>"><%= person.displayName %></a><p class="truncate text-sm text-stone-500">@<%= person.username %></p></div></li><% }) %></ul></section><section class="px-2 text-xs leading-5 text-stone-500"><p>Oremus · Community guidelines · Privacy</p><p class="mt-1">Feed cache: <%= cached ? 'hit' : 'fresh' %></p></section></div></aside></main><%- include('partials/foot') %>
+<main id="main" class="app-shell">
+  <%- include('partials/sidebar') %>
 
+  <section class="mx-auto w-full max-w-feed space-y-4" aria-label="Home feed">
+    <%- include('partials/story-tray') %>
+    <div class="px-0 sm:px-0"><%- include('partials/composer') %></div>
+    <h1 class="sr-only">News feed</h1>
+    <% if (posts.length) { %>
+      <% posts.forEach(function (item) { %><%- include('partials/post-card', { item }) %><% }) %>
+      <p class="py-6 text-center text-sm text-muted">You're all caught up · <a class="font-semibold text-brand-600 hover:underline" href="/groups">Discover groups</a></p>
+    <% } else { %>
+    <section class="empty-state">
+      <div class="empty-icon"><svg class="icon size-7"><use href="#i-feed"/></svg></div>
+      <h2 class="mt-4 text-xl font-bold">Your feed is waiting for its first post</h2>
+      <p class="mx-auto mt-2 max-w-sm text-muted">Follow people you know or share something to get the conversation started.</p>
+      <div class="mt-5 flex justify-center gap-2"><a class="btn-primary" href="/search?kind=user">Find friends</a><button class="btn-secondary" type="button" data-open-composer>Create post</button></div>
+    </section>
+    <% } %>
+  </section>
+
+  <aside class="hidden xl:block" aria-label="Contacts and suggestions">
+    <div class="rail-sticky space-y-1 pr-2">
+      <% if (suggestions.length) { %>
+      <section class="pb-2">
+        <div class="flex items-center justify-between px-2 pb-1 pt-1"><h2 class="font-display text-[1.0625rem] font-bold text-muted">People you may know</h2><a class="text-15 text-brand-600 hover:underline" href="/search?kind=user">See all</a></div>
+        <ul>
+          <% suggestions.forEach(function (person) { %>
+          <li class="flex items-center gap-3 rounded-lg p-2 hover:bg-[#e4e6e9]">
+            <a href="/profile/<%= person.username %>" class="flex min-w-0 flex-1 items-center gap-3">
+              <%- include('partials/avatar', { person, size: 'size-10 text-sm' }) %>
+              <span class="min-w-0"><span class="block truncate font-semibold"><%= person.displayName %></span><span class="block truncate text-[0.8125rem] text-muted">@<%= person.username %></span></span>
+            </a>
+            <button type="button" class="btn-soft btn-sm" data-follow="<%= person._id %>" aria-label="Follow <%= person.displayName %>"><svg class="icon size-4"><use href="#i-user-plus"/></svg>Follow</button>
+          </li>
+          <% }) %>
+        </ul>
+      </section>
+      <div class="divider mx-2"></div>
+      <% } %>
+
+      <% if (groups.length) { %>
+      <section class="pb-2">
+        <h2 class="px-2 pb-1 pt-2 font-display text-[1.0625rem] font-bold text-muted">Group chats</h2>
+        <ul>
+          <% groups.slice(0, 5).forEach(function (g) { %>
+          <li><a class="rail-link hover:bg-[#e4e6e9]" href="/groups/<%= g.slug %>">
+            <span class="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full <%= g.coverUrl ? 'bg-field' : toneOf(g.name) %>"><% if (g.coverUrl) { %><img class="size-full object-cover" src="<%= g.coverUrl %>" alt=""><% } else { %><span class="font-display text-sm font-bold text-white"><%= initials(g.name) %></span><% } %></span>
+            <span class="truncate"><%= g.name %></span>
+          </a></li>
+          <% }) %>
+        </ul>
+      </section>
+      <div class="divider mx-2"></div>
+      <% } %>
+
+      <section>
+        <div class="flex items-center justify-between px-2 pb-1 pt-2"><h2 class="font-display text-[1.0625rem] font-bold text-muted">Contacts</h2><a href="/messages" class="icon-btn-ghost" aria-label="Open chats"><svg class="icon"><use href="#i-search"/></svg></a></div>
+        <% if (contacts.length) { %>
+        <ul>
+          <% contacts.forEach(function (person) { %>
+          <li><button type="button" class="rail-link w-full hover:bg-[#e4e6e9]" data-message-user="<%= person._id %>" aria-label="Message <%= person.displayName %>">
+            <%- include('partials/avatar', { person, size: 'size-9 text-xs' }) %><span class="truncate"><%= person.displayName %></span>
+          </button></li>
+          <% }) %>
+        </ul>
+        <% } else { %><p class="px-2 py-2 text-sm text-muted">People you follow will show up here so you can message them quickly.</p><% } %>
+      </section>
+    </div>
+  </aside>
+</main>
+<%- include('partials/foot') %>

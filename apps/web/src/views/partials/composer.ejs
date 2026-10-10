@@ -1,0 +1,17 @@
+<%# "What's on your mind?" card. Opens the shared #composer-dialog. Locals: optional composerGroup ({ _id, name }). -%>
+<% const cg = locals.composerGroup || null; -%>
+<section class="card px-4 pb-2 pt-3" aria-label="Create a post">
+  <div class="flex items-center gap-2">
+    <a href="/profile/<%= currentUser.username %>" class="shrink-0" aria-label="Your profile"><%- include('avatar', { person: currentUser, size: 'size-10 text-sm' }) %></a>
+    <button type="button" class="h-10 flex-1 rounded-full bg-field px-4 text-left text-[1.0625rem] text-muted transition-colors hover:bg-line" data-open-composer <% if (cg) { %>data-group-id="<%= cg._id %>" data-group-name="<%= cg.name %>"<% } %>>
+      <%= cg ? `Write something to ${cg.name}…` : `What's on your mind, ${firstName(currentUser.displayName)}?` %>
+    </button>
+  </div>
+  <div class="mt-2 flex border-t border-line pt-2">
+    <button type="button" class="composer-tool" data-open-composer data-pick-photo <% if (cg) { %>data-group-id="<%= cg._id %>" data-group-name="<%= cg.name %>"<% } %>><svg class="icon text-[#45bd62]"><use href="#i-image"/></svg><span class="hidden sm:inline">Photo/video</span><span class="sm:hidden">Photo</span></button>
+    <% if (!cg) { %>
+    <button type="button" class="composer-tool" data-open-story-composer><svg class="icon text-[#f02849]"><use href="#i-stories"/></svg>Story</button>
+    <% } %>
+    <button type="button" class="composer-tool" data-open-composer data-feeling <% if (cg) { %>data-group-id="<%= cg._id %>" data-group-name="<%= cg.name %>"<% } %>><svg class="icon text-[#f7b928]"><use href="#i-smile"/></svg><span class="hidden sm:inline">Feeling/activity</span><span class="sm:hidden">Feeling</span></button>
+  </div>
+</section>

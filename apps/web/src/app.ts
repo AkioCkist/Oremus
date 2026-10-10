@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+import fs from 'node:fs';
 import path from 'node:path';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
@@ -13,12 +15,23 @@ import { authRoutes } from './routes/auth.routes.js';
 import { apiRoutes } from './routes/api.routes.js';
 import { pageRoutes } from './routes/page.routes.js';
 import { asyncHandler } from './utils/async-handler.js';
+import { viewHelpers } from './utils/view-helpers.js';
+
+// Content hash appended to /assets URLs so browsers never keep a stale build.
+function assetVersion(): string {
+  const hash = crypto.createHash('sha1');
+  for (const file of ['styles.css', 'app.js']) {
+    try { hash.update(fs.readFileSync(path.resolve(process.cwd(), 'public/assets', file))); } catch { hash.update(String(Date.now())); }
+  }
+  return hash.digest('hex').slice(0, 10);
+}
 
 export function createApp() {
   const app = express();
   app.set('trust proxy', 1);
   app.set('view engine', 'ejs');
   app.set('views', path.resolve(process.cwd(), 'src/views'));
+  Object.assign(app.locals, viewHelpers, { assetVersion: assetVersion() });
   app.use(helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'", 'https://cdn.socket.io'], imgSrc: ["'self'", 'data:', 'https:'], connectSrc: ["'self'", 'ws:', 'wss:'], styleSrc: ["'self'", 'https://fonts.googleapis.com'], fontSrc: ["'self'", 'https://fonts.gstatic.com'] } } }));
   app.use(compression());
   app.use(pinoHttp({ logger }));

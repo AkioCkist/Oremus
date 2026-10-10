@@ -24,10 +24,11 @@ export async function logout(req: Request, res: Response) {
 export async function requestReset(req: Request, res: Response) {
   const { email } = resetRequestSchema.parse(req.body);
   const token = await auth.requestPasswordReset(email);
-  res.json({ ok: true, data: { message: 'If that account exists, a reset link has been created.', ...(env.NODE_ENV === 'development' && token ? { developmentToken: token } : {}) } });
+  res.json({ ok: true, data: { message: 'If that account exists, a reset link has been created.', ...(env.NODE_ENV === 'development' && token ? { developmentResetUrl: `/reset-password?token=${encodeURIComponent(token)}` } : {}) } });
 }
 export async function confirmReset(req: Request, res: Response) {
   const input = resetConfirmSchema.parse(req.body); await auth.confirmPasswordReset(input.token, input.password);
+  auth.clearSessionCookies(res);
   res.json({ ok: true, data: { message: 'Password updated. You can sign in now.' } });
 }
 

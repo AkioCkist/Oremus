@@ -1,11 +1,32 @@
-<aside class="hidden lg:block">
-  <nav aria-label="Personal" class="sticky top-24 space-y-1">
-    <a class="side-link" href="/profile/<%= currentUser.username %>"><span class="avatar size-8"><%= currentUser.displayName.charAt(0) %></span><span><%= currentUser.displayName %></span></a>
-    <a class="side-link" href="/"><span aria-hidden="true">⌂</span>Home feed</a>
-    <a class="side-link" href="/groups"><span aria-hidden="true">◉</span>Groups</a>
-    <a class="side-link" href="/messages"><span aria-hidden="true">✉</span>Messages</a>
-    <a class="side-link" href="/notifications"><span aria-hidden="true">●</span>Notifications</a>
-    <a class="side-link" href="/settings"><span aria-hidden="true">⚙</span>Settings</a>
-  </nav>
+<% const sideGroups = locals.groups || []; const isActive = (href) => href === '/' ? path === '/' : path.startsWith(href); -%>
+<aside class="hidden lg:block" aria-label="Shortcuts">
+  <div class="rail-sticky px-2">
+    <nav aria-label="Personal" class="space-y-0.5">
+      <a class="side-link <%= isActive('/') ? 'side-link-active' : '' %>" href="/"><span class="side-icon text-brand-600"><svg class="icon size-6"><use href="#i-home"/></svg></span>Home</a>
+      <a class="side-link" href="/profile/<%= currentUser.username %>"><span class="side-icon"><%- include('avatar', { person: currentUser, size: 'size-9 text-xs' }) %></span><span class="truncate"><%= currentUser.displayName %></span></a>
+    </nav>
+    <h2 class="side-heading">Favorites</h2>
+    <nav aria-label="Favorites" class="space-y-0.5">
+      <a class="side-link <%= isActive('/messages') ? 'side-link-active' : '' %>" href="/messages"><span class="side-icon"><svg class="icon size-6"><use href="#i-chat"/></svg></span>Messages<% if (locals.unreadMessages) { %><span class="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-[#e41e3f] px-1.5 text-2xs font-bold text-white"><%= unreadMessages %></span><% } %></a>
+      <a class="side-link <%= isActive('/stories') && !isActive('/stories/archive') ? 'side-link-active' : '' %>" href="/stories"><span class="side-icon"><svg class="icon size-6"><use href="#i-stories"/></svg></span>Stories</a>
+      <a class="side-link <%= isActive('/groups') ? 'side-link-active' : '' %>" href="/groups"><span class="side-icon"><svg class="icon size-6"><use href="#i-group"/></svg></span>Groups</a>
+      <a class="side-link <%= isActive('/search') ? 'side-link-active' : '' %>" href="/search?kind=user"><span class="side-icon"><svg class="icon size-6"><use href="#i-users"/></svg></span>Find friends</a>
+      <a class="side-link <%= isActive('/notifications') ? 'side-link-active' : '' %>" href="/notifications"><span class="side-icon"><svg class="icon size-6"><use href="#i-bell"/></svg></span>Notifications<% if (locals.unreadNotifications) { %><span class="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-[#e41e3f] px-1.5 text-2xs font-bold text-white"><%= unreadNotifications %></span><% } %></a>
+      <a class="side-link <%= isActive('/stories/archive') ? 'side-link-active' : '' %>" href="/stories/archive"><span class="side-icon"><svg class="icon size-6"><use href="#i-archive"/></svg></span>Story archive</a>
+      <a class="side-link <%= isActive('/settings') ? 'side-link-active' : '' %>" href="/settings"><span class="side-icon"><svg class="icon size-6"><use href="#i-settings"/></svg></span>Settings</a>
+    </nav>
+    <% if (sideGroups.length) { %>
+    <div class="divider mx-2"></div>
+    <h2 class="side-heading">Your groups</h2>
+    <nav aria-label="Your groups" class="space-y-0.5">
+      <% sideGroups.forEach(function (g) { %>
+      <a class="side-link" href="/groups/<%= g.slug %>">
+        <span class="grid size-9 shrink-0 place-items-center overflow-hidden rounded-lg <%= g.coverUrl ? 'bg-field' : toneOf(g.name) %>"><% if (g.coverUrl) { %><img class="size-full object-cover" src="<%= g.coverUrl %>" alt=""><% } else { %><span class="font-display text-sm font-bold text-white"><%= initials(g.name) %></span><% } %></span>
+        <span class="truncate"><%= g.name %></span>
+      </a>
+      <% }) %>
+    </nav>
+    <% } %>
+    <p class="mt-4 px-2 text-xs leading-5 text-muted">Privacy · Terms · Community guidelines · Oremus © <%= new Date().getFullYear() %></p>
+  </div>
 </aside>
-

@@ -5,6 +5,7 @@ import { asyncHandler } from '../utils/async-handler.js';
 
 export const pageRoutes = Router();
 pageRoutes.use(optionalAuth);
+pageRoutes.use(asyncHandler(page.navState));
 pageRoutes.get('/login', page.loginPage);
 pageRoutes.get('/register', page.registerPage);
 pageRoutes.get('/reset-password', page.resetPage);
@@ -13,9 +14,11 @@ pageRoutes.get('/profile/:username', asyncHandler(page.profile));
 pageRoutes.get('/posts/:postId', asyncHandler(page.post));
 pageRoutes.get('/groups', asyncHandler(page.groups));
 pageRoutes.get('/groups/:slug', asyncHandler(page.group));
+pageRoutes.get('/stories', requirePageAuth, asyncHandler(page.stories));
+pageRoutes.get('/stories/archive', requirePageAuth, asyncHandler(page.storyArchive));
+pageRoutes.get('/stories/:username', requirePageAuth, asyncHandler(page.stories));
 pageRoutes.get('/messages', requirePageAuth, asyncHandler(page.messages));
 pageRoutes.get('/messages/:conversationId', requirePageAuth, asyncHandler(page.conversation));
 pageRoutes.get('/notifications', requirePageAuth, asyncHandler(page.notifications));
 pageRoutes.get('/search', requirePageAuth, asyncHandler(page.search));
 pageRoutes.get('/settings', requirePageAuth, page.settings);
-

@@ -1,0 +1,25 @@
+<%# One comment bubble. Locals: comment, postId, isReply. Replies to a reply attach to the root thread. -%>
+<% const who = comment.authorId || {}; const threadId = comment.parentId || comment._id; -%>
+<div class="flex gap-2">
+  <a href="/profile/<%= who.username %>" class="shrink-0"><%- include('avatar', { person: who, size: isReply ? 'size-7 text-2xs' : 'size-8 text-xs' }) %></a>
+  <div class="min-w-0 flex-1">
+    <div class="comment-bubble">
+      <a class="block text-[0.8125rem] font-semibold hover:underline" href="/profile/<%= who.username %>"><%= who.displayName %></a>
+      <p class="whitespace-pre-wrap break-words text-15 leading-snug"><%= comment.content %></p>
+    </div>
+    <div class="mt-0.5 flex gap-3 px-3 text-xs font-semibold text-muted">
+      <time datetime="<%= new Date(comment.createdAt).toISOString() %>" title="<%= longTime(comment.createdAt) %>" class="font-normal"><%= timeAgo(comment.createdAt) %></time>
+      <% if (currentUser) { %><button type="button" class="hover:underline" data-toggle="reply-<%= comment._id %>">Reply</button><% } %>
+    </div>
+    <% if (currentUser) { %>
+    <form id="reply-<%= comment._id %>" class="mt-2 hidden items-center gap-2 [&:not(.hidden)]:flex" data-api-form data-reset data-reload action="/api/posts/<%= postId %>/comments" method="post">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="parentId" value="<%= threadId %>">
+      <%- include('avatar', { person: currentUser, size: 'size-7 text-2xs' }) %>
+      <label class="sr-only" for="reply-input-<%= comment._id %>">Reply to <%= who.displayName %></label>
+      <input class="pill-input h-9 flex-1" id="reply-input-<%= comment._id %>" name="content" maxlength="1500" required placeholder="Reply to <%= firstName(who.displayName) %>…" autocomplete="off">
+      <button class="icon-btn-ghost text-brand-600" type="submit" aria-label="Send reply"><svg class="icon"><use href="#i-send"/></svg></button>
+      <p class="form-error hidden w-full" data-form-error role="alert"></p>
+    </form>
+    <% } %>
+  </div>
+</div>

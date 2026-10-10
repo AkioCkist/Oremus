@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7b267"/><stop offset=".55" stop-color="#f9d9a8"/><stop offset="1" stop-color="#fbe9cf"/></linearGradient>
+    <linearGradient id="road" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b48a6a"/><stop offset="1" stop-color="#7a5a44"/></linearGradient>
+  </defs>
+  <rect width="1200" height="900" fill="url(#sky)"/>
+  <circle cx="600" cy="380" r="120" fill="#fff4dc" opacity=".9"/>
+  <g fill="#c98a5e" opacity=".55"><rect x="0" y="260" width="180" height="340"/><rect x="1020" y="240" width="180" height="360"/><rect x="170" y="320" width="120" height="280"/><rect x="910" y="300" width="120" height="300"/></g>
+  <path d="M0 900 520 520h160l520 380Z" fill="url(#road)"/>
+  <path d="M60 470h330l-40 70H20Z" fill="#d6453d"/><path d="M60 470h82l-30 70H20Zm164 0h82l-30 70h-82Z" fill="#f2efe6"/>
+  <rect x="40" y="540" width="320" height="140" fill="#8a5a3b"/>
+  <g fill="#f29e38"><circle cx="90" cy="530" r="22"/><circle cx="130" cy="525" r="22"/><circle cx="110" cy="505" r="20"/></g>
+  <g fill="#6aa84f"><circle cx="210" cy="528" r="24"/><circle cx="250" cy="525" r="22"/></g>
+  <g fill="#d6453d"><circle cx="310" cy="530" r="18"/><circle cx="335" cy="528" r="16"/></g>
+  <path d="M810 470h330l40 70H850Z" fill="#2f7de1"/><path d="M892 470h82l40 70h-82Zm164 0h82l40 70h-82Z" fill="#f2efe6"/>
+  <rect x="840" y="540" width="320" height="140" fill="#8a5a3b"/>
+  <g fill="#f6c453"><ellipse cx="900" cy="525" rx="40" ry="16"/><ellipse cx="1000" cy="525" rx="40" ry="16"/></g>
+  <g fill="#c94f7c"><circle cx="1090" cy="523" r="20"/><circle cx="1120" cy="527" r="18"/></g>
+  <path d="M0 200 600 300 1200 200" stroke="#5a3b26" stroke-width="3" fill="none"/>
+  <circle cx="150" cy="222" r="18" fill="#e8604c"/><circle cx="300" cy="248" r="18" fill="#f6c453"/><circle cx="450" cy="274" r="18" fill="#e8604c"/><circle cx="750" cy="274" r="18" fill="#f6c453"/><circle cx="900" cy="248" r="18" fill="#e8604c"/><circle cx="1050" cy="222" r="18" fill="#f6c453"/>
+  <g fill="#3a2a20"><circle cx="560" cy="600" r="16"/><path d="M546 616h28l6 70h-40Z"/><circle cx="660" cy="580" r="14"/><path d="M648 594h24l6 60h-36Z"/></g>
+</svg>

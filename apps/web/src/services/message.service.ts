@@ -10,7 +10,30 @@ export async function createConversation(userId: string, memberId: string) {
 }
 
 export async function listConversations(userId: string) {
-  return Conversation.find({ memberIds: userId }).sort({ lastMessageAt: -1 }).populate('memberIds', 'username displayName profile.avatarUrl').lean();
+  const conversations = await Conversation.find({ memberIds: userId }).sort({ lastMessageAt: -1 }).limit(60).populate('memberIds', 'username displayName profile.avatarUrl').lean();
+  if (!conversations.length) return [];
+  const latest = await Message.aggregate([
+    { $match: { conversationId: { $in: conversations.map((item: any) => item._id) }, deletedAt: null } },
+    { $sort: { createdAt: -1 } },
+    { $group: { _id: '$conversationId', message: { $first: '$$ROOT' } } }
+  ]);
+  const lastByConversation = new Map(latest.map((row: any) => [String(row._id), row.message]));
+  return conversations.map((conversation: any) => {
+    const lastMessage = lastByConversation.get(String(conversation._id)) || null;
+    const unread = !!lastMessage && String(lastMessage.senderId) !== userId && !lastMessage.readBy.some((id: unknown) => String(id) === userId);
+    return { ...conversation, lastMessage, unread };
+  });
+}
+
+export async function markConversationRead(userId: string, conversationId: string) {
+  await Message.updateMany({ conversationId, readBy: { $ne: userId } }, { $addToSet: { readBy: userId } });
+}
+
+export async function countUnreadConversations(userId: string): Promise<number> {
+  const conversations = await Conversation.find({ memberIds: userId }).select('_id').lean();
+  if (!conversations.length) return 0;
+  const unread = await Message.distinct('conversationId', { conversationId: { $in: conversations.map((item: any) => item._id) }, senderId: { $ne: userId }, readBy: { $ne: userId }, deletedAt: null });
+  return unread.length;
 }
 
 export async function listMessages(userId: string, conversationId: string) {

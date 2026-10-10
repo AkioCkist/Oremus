@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { describe, expect, it } from 'vitest';
-import { registerSchema, postSchema, reactionSchema } from '../validators/index.js';
+import { loginSchema, registerSchema, postSchema, reactionSchema } from '../validators/index.js';
 import { assertOwner } from '../services/permissions.js';
 
 describe('authentication policy', () => {
@@ -11,6 +11,10 @@ describe('authentication policy', () => {
     const hash = await bcrypt.hash('CircleSpace123', 4);
     expect(hash).not.toContain('CircleSpace123');
     expect(await bcrypt.compare('CircleSpace123', hash)).toBe(true);
+  });
+  it('defaults to a browser session and accepts explicit remembered login', () => {
+    expect(loginSchema.parse({ email: 'a@example.com', password: 'secret' }).remember).toBe(false);
+    expect(loginSchema.parse({ email: 'a@example.com', password: 'secret', remember: 'true' }).remember).toBe(true);
   });
 });
 

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 600" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4150cf"/><stop offset=".45" stop-color="#c26fb0"/><stop offset=".8" stop-color="#f7a36b"/><stop offset="1" stop-color="#fbd38d"/></linearGradient>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6c78e0"/><stop offset="1" stop-color="#2b3490"/></linearGradient>
+  </defs>
+  <rect width="1600" height="600" fill="url(#sky)"/>
+  <circle cx="1100" cy="400" r="110" fill="#ffe2a8"/>
+  <path d="M0 400c140-80 260-120 400-90s220 10 320-30 180-30 240 10v120H0Z" fill="#2b3490" opacity=".65"/>
+  <rect y="400" width="1600" height="200" fill="url(#sea)"/>
+  <g fill="#ffe2a8" opacity=".6"><rect x="1000" y="420" width="200" height="6" rx="3"/><rect x="1030" y="450" width="140" height="6" rx="3"/><rect x="1060" y="480" width="80" height="6" rx="3"/></g>
+  <g stroke="#1e2252" stroke-width="10" fill="none" opacity=".85"><path d="M200 420c100-80 200-80 300 0s200 80 300 0 200-80 300 0"/><path d="M200 420h900"/></g>
+</svg>

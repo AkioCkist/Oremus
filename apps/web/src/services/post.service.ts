@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import sanitizeHtml from 'sanitize-html';
 import { Comment, Follow, Group, GroupMember, GroupPost, Post, Reaction } from '../models/index.js';
 import { AppError } from '../utils/errors.js';
@@ -87,3 +88,24 @@ export async function getPostDetail(postId: string, viewerId?: string) {
   return { post, comments };
 }
 
+
+/** Adds the viewer's reaction and the three most-used reaction types to each post (for the Facebook-style stats row). */
+export async function withReactionSummary<T extends { _id: unknown; myReaction?: string | null }>(posts: T[], viewerId?: string): Promise<Array<T & { topReactions: string[]; myReaction: string | null }>> {
+  if (!posts.length) return [];
+  const ids = posts.map((post) => new mongoose.Types.ObjectId(String(post._id)));
+  const [counts, mine] = await Promise.all([
+    Reaction.aggregate([{ $match: { postId: { $in: ids } } }, { $group: { _id: { postId: '$postId', type: '$type' }, count: { $sum: 1 } } }]),
+    viewerId ? Reaction.find({ userId: viewerId, postId: { $in: ids } }).select('postId type').lean() : Promise.resolve([])
+  ]);
+  const byPost = new Map<string, Array<{ type: string; count: number }>>();
+  for (const row of counts as any[]) {
+    const key = String(row._id.postId);
+    byPost.set(key, [...(byPost.get(key) || []), { type: row._id.type, count: row.count }]);
+  }
+  const mineByPost = new Map((mine as any[]).map((item) => [String(item.postId), item.type as string]));
+  return posts.map((post) => {
+    const key = String(post._id);
+    const topReactions = (byPost.get(key) || []).sort((a, b) => b.count - a.count).slice(0, 3).map((item) => item.type);
+    return { ...post, topReactions, myReaction: mineByPost.get(key) ?? null };
+  });
+}

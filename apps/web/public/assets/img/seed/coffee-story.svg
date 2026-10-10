@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <radialGradient id="wood" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#7a5236"/><stop offset=".8" stop-color="#5a3b26"/><stop offset="1" stop-color="#3b2617"/></radialGradient>
+    <radialGradient id="crema" cx=".5" cy=".45" r=".55"><stop offset="0" stop-color="#e9c99a"/><stop offset=".7" stop-color="#b9824c"/><stop offset="1" stop-color="#7a4a24"/></radialGradient>
+    <linearGradient id="leaf" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2f6b3c"/><stop offset="1" stop-color="#123a22"/></linearGradient>
+  </defs>
+  <rect width="1080" height="1920" fill="#0d2416"/>
+  <g fill="url(#leaf)">
+    <path d="M-80 120c240-60 420 40 480 220-200 40-400-40-480-220Z"/>
+    <path d="M1160 260c-260-40-430 80-470 260 210 20 400-80 470-260Z"/>
+    <path d="M-60 1500c220-120 430-60 520 120-210 80-430 20-520-120Z"/>
+    <path d="M1140 1640c-250-90-440 0-500 170 220 50 420-30 500-170Z"/>
+    <path d="M300 -60c160 120 200 300 120 460-150-100-200-300-120-460Z"/>
+    <path d="M900 1900c-120-150-110-330 10-460 120 140 110 330-10 460Z"/>
+  </g>
+  <g stroke="#0d2416" stroke-width="6" fill="none" opacity=".6"><path d="M-40 160c160 20 300 90 420 170M1120 300c-150 30-280 110-400 210M-30 1520c160 20 320 80 450 170M1100 1680c-140-10-300 40-430 120"/></g>
+  <circle cx="540" cy="960" r="470" fill="url(#wood)"/>
+  <g stroke="#3b2617" stroke-width="5" fill="none" opacity=".45"><circle cx="540" cy="960" r="420"/><circle cx="540" cy="960" r="330"/><circle cx="540" cy="960" r="240"/><path d="M200 760c120 60 220 40 330-10M600 1250c110-40 210-20 290 40"/></g>
+  <g>
+    <circle cx="540" cy="700" r="200" fill="#1f1f1f"/><circle cx="540" cy="700" r="178" fill="#2d2d2d"/><circle cx="540" cy="700" r="158" fill="url(#crema)"/>
+    <path d="M540 610c-46 0-70 30-70 54 30-18 56-14 70 6 14-20 40-24 70-6 0-24-24-54-70-54Zm0 76c-56 0-92 28-96 58 40-20 70-16 96 4 26-20 56-24 96-4-4-30-40-58-96-58Zm0 74c-50 0-80 18-84 40 34-12 60-8 84 10 24-18 50-22 84-10-4-22-34-40-84-40Z" fill="#f8ead2"/>
+    <path d="M540 600v210" stroke="#f8ead2" stroke-width="10" stroke-linecap="round"/>
+    <circle cx="540" cy="1220" r="200" fill="#1f1f1f"/><circle cx="540" cy="1220" r="178" fill="#2d2d2d"/><circle cx="540" cy="1220" r="158" fill="url(#crema)"/>
+    <path d="M540 1130c-46 0-70 30-70 54 30-18 56-14 70 6 14-20 40-24 70-6 0-24-24-54-70-54Zm0 76c-56 0-92 28-96 58 40-20 70-16 96 4 26-20 56-24 96-4-4-30-40-58-96-58Zm0 74c-50 0-80 18-84 40 34-12 60-8 84 10 24-18 50-22 84-10-4-22-34-40-84-40Z" fill="#f8ead2"/>
+    <path d="M540 1120v210" stroke="#f8ead2" stroke-width="10" stroke-linecap="round"/>
+  </g>
+</svg>

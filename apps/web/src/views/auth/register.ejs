@@ -1,7 +1,31 @@
-<%- include('../partials/head') %>
-<main id="main" class="grid min-h-dvh lg:grid-cols-2">
-  <section class="hidden bg-accent-700 p-12 text-white lg:flex lg:flex-col lg:justify-between"><a href="/" class="text-xl font-bold">Oremus</a><div class="max-w-lg"><p class="mb-5 text-sm font-semibold uppercase">Make room for belonging</p><h1 class="text-balance text-5xl font-bold leading-tight">A social network that feels more human.</h1><p class="mt-6 text-pretty text-lg text-accent-100">Follow people you value, find your communities, and share without the noise.</p></div><p class="text-sm text-accent-100">One account. Your circle.</p></section>
-  <section class="grid place-items-center p-6 py-12"><div class="w-full max-w-md"><a href="/" class="mb-8 flex items-center gap-2 text-xl font-bold text-accent-700 lg:hidden"><span class="grid size-9 place-items-center rounded-full bg-accent-600 text-white">O</span>Oremus</a><p class="eyebrow">Join Oremus</p><h1 class="mt-2 text-balance text-3xl font-bold">Create your account</h1>
-  <form class="mt-8 space-y-4" data-api-form action="/auth/register" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><div><label class="label" for="displayName">Display name</label><input class="input mt-2 w-full" id="displayName" name="displayName" autocomplete="name" required minlength="2" maxlength="60"></div><div><label class="label" for="username">Username</label><input class="input mt-2 w-full" id="username" name="username" autocomplete="username" required pattern="[a-zA-Z0-9_]{3,24}" aria-describedby="username-help"><p id="username-help" class="helper">3–24 letters, numbers, or underscores.</p></div><div><label class="label" for="email">Email address</label><input class="input mt-2 w-full" id="email" name="email" type="email" autocomplete="email" required></div><div><label class="label" for="password">Password</label><input class="input mt-2 w-full" id="password" name="password" type="password" autocomplete="new-password" required minlength="10" aria-describedby="password-help"><p id="password-help" class="helper">At least 10 characters with upper/lowercase and a number.</p></div><p class="form-error hidden" data-form-error role="alert"></p><button class="button-primary w-full" type="submit">Create account</button></form><p class="mt-6 text-center text-sm text-stone-600">Already a member? <a class="font-semibold text-accent-700 hover:underline" href="/login">Sign in</a></p></div></section>
-</main><%- include('../partials/foot') %>
-
+<%- include('_shell-top') %>
+        <h1 class="text-center font-display text-[2rem] font-extrabold leading-tight">Create an account</h1>
+        <p class="mt-2 text-center text-15 text-muted">To continue, fill out your personal info</p>
+        <form class="mt-8 space-y-4" data-api-form action="/auth/register" method="post">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <div><label class="label" for="displayName">Full name <span class="text-red-600" aria-hidden="true">*</span></label><input class="input mt-1.5 w-full" id="displayName" name="displayName" autocomplete="name" placeholder="Name Surname" required minlength="2" maxlength="60"></div>
+          <div><label class="label" for="username">Username <span class="text-red-600" aria-hidden="true">*</span></label><input class="input mt-1.5 w-full" id="username" name="username" autocomplete="username" placeholder="best_wizard421" required pattern="[a-zA-Z0-9_]{3,24}" aria-describedby="username-help"><p id="username-help" class="helper">3–24 letters, numbers or underscores.</p></div>
+          <div><label class="label" for="email">E-mail <span class="text-red-600" aria-hidden="true">*</span></label><input class="input mt-1.5 w-full" id="email" name="email" type="email" autocomplete="email" placeholder="email@email.com" required></div>
+          <div>
+            <label class="label" for="password">Password <span class="text-red-600" aria-hidden="true">*</span></label>
+            <div class="input-icon relative mt-1.5">
+              <svg class="icon size-[1.125rem]"><use href="#i-key"/></svg>
+              <input class="input w-full pr-11" id="password" name="password" type="password" autocomplete="new-password" placeholder="••••••••••" required minlength="10" aria-describedby="password-help" data-password-source>
+              <button type="button" class="absolute right-1.5 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-hover" data-toggle-password="password" aria-label="Show password" aria-pressed="false"><svg class="icon size-[1.125rem]"><use href="#i-eye-off"/></svg></button>
+            </div>
+            <p id="password-help" class="helper">At least 10 characters with upper- and lowercase letters and a number.</p>
+          </div>
+          <div>
+            <label class="label" for="password-repeat">Repeat password <span class="text-red-600" aria-hidden="true">*</span></label>
+            <div class="input-icon relative mt-1.5">
+              <svg class="icon size-[1.125rem]"><use href="#i-key"/></svg>
+              <input class="input w-full pr-11" id="password-repeat" type="password" autocomplete="new-password" placeholder="••••••••••" required data-password-repeat>
+              <button type="button" class="absolute right-1.5 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-hover" data-toggle-password="password-repeat" aria-label="Show password" aria-pressed="false"><svg class="icon size-[1.125rem]"><use href="#i-eye-off"/></svg></button>
+            </div>
+          </div>
+          <p class="text-xs leading-relaxed text-muted">By clicking Sign up, you agree to our Terms and Conditions and confirm you have read our Privacy Notice.</p>
+          <p class="form-error hidden" data-form-error role="alert"></p>
+          <button class="btn-primary btn-lg w-full" type="submit">Sign up</button>
+        </form>
+        <p class="mt-6 text-center text-15 text-muted">Already have an account? <a class="font-semibold text-brand-600 hover:underline" href="/login">Log in</a></p>
+<%- include('_shell-bottom', { heroTitle: 'Find your people.', heroText: 'Follow friends, join groups and share stories that disappear after 24 hours.' }) %>

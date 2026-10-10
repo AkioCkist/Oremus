@@ -1,0 +1,13 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "oremus-web-local",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["tsx", "src/server.ts"],
+      "cwd": "apps/web",
+      "env": { "WEB_PORT": "3001", "APP_ORIGIN": "http://localhost:3001" },
+      "port": 3001
+    }
+  ]
+}

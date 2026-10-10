@@ -2,6 +2,11 @@ import mongoose, { type InferSchemaType, type Model } from 'mongoose';
 
 const { Schema, model, models } = mongoose;
 
+export const REACTION_TYPES = ['like', 'love', 'haha', 'wow', 'sad', 'angry'] as const;
+export const STORY_REACTIONS = ['love', 'haha', 'angry', 'sad', 'like'] as const;
+export const STORY_BACKGROUNDS = ['sunset', 'ocean', 'forest', 'night', 'candy', 'sun'] as const;
+export const STORY_TTL_MS = 24 * 60 * 60 * 1000;
+
 const options = { timestamps: true, versionKey: false } as const;
 const objectId = Schema.Types.ObjectId;
 
@@ -11,7 +16,8 @@ const profileSchema = new Schema({
   website: { type: String, maxlength: 200, default: '' },
   avatarUrl: { type: String, default: '' },
   coverUrl: { type: String, default: '' },
-  privacy: { type: String, enum: ['public', 'followers'], default: 'public' }
+  privacy: { type: String, enum: ['public', 'followers'], default: 'public' },
+  storyAudience: { type: String, enum: ['public', 'followers'], default: 'followers' }
 }, { _id: false });
 
 const userSchema = new Schema({
@@ -124,13 +130,36 @@ messageSchema.index({ conversationId: 1, createdAt: -1 });
 const notificationSchema = new Schema({
   recipientId: { type: objectId, ref: 'User', required: true, index: true },
   actorId: { type: objectId, ref: 'User', required: true },
-  type: { type: String, enum: ['reaction', 'comment', 'follow', 'group_request', 'message'], required: true },
+  type: { type: String, enum: ['reaction', 'comment', 'follow', 'group_request', 'message', 'story_reaction'], required: true },
   entityType: { type: String, required: true },
   entityId: { type: objectId, required: true },
   text: { type: String, required: true, maxlength: 180 },
   readAt: { type: Date, default: null }
 }, options);
 notificationSchema.index({ recipientId: 1, createdAt: -1 });
+
+const storySchema = new Schema({
+  seedKey: { type: String, unique: true, sparse: true, select: false },
+  authorId: { type: objectId, ref: 'User', required: true },
+  media: { type: new Schema({ url: { type: String, required: true }, mimeType: { type: String, required: true } }, { _id: false }), default: null },
+  text: { type: String, maxlength: 250, default: '' },
+  background: { type: String, enum: STORY_BACKGROUNDS, default: 'ocean' },
+  audience: { type: String, enum: ['public', 'followers'], default: 'followers' },
+  viewCount: { type: Number, default: 0 },
+  expiresAt: { type: Date, required: true },
+  deletedAt: { type: Date, default: null }
+}, options);
+storySchema.index({ authorId: 1, expiresAt: -1 });
+storySchema.index({ expiresAt: 1, deletedAt: 1 });
+
+// One row per viewer: records the view and, optionally, the viewer's reaction.
+const storyViewSchema = new Schema({
+  storyId: { type: objectId, ref: 'Story', required: true },
+  viewerId: { type: objectId, ref: 'User', required: true },
+  reaction: { type: String, enum: [...STORY_REACTIONS, null], default: null }
+}, options);
+storyViewSchema.index({ storyId: 1, viewerId: 1 }, { unique: true });
+storyViewSchema.index({ viewerId: 1, storyId: 1 });
 
 const refreshTokenSchema = new Schema({
   userId: { type: objectId, ref: 'User', required: true, index: true },
@@ -166,7 +195,7 @@ export const GroupPost: Model<any> = models.GroupPost || model('GroupPost', grou
 export const Conversation: Model<any> = models.Conversation || model('Conversation', conversationSchema);
 export const Message: Model<any> = models.Message || model('Message', messageSchema);
 export const Notification: Model<any> = models.Notification || model('Notification', notificationSchema);
+export const Story: Model<any> = models.Story || model('Story', storySchema);
+export const StoryView: Model<any> = models.StoryView || model('StoryView', storyViewSchema);
 export const RefreshToken: Model<any> = models.RefreshToken || model('RefreshToken', refreshTokenSchema);
 export const AuditLog: Model<any> = models.AuditLog || model('AuditLog', auditLogSchema);
-
-export const REACTION_TYPES = ['like', 'love', 'haha', 'wow', 'sad', 'angry'] as const;

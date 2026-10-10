@@ -1,0 +1,74 @@
+import { describe, expect, it } from 'vitest';
+import { buildStoryTray, canViewStory } from '../services/story.service.js';
+import { storyReactionSchema, storyReplySchema, storySchema } from '../validators/index.js';
+import { extractLinks, initials, timeAgo, toneOf } from '../utils/view-helpers.js';
+
+const author = (id: string, name: string) => ({ _id: id, username: name.toLowerCase(), displayName: name, profile: { avatarUrl: '' } });
+const story = (id: string, who: ReturnType<typeof author>, minutesAgo: number) => ({ _id: id, authorId: who, text: id, background: 'ocean', media: null, viewCount: 2, createdAt: new Date(Date.now() - minutesAgo * 60_000) });
+
+describe('story audience', () => {
+  it('lets authors, followers and anyone for public stories view', () => {
+    const following = new Set(['b']);
+    expect(canViewStory({ authorId: 'a', audience: 'followers' }, 'a', new Set())).toBe(true);
+    expect(canViewStory({ authorId: 'b', audience: 'followers' }, 'a', following)).toBe(true);
+    expect(canViewStory({ authorId: 'c', audience: 'public' }, 'a', following)).toBe(true);
+    expect(canViewStory({ authorId: 'c', audience: 'followers' }, 'a', following)).toBe(false);
+  });
+});
+
+describe('story tray', () => {
+  const me = author('me', 'Maya Tran'), leo = author('leo', 'Leo Minh'), ana = author('ana', 'Anika Rao');
+  const stories = [story('s1', leo, 300), story('s2', ana, 200), story('s3', leo, 100), story('s4', me, 50), story('s5', ana, 10)];
+
+  it('groups by author, puts you first, then unseen, then most recent', () => {
+    const tray = buildStoryTray(stories, [{ storyId: 's2' }, { storyId: 's5' }], 'me');
+    expect(tray.map((group) => group.author._id)).toEqual(['me', 'leo', 'ana']);
+    expect(tray[1]!.stories.map((item) => item.id)).toEqual(['s1', 's3']);
+    expect(tray[2]!.hasUnseen).toBe(false);
+  });
+
+  it('starts each author at the first unseen story and keeps reactions', () => {
+    const tray = buildStoryTray(stories, [{ storyId: 's1', reaction: 'love' }], 'me');
+    const leoGroup = tray.find((group) => group.author._id === 'leo')!;
+    expect(leoGroup.startIndex).toBe(1);
+    expect(leoGroup.stories[0]!.myReaction).toBe('love');
+  });
+
+  it('only exposes view counts to the author', () => {
+    const tray = buildStoryTray(stories, [], 'me');
+    expect(tray[0]!.stories[0]!.viewCount).toBe(2);
+    expect(tray[1]!.stories[0]!.viewCount).toBeUndefined();
+  });
+});
+
+describe('story validation', () => {
+  it('defaults the background and caps text length', () => {
+    expect(storySchema.parse({}).background).toBe('ocean');
+    expect(() => storySchema.parse({ text: 'x'.repeat(251) })).toThrow();
+    expect(() => storySchema.parse({ background: 'neon' })).toThrow();
+  });
+  it('accepts the five story reactions only', () => {
+    expect(storyReactionSchema.parse({ type: 'haha' }).type).toBe('haha');
+    expect(() => storyReactionSchema.parse({ type: 'wow' })).toThrow();
+  });
+  it('requires reply text', () => expect(() => storyReplySchema.parse({ content: '   ' })).toThrow());
+});
+
+describe('view helpers', () => {
+  it('formats relative time like Facebook', () => {
+    const now = Date.now();
+    expect(timeAgo(now - 10_000, now)).toBe('Just now');
+    expect(timeAgo(now - 5 * 60_000, now)).toBe('5m');
+    expect(timeAgo(now - 3 * 3_600_000, now)).toBe('3h');
+    expect(timeAgo(now - 2 * 86_400_000, now)).toBe('2d');
+  });
+  it('builds initials and a stable tone', () => {
+    expect(initials('Maya Tran')).toBe('MT');
+    expect(initials('leo')).toBe('L');
+    expect(toneOf('Maya Tran')).toBe(toneOf('Maya Tran'));
+    expect(toneOf('Maya Tran')).toMatch(/^tone-[0-7]$/);
+  });
+  it('extracts unique links from chat text', () => {
+    expect(extractLinks('see https://a.dev/x and https://a.dev/x, http://b.io')).toEqual(['https://a.dev/x', 'http://b.io']);
+  });
+});

@@ -1,6 +1,116 @@
 <%- include('partials/head') %><%- include('partials/nav') %>
-<main id="main" class="mx-auto max-w-5xl px-4 pb-24 sm:py-6">
-  <section class="card overflow-hidden"><div class="h-44 bg-stone-200 sm:h-64"><% if (profile.profile?.coverUrl) { %><img class="size-full object-cover" src="<%= profile.profile.coverUrl %>" alt="<%= profile.displayName %>'s cover image"><% } %></div><div class="px-5 pb-6"><div class="-mt-12 flex flex-col gap-4 sm:-mt-16 sm:flex-row sm:items-end"><div class="avatar size-24 border-4 border-white text-3xl sm:size-32"><% if (profile.profile?.avatarUrl) { %><img src="<%= profile.profile.avatarUrl %>" alt=""><% } else { %><%= profile.displayName.charAt(0) %><% } %></div><div class="min-w-0 flex-1 sm:pb-2"><h1 class="text-balance text-2xl font-bold"><%= profile.displayName %></h1><p class="text-stone-500">@<%= profile.username %> · <%= profile.followers %> followers · <%= profile.following %> following</p></div><% if (currentUser && String(profile._id) !== String(currentUser._id)) { %><div class="flex gap-2"><button class="button-secondary" data-message-user="<%= profile._id %>">Message</button><button class="button-primary" data-follow="<%= profile._id %>"><%= profile.isFollowing ? 'Following' : 'Follow' %></button></div><% } else if (currentUser) { %><a class="button-secondary" href="/settings">Edit profile</a><% } %></div><% if (profile.profile?.bio) { %><p class="mt-5 max-w-2xl text-pretty"><%= profile.profile.bio %></p><% } %><div class="mt-3 flex flex-wrap gap-4 text-sm text-stone-500"><% if (profile.profile?.location) { %><span>⌖ <%= profile.profile.location %></span><% } %><% if (profile.profile?.website) { %><a class="text-accent-700 hover:underline" href="<%= profile.profile.website %>" rel="noopener noreferrer">Website</a><% } %></div></div></section>
-  <section class="mx-auto mt-6 max-w-2xl space-y-5"><h2 class="text-xl font-semibold">Posts</h2><% if (posts.length) { posts.forEach(function(item) { %><%- include('partials/post-card', { item }) %><% }) } else { %><div class="empty-state"><h3 class="font-semibold">No posts yet</h3><p class="mt-2 text-stone-600">When <%= profile.displayName %> shares something, it will appear here.</p></div><% } %></section>
-</main><%- include('partials/foot') %>
+<% const isSelf = currentUser && String(profile._id) === String(currentUser._id); const info = profile.profile || {}; const tabHref = (t) => `/profile/${profile.username}${t === 'posts' ? '' : '?tab=' + t}`; -%>
+<main id="main" class="pb-24 md:pb-10">
+  <!-- Header -->
+  <section class="bg-white shadow-card">
+    <div class="mx-auto max-w-[71.25rem]">
+      <div class="relative aspect-[16/6] max-h-[25rem] w-full overflow-hidden bg-field sm:rounded-b-xl">
+        <img class="size-full object-cover" src="<%= info.coverUrl || '/assets/img/default-cover.svg' %>" alt="<%= info.coverUrl ? profile.displayName + `'s cover photo` : '' %>">
+        <% if (isSelf) { %><a href="/settings#photos" class="btn absolute bottom-4 right-4 bg-white text-ink shadow-card hover:bg-hover"><svg class="icon"><use href="#i-camera"/></svg><span class="hidden sm:inline">Edit cover photo</span></a><% } %>
+      </div>
+      <div class="px-4 lg:px-8">
+        <div class="flex flex-col items-center gap-4 border-b border-line pb-4 md:flex-row md:items-end">
+          <div class="relative -mt-20 shrink-0 md:-mt-8">
+            <% if (hasStory) { %><a href="/stories/<%= profile.username %>" aria-label="View <%= profile.displayName %>'s story" class="block rounded-full bg-white p-1 ring-[3px] ring-brand-600"><% } %>
+            <%- include('partials/avatar', { person: profile, size: 'size-[10.5rem] text-5xl ring-4 ring-white' }) %>
+            <% if (hasStory) { %></a><% } %>
+            <% if (isSelf) { %><a href="/settings#photos" class="icon-btn absolute bottom-2 right-2" aria-label="Update profile picture"><svg class="icon"><use href="#i-camera"/></svg></a><% } %>
+          </div>
+          <div class="min-w-0 flex-1 text-center md:pb-3 md:text-left">
+            <h1 class="text-balance font-display text-[2rem] font-extrabold leading-tight"><%= profile.displayName %></h1>
+            <p class="mt-1 font-semibold text-muted"><%= plural(profile.followers, 'follower') %> · <%= compact(profile.following) %> following</p>
+            <% if (followingPreview.length) { %>
+            <div class="mt-2 flex justify-center -space-x-2 md:justify-start">
+              <% followingPreview.slice(0, 8).forEach(function (p) { %><a href="/profile/<%= p.username %>" title="<%= p.displayName %>"><%- include('partials/avatar', { person: p, size: 'size-8 text-2xs ring-2 ring-white' }) %></a><% }) %>
+            </div>
+            <% } %>
+          </div>
+          <div class="flex flex-wrap justify-center gap-2 md:pb-3">
+            <% if (isSelf) { %>
+              <button type="button" class="btn-primary" data-open-story-composer><svg class="icon"><use href="#i-plus"/></svg>Add to story</button>
+              <a class="btn-secondary" href="/settings"><svg class="icon"><use href="#i-edit"/></svg>Edit profile</a>
+            <% } else if (currentUser) { %>
+              <button type="button" class="<%= profile.isFollowing ? 'btn-secondary' : 'btn-primary' %>" data-follow="<%= profile._id %>" data-follow-style><svg class="icon"><use href="#<%= profile.isFollowing ? 'i-check' : 'i-user-plus' %>"/></svg><span><%= profile.isFollowing ? 'Following' : 'Follow' %></span></button>
+              <button type="button" class="btn-secondary" data-message-user="<%= profile._id %>"><svg class="icon"><use href="#i-chat"/></svg>Message</button>
+            <% } else { %>
+              <a class="btn-primary" href="/login">Log in to follow</a>
+            <% } %>
+          </div>
+        </div>
+        <nav aria-label="Profile sections" class="scrollbar-none flex overflow-x-auto">
+          <a class="tab <%= tab === 'posts' ? 'tab-active' : '' %>" href="<%= tabHref('posts') %>" <%= tab === 'posts' ? 'aria-current=page' : '' %>>Posts</a>
+          <a class="tab <%= tab === 'about' ? 'tab-active' : '' %>" href="<%= tabHref('about') %>" <%= tab === 'about' ? 'aria-current=page' : '' %>>About</a>
+          <a class="tab <%= tab === 'photos' ? 'tab-active' : '' %>" href="<%= tabHref('photos') %>" <%= tab === 'photos' ? 'aria-current=page' : '' %>>Photos</a>
+        </nav>
+      </div>
+    </div>
+  </section>
 
+  <div class="mx-auto mt-4 grid max-w-[71.25rem] gap-4 px-0 sm:px-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:px-8">
+    <% if (tab !== 'photos') { %>
+    <!-- Left column -->
+    <aside class="space-y-4 <%= tab === 'about' ? 'lg:col-span-2' : '' %>">
+      <section class="card p-4">
+        <h2 class="card-title text-xl"><%= tab === 'about' ? 'About' : 'Intro' %></h2>
+        <% if (!profile.canViewDetails) { %>
+          <p class="mt-3 flex items-center gap-2 text-muted"><svg class="icon"><use href="#i-lock"/></svg>Only followers can see <%= firstName(profile.displayName) %>'s details.</p>
+        <% } else { %>
+          <% if (info.bio) { %><p class="mt-3 whitespace-pre-wrap text-center text-15"><%= info.bio %></p><% } %>
+          <% if (isSelf && !info.bio) { %><a href="/settings" class="btn-secondary mt-3 w-full">Add bio</a><% } %>
+          <ul class="mt-4 space-y-3 text-15">
+            <% if (info.location) { %><li class="flex items-center gap-3"><svg class="icon text-subtle"><use href="#i-pin"/></svg><span>Lives in <strong class="font-semibold"><%= info.location %></strong></span></li><% } %>
+            <% if (info.website) { %><li class="flex items-center gap-3"><svg class="icon text-subtle"><use href="#i-link"/></svg><a class="truncate font-semibold text-brand-600 hover:underline" href="<%= info.website %>" rel="noopener noreferrer" target="_blank"><%= info.website.replace(/^https?:\/\//, '') %></a></li><% } %>
+            <li class="flex items-center gap-3"><svg class="icon text-subtle"><use href="#i-clock"/></svg><span>Joined <%= new Date(profile.createdAt).toLocaleDateString('en', { month: 'long', year: 'numeric' }) %></span></li>
+            <li class="flex items-center gap-3"><svg class="icon text-subtle"><use href="#<%= info.privacy === 'followers' ? 'i-lock' : 'i-globe' %>"/></svg><span><%= info.privacy === 'followers' ? 'Profile visible to followers' : 'Public profile' %></span></li>
+          </ul>
+          <% if (isSelf) { %><a href="/settings" class="btn-secondary mt-4 w-full">Edit details</a><% } %>
+        <% } %>
+      </section>
+      <% if (tab === 'posts') { %>
+      <section class="card p-4">
+        <div class="flex items-center justify-between"><h2 class="card-title text-xl">Photos</h2><% if (photos.length) { %><a class="rounded-md px-2 py-1 text-15 text-brand-600 hover:bg-hover" href="<%= tabHref('photos') %>">See all photos</a><% } %></div>
+        <% if (photos.length) { %>
+        <div class="mt-3 grid grid-cols-3 gap-1 overflow-hidden rounded-lg">
+          <% photos.forEach(function (photo) { %><button type="button" class="aspect-square overflow-hidden bg-field" data-lightbox="<%= photo.url %>" aria-label="Open photo"><img class="size-full object-cover transition-transform hover:scale-105" src="<%= photo.url %>" alt="<%= photo.alt || '' %>" loading="lazy"></button><% }) %>
+        </div>
+        <% } else { %><p class="mt-3 text-15 text-muted">No photos to show.</p><% } %>
+      </section>
+      <% if (followingPreview.length) { %>
+      <section class="card p-4">
+        <h2 class="card-title text-xl">Following</h2>
+        <p class="text-15 text-muted"><%= plural(profile.following, 'person', 'people') %></p>
+        <div class="mt-3 grid grid-cols-3 gap-3">
+          <% followingPreview.forEach(function (p) { %>
+          <a href="/profile/<%= p.username %>" class="group">
+            <span class="block aspect-square overflow-hidden rounded-lg <%= p.profile && p.profile.avatarUrl ? 'bg-field' : toneOf(p.displayName) %>"><% if (p.profile && p.profile.avatarUrl) { %><img class="size-full object-cover" src="<%= p.profile.avatarUrl %>" alt=""><% } else { %><span class="grid size-full place-items-center font-display text-2xl font-bold text-white"><%= initials(p.displayName) %></span><% } %></span>
+            <span class="mt-1 block truncate text-[0.8125rem] font-semibold group-hover:underline"><%= p.displayName %></span>
+          </a>
+          <% }) %>
+        </div>
+      </section>
+      <% } %>
+      <% } %>
+    </aside>
+    <% } %>
+
+    <% if (tab === 'posts') { %>
+    <section class="min-w-0 space-y-4" aria-label="Posts">
+      <% if (isSelf) { %><%- include('partials/composer') %><% } %>
+      <div class="card flex items-center justify-between px-4 py-3"><h2 class="card-title text-xl">Posts</h2></div>
+      <% if (posts.length) { posts.forEach(function (item) { %><%- include('partials/post-card', { item }) %><% }) } else { %>
+      <div class="empty-state"><div class="empty-icon"><svg class="icon size-7"><use href="#i-feed"/></svg></div><h3 class="mt-4 text-lg font-bold">No posts yet</h3><p class="mt-1 text-muted"><%= isSelf ? 'Share your first post — it will show up here.' : `When ${firstName(profile.displayName)} shares something, it will appear here.` %></p></div>
+      <% } %>
+    </section>
+    <% } else if (tab === 'photos') { %>
+    <section class="card p-4 lg:col-span-2">
+      <h2 class="card-title text-xl">Photos</h2>
+      <% if (photos.length) { %>
+      <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+        <% photos.forEach(function (photo) { %><button type="button" class="aspect-square overflow-hidden rounded-lg bg-field" data-lightbox="<%= photo.url %>" aria-label="Open photo"><img class="size-full object-cover transition-transform hover:scale-105" src="<%= photo.url %>" alt="<%= photo.alt || '' %>" loading="lazy"></button><% }) %>
+      </div>
+      <% } else { %><p class="mt-3 text-muted">No photos to show.</p><% } %>
+    </section>
+    <% } %>
+  </div>
+</main>
+<%- include('partials/foot') %>

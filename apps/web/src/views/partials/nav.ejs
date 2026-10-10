@@ -1,21 +1,61 @@
-<header class="sticky top-0 z-30 border-b border-stone-200 bg-white/95">
-  <div class="mx-auto flex h-16 max-w-screen-2xl items-center gap-4 px-4 lg:px-6">
-    <a href="/" class="flex shrink-0 items-center gap-2 font-bold text-accent-700" aria-label="Oremus home">
-      <span class="grid size-9 place-items-center rounded-full bg-accent-600 text-lg text-white" aria-hidden="true">O</span><span class="hidden sm:inline">Oremus</span>
-    </a>
+<% const unreadN = locals.unreadNotifications || 0, unreadM = locals.unreadMessages || 0; -%>
+<header class="sticky top-0 z-40 h-14 border-b border-line bg-white shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+  <div class="flex h-full items-center gap-2 px-3 sm:px-4">
+    <!-- Brand + search -->
+    <div class="flex min-w-0 items-center gap-2 xl:w-[20rem]">
+      <a href="/" class="flex shrink-0 items-center gap-2" aria-label="Oremus home">
+        <img src="/assets/brand/logo.svg" alt="" class="size-10">
+        <span class="hidden font-display text-[1.375rem] font-extrabold tracking-tight text-brand-600 sm:inline lg:hidden xl:inline">Oremus</span>
+      </a>
+      <% if (currentUser) { %>
+      <form action="/search" method="get" role="search" class="relative hidden md:block">
+        <label for="site-search" class="sr-only">Search Oremus</label>
+        <svg class="icon pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"><use href="#i-search"/></svg>
+        <input id="site-search" name="q" type="search" placeholder="Search Oremus" autocomplete="off" class="pill-input w-[15rem] pl-9" value="<%= typeof q !== 'undefined' ? q : '' %>">
+      </form>
+      <a href="/search" class="icon-btn md:hidden" aria-label="Search"><svg class="icon"><use href="#i-search"/></svg></a>
+      <% } %>
+    </div>
+
     <% if (currentUser) { %>
-    <form action="/search" method="get" role="search" class="mx-auto max-w-md flex-1">
-      <label for="site-search" class="sr-only">Search Oremus</label>
-      <input id="site-search" name="q" type="search" placeholder="Search people, posts, groups" class="input w-full" value="<%= typeof q !== 'undefined' ? q : '' %>">
-    </form>
-    <nav aria-label="Primary" class="hidden items-center gap-1 md:flex">
-      <a class="nav-link <%= path === '/' ? 'nav-active' : '' %>" href="/">Home</a>
-      <a class="nav-link <%= path.startsWith('/groups') ? 'nav-active' : '' %>" href="/groups">Groups</a>
-      <a class="nav-link <%= path.startsWith('/messages') ? 'nav-active' : '' %>" href="/messages">Messages</a>
-      <a class="nav-link <%= path === '/notifications' ? 'nav-active' : '' %>" href="/notifications">Alerts</a>
+    <!-- Centre tabs -->
+    <nav aria-label="Primary" class="mx-auto hidden h-full max-w-[42rem] flex-1 items-stretch justify-center gap-1 md:flex">
+      <a class="top-tab <%= path === '/' ? 'top-tab-active' : '' %>" href="/" aria-label="Home" <%= path === '/' ? 'aria-current=page' : '' %>><span><svg class="icon size-6"><use href="#i-home"/></svg></span></a>
+      <a class="top-tab <%= path.startsWith('/stories') ? 'top-tab-active' : '' %>" href="/stories" aria-label="Stories" <%= path.startsWith('/stories') ? 'aria-current=page' : '' %>><span><svg class="icon size-6"><use href="#i-stories"/></svg></span></a>
+      <a class="top-tab <%= path.startsWith('/groups') ? 'top-tab-active' : '' %>" href="/groups" aria-label="Groups" <%= path.startsWith('/groups') ? 'aria-current=page' : '' %>><span><svg class="icon size-6"><use href="#i-group"/></svg></span></a>
+      <a class="top-tab <%= path.startsWith('/profile/' + currentUser.username) ? 'top-tab-active' : '' %>" href="/profile/<%= currentUser.username %>" aria-label="Your profile"><span><svg class="icon size-6"><use href="#i-user"/></svg></span></a>
     </nav>
-    <a class="avatar size-9" href="/profile/<%= currentUser.username %>" aria-label="Open your profile"><% if (currentUser.profile?.avatarUrl) { %><img src="<%= currentUser.profile.avatarUrl %>" alt=""><% } else { %><%= currentUser.displayName.charAt(0) %><% } %></a>
+
+    <!-- Right actions -->
+    <div class="ml-auto flex items-center justify-end gap-2 xl:w-[20rem]">
+      <a href="/messages" class="icon-btn relative <%= path.startsWith('/messages') ? '!bg-brand-50 !text-brand-600' : '' %>" aria-label="Messages<%= unreadM ? `, ${unreadM} unread` : '' %>">
+        <svg class="icon"><use href="#i-chat"/></svg>
+        <% if (unreadM) { %><span class="badge"><%= unreadM > 9 ? '9+' : unreadM %></span><% } %>
+      </a>
+      <a href="/notifications" class="icon-btn relative <%= path === '/notifications' ? '!bg-brand-50 !text-brand-600' : '' %>" aria-label="Notifications<%= unreadN ? `, ${unreadN} unread` : '' %>" data-notification-link>
+        <svg class="icon"><use href="#i-bell"/></svg>
+        <% if (unreadN) { %><span class="badge" data-notification-badge><%= unreadN > 9 ? '9+' : unreadN %></span><% } %>
+      </a>
+      <details class="relative" data-menu>
+        <summary class="flex cursor-pointer list-none items-center gap-2 rounded-full p-0.5 hover:bg-hover lg:pr-3" aria-label="Account menu">
+          <%- include('avatar', { person: currentUser, size: 'size-10 text-sm' }) %>
+          <span class="hidden max-w-[8rem] truncate text-15 font-semibold lg:inline"><%= firstName(currentUser.displayName) %></span>
+        </summary>
+        <div class="menu right-0 top-12 w-[22rem] max-w-[calc(100vw-1.5rem)]">
+          <a href="/profile/<%= currentUser.username %>" class="flex items-center gap-3 rounded-lg p-2 shadow-card hover:bg-hover">
+            <%- include('avatar', { person: currentUser, size: 'size-10 text-sm' }) %>
+            <span class="min-w-0"><span class="block truncate font-semibold"><%= currentUser.displayName %></span><span class="block text-sm text-muted">See your profile</span></span>
+          </a>
+          <div class="divider"></div>
+          <a class="menu-item" href="/settings"><span class="menu-icon"><svg class="icon"><use href="#i-settings"/></svg></span>Settings &amp; privacy</a>
+          <a class="menu-item" href="/stories/archive"><span class="menu-icon"><svg class="icon"><use href="#i-archive"/></svg></span>Story archive</a>
+          <a class="menu-item" href="/notifications"><span class="menu-icon"><svg class="icon"><use href="#i-bell"/></svg></span>Notifications</a>
+          <button class="menu-item" type="button" data-logout><span class="menu-icon"><svg class="icon"><use href="#i-logout"/></svg></span>Log out</button>
+        </div>
+      </details>
+    </div>
+    <% } else { %>
+    <div class="ml-auto flex items-center gap-2"><a class="btn-secondary" href="/login">Log in</a><a class="btn-primary" href="/register">Sign up</a></div>
     <% } %>
   </div>
 </header>
-

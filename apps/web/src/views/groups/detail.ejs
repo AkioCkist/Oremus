@@ -1,2 +1,74 @@
-<%- include('../partials/head') %><%- include('../partials/nav') %><main id="main" class="mx-auto max-w-6xl px-4 py-6 pb-24"><section class="card overflow-hidden"><div class="h-48 bg-stone-200 sm:h-72"><% if (group.coverUrl) { %><img class="size-full object-cover" src="<%= group.coverUrl %>" alt="<%= group.name %> cover"><% } %></div><div class="flex flex-col gap-4 p-5 sm:flex-row sm:items-end sm:justify-between"><div><p class="eyebrow"><%= group.privacy %> group</p><h1 class="mt-1 text-balance text-3xl font-bold"><%= group.name %></h1><p class="mt-2 max-w-3xl text-pretty text-stone-600"><%= group.description %></p><p class="mt-3 text-sm text-stone-500"><%= group.memberCount %> members</p></div><% if (currentUser && !member && !pending) { %><button class="button-primary" data-group-join="<%= group._id %>">Request to join</button><% } else if (pending) { %><span class="rounded-md bg-stone-100 px-3 py-2 text-sm font-medium text-stone-600">Request pending</span><% } %></div></section><div class="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]"><section class="space-y-5"><% if (member) { %><section class="card p-4"><form data-api-form data-reset data-reload action="/api/posts" method="post" enctype="multipart/form-data"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="groupId" value="<%= group._id %>"><input type="hidden" name="visibility" value="public"><label class="sr-only" for="group-post">Post in group</label><textarea class="input min-h-20 w-full" id="group-post" name="content" placeholder="Share with <%= group.name %>"></textarea><div class="mt-3 flex justify-between"><label class="button-secondary cursor-pointer">Add images<input class="sr-only" name="images" type="file" accept="image/*" multiple></label><button class="button-primary" type="submit">Publish</button></div><p class="form-error hidden" data-form-error role="alert"></p></form></section><% } %><% if (posts.length) { posts.forEach(function(item) { %><%- include('../partials/post-card', { item }) %><% }) } else { %><div class="empty-state"><h2 class="font-semibold">No posts in this group yet</h2><p class="mt-2 text-stone-600"><%= member ? 'Start the first conversation.' : 'Join the group to take part.' %></p></div><% } %></section><aside><% if (requests.length) { %><section class="card p-5"><h2 class="font-semibold">Join requests</h2><ul class="mt-4 space-y-4"><% requests.forEach(function(request) { %><li><p class="font-medium"><%= request.userId.displayName %></p><p class="text-sm text-stone-500">@<%= request.userId.username %></p><div class="mt-2 flex gap-2"><button class="button-primary px-3 py-1.5 text-sm" data-group-decision="approve" data-request="<%= request._id %>">Approve</button><button class="button-secondary px-3 py-1.5 text-sm" data-group-decision="reject" data-request="<%= request._id %>">Reject</button></div></li><% }) %></ul></section><% } %></aside></div></main><%- include('../partials/foot') %>
+<%- include('../partials/head') %><%- include('../partials/nav') %>
+<% const isAdmin = member && ['admin', 'moderator'].includes(member.role); const canSee = group.privacy === 'public' || member; -%>
+<main id="main" class="pb-24 md:pb-10">
+  <section class="bg-white shadow-card">
+    <div class="mx-auto max-w-[71.25rem]">
+      <div class="relative aspect-[16/6] max-h-[25rem] overflow-hidden bg-field sm:rounded-b-xl">
+        <img class="size-full object-cover" src="<%= group.coverUrl || '/assets/img/default-cover.svg' %>" alt="">
+      </div>
+      <div class="px-4 lg:px-8">
+        <div class="flex flex-col gap-4 border-b border-line py-5 md:flex-row md:items-end md:justify-between">
+          <div class="min-w-0">
+            <h1 class="text-balance font-display text-[2rem] font-extrabold leading-tight"><%= group.name %></h1>
+            <p class="mt-1 flex items-center gap-1.5 font-semibold text-muted"><svg class="icon size-4"><use href="#<%= group.privacy === 'private' ? 'i-lock' : 'i-globe' %>"/></svg><%= group.privacy === 'private' ? 'Private' : 'Public' %> group · <%= plural(group.memberCount, 'member') %></p>
+            <% if (members.length) { %>
+            <div class="mt-3 flex -space-x-2">
+              <% members.forEach(function (p) { %><a href="/profile/<%= p.username %>" title="<%= p.displayName %>"><%- include('../partials/avatar', { person: p, size: 'size-9 text-xs ring-2 ring-white' }) %></a><% }) %>
+            </div>
+            <% } %>
+          </div>
+          <div class="flex gap-2">
+            <% if (member) { %>
+              <span class="btn-secondary cursor-default"><svg class="icon"><use href="#i-check"/></svg><%= member.role === 'admin' ? 'Admin' : member.role === 'moderator' ? 'Moderator' : 'Joined' %></span>
+              <button type="button" class="btn-primary" data-open-composer data-group-id="<%= group._id %>" data-group-name="<%= group.name %>"><svg class="icon"><use href="#i-plus"/></svg>Post</button>
+            <% } else if (pending) { %>
+              <span class="btn-secondary cursor-default"><svg class="icon"><use href="#i-clock"/></svg>Request pending</span>
+            <% } else if (currentUser) { %>
+              <button type="button" class="btn-primary" data-group-join="<%= group._id %>"><svg class="icon"><use href="#i-group"/></svg>Join group</button>
+            <% } else { %>
+              <a class="btn-primary" href="/login">Log in to join</a>
+            <% } %>
+          </div>
+        </div>
+        <nav aria-label="Group sections" class="flex"><span class="tab tab-active" aria-current="page">Discussion</span><a class="tab" href="#about">About</a><% if (isAdmin && requests.length) { %><a class="tab" href="#requests">Requests (<%= requests.length %>)</a><% } %></nav>
+      </div>
+    </div>
+  </section>
 
+  <div class="mx-auto mt-4 grid max-w-[71.25rem] gap-4 px-0 sm:px-4 lg:grid-cols-[minmax(0,1fr)_22rem] lg:px-8">
+    <section class="min-w-0 space-y-4" aria-label="Discussion">
+      <% if (member) { %><%- include('../partials/composer', { composerGroup: group }) %><% } %>
+      <% if (!canSee) { %>
+        <div class="empty-state"><div class="empty-icon"><svg class="icon size-7"><use href="#i-lock"/></svg></div><h2 class="mt-4 text-xl font-bold">This group is private</h2><p class="mt-1 text-muted">Join to see who's in it and what they post.</p></div>
+      <% } else if (posts.length) { posts.forEach(function (item) { %><%- include('../partials/post-card', { item }) %><% }) } else { %>
+        <div class="empty-state"><div class="empty-icon"><svg class="icon size-7"><use href="#i-comment"/></svg></div><h2 class="mt-4 text-xl font-bold">No posts yet</h2><p class="mt-1 text-muted"><%= member ? 'Start the first conversation in this group.' : 'Join the group to take part.' %></p></div>
+      <% } %>
+    </section>
+
+    <aside class="space-y-4">
+      <section id="about" class="card p-4">
+        <h2 class="card-title">About</h2>
+        <% if (group.description) { %><p class="mt-2 whitespace-pre-wrap text-15"><%= group.description %></p><% } %>
+        <ul class="mt-3 space-y-3 text-15">
+          <li class="flex gap-3"><svg class="icon mt-0.5 text-subtle"><use href="#<%= group.privacy === 'private' ? 'i-lock' : 'i-globe' %>"/></svg><span><strong class="block font-semibold"><%= group.privacy === 'private' ? 'Private' : 'Public' %></strong><span class="text-[0.8125rem] text-muted"><%= group.privacy === 'private' ? 'Only members can see who is in the group and what they post.' : "Anyone can see who's in the group and what they post." %></span></span></li>
+          <li class="flex gap-3"><svg class="icon mt-0.5 text-subtle"><use href="#i-clock"/></svg><span><strong class="block font-semibold">History</strong><span class="text-[0.8125rem] text-muted">Group created on <%= new Date(group.createdAt).toLocaleDateString('en', { month: 'long', day: 'numeric', year: 'numeric' }) %></span></span></li>
+        </ul>
+      </section>
+      <% if (isAdmin && requests.length) { %>
+      <section id="requests" class="card p-4">
+        <h2 class="card-title">Member requests</h2>
+        <ul class="mt-3 space-y-3">
+          <% requests.forEach(function (request) { %>
+          <li class="flex items-center gap-3">
+            <%- include('../partials/avatar', { person: request.userId, size: 'size-10 text-sm' }) %>
+            <div class="min-w-0 flex-1"><p class="truncate font-semibold"><%= request.userId.displayName %></p><p class="truncate text-[0.8125rem] text-muted">@<%= request.userId.username %></p></div>
+            <div class="flex gap-1"><button type="button" class="btn-primary btn-sm" data-group-decision="approve" data-request="<%= request._id %>">Approve</button><button type="button" class="btn-secondary btn-sm" data-group-decision="reject" data-request="<%= request._id %>">Decline</button></div>
+          </li>
+          <% }) %>
+        </ul>
+      </section>
+      <% } %>
+    </aside>
+  </div>
+</main>
+<%- include('../partials/foot') %>

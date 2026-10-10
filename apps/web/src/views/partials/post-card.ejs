@@ -1,14 +1,89 @@
-<article class="card overflow-hidden" data-post-id="<%= item._id %>">
-  <div class="flex items-start gap-3 p-4">
-    <a class="avatar size-10" href="/profile/<%= item.authorId.username %>"><% if (item.authorId.profile?.avatarUrl) { %><img src="<%= item.authorId.profile.avatarUrl %>" alt=""><% } else { %><%= item.authorId.displayName.charAt(0) %><% } %></a>
-    <div class="min-w-0 flex-1"><a class="font-semibold hover:underline" href="/profile/<%= item.authorId.username %>"><%= item.authorId.displayName %></a><p class="text-sm text-stone-500">@<%= item.authorId.username %> · <a class="hover:underline" href="/posts/<%= item._id %>"><%= new Date(item.createdAt).toLocaleString('en', { dateStyle: 'medium', timeStyle: 'short' }) %></a><% if (item.editedAt) { %> · edited<% } %></p></div>
-    <% if (currentUser && String(item.authorId._id) === String(currentUser._id)) { %><div class="flex"><button class="icon-button text-base" data-edit-post="<%= item._id %>" aria-label="Edit post">✎</button><button class="icon-button" data-delete-post="<%= item._id %>" aria-label="Delete post">×</button></div><% } %>
+<%
+  const author = item.authorId || {};
+  const isOwner = currentUser && String(author._id) === String(currentUser._id);
+  const media = (item.media || []).slice(0, 4);
+  const extraMedia = (item.media || []).length - media.length;
+  const reaction = item.myReaction ? REACTION_LABELS[item.myReaction] : null;
+  const top = item.topReactions && item.topReactions.length ? item.topReactions : (item.reactionCount ? ['like'] : []);
+  const group = item.groupId && item.groupId.name ? item.groupId : null;
+  const bigText = !media.length && item.content && item.content.length < 90;
+  const visibilityIcon = item.visibility === 'private' ? 'i-lock' : item.visibility === 'followers' ? 'i-users' : 'i-globe';
+  const visibilityLabel = item.visibility === 'private' ? 'Only me' : item.visibility === 'followers' ? 'Followers' : 'Public';
+-%>
+<article class="card" data-post-id="<%= item._id %>">
+  <header class="flex items-start gap-2.5 px-4 pt-3">
+    <a href="/profile/<%= author.username %>" class="shrink-0" aria-label="<%= author.displayName %>'s profile"><%- include('avatar', { person: author, size: 'size-10 text-sm' }) %></a>
+    <div class="min-w-0 flex-1 leading-tight">
+      <p class="text-15">
+        <a class="font-semibold hover:underline" href="/profile/<%= author.username %>"><%= author.displayName %></a>
+        <% if (group) { %><svg class="icon -mt-0.5 inline size-3.5 text-muted"><use href="#i-chevron-right"/></svg> <a class="font-semibold hover:underline" href="/groups/<%= group.slug %>"><%= group.name %></a><% } %>
+      </p>
+      <p class="mt-0.5 flex items-center gap-1 text-[0.8125rem] text-muted">
+        <a class="hover:underline" href="/posts/<%= item._id %>" title="<%= longTime(item.createdAt) %>"><time datetime="<%= new Date(item.createdAt).toISOString() %>"><%= timeAgo(item.createdAt) %></time></a>
+        <% if (item.editedAt) { %><span aria-hidden="true">·</span><span>Edited</span><% } %>
+        <span aria-hidden="true">·</span><svg class="icon size-3.5" role="img" aria-label="<%= visibilityLabel %>"><use href="#<%= visibilityIcon %>"/></svg>
+      </p>
+    </div>
+    <details class="relative" data-menu>
+      <summary class="icon-btn-ghost -mr-2 cursor-pointer list-none" aria-label="Post options"><svg class="icon"><use href="#i-more"/></svg></summary>
+      <div class="menu right-0 top-10 w-64">
+        <% if (isOwner) { %>
+        <button type="button" class="menu-item" data-edit-post="<%= item._id %>"><span class="menu-icon"><svg class="icon"><use href="#i-edit"/></svg></span>Edit post</button>
+        <button type="button" class="menu-item" data-delete-post="<%= item._id %>"><span class="menu-icon"><svg class="icon"><use href="#i-trash"/></svg></span>Move to trash</button>
+        <% } %>
+        <button type="button" class="menu-item" data-copy="<%= item._id %>"><span class="menu-icon"><svg class="icon"><use href="#i-link"/></svg></span>Copy link</button>
+      </div>
+    </details>
+  </header>
+
+  <% if (item.content) { %><p class="whitespace-pre-wrap break-words px-4 pb-3 pt-2.5 <%= bigText ? 'font-display text-2xl leading-snug' : 'text-15 leading-[1.4]' %>" data-post-content><%= item.content %></p><% } else { %><div class="h-3"></div><% } %>
+
+  <% if (media.length) { %>
+  <div class="media-grid <%= media.length === 1 ? '' : 'grid-cols-2' %> <%= media.length === 3 ? 'grid-rows-2 aspect-[4/3]' : '' %>">
+    <% media.forEach(function (m, i) { const span = media.length === 3 && i === 0 ? 'row-span-2' : ''; const ratio = media.length === 1 ? 'max-h-[40rem]' : media.length === 3 ? '' : 'aspect-square'; %>
+    <button type="button" class="relative block overflow-hidden <%= span %> <%= ratio %>" data-lightbox="<%= m.url %>" aria-label="Open photo <%= i + 1 %> of <%= item.media.length %>">
+      <img src="<%= m.url %>" alt="<%= m.alt || ('Photo shared by ' + author.displayName) %>" loading="lazy" decoding="async" class="<%= media.length === 1 ? 'max-h-[40rem]' : '' %>">
+      <% if (i === 3 && extraMedia > 0) { %><span class="absolute inset-0 grid place-items-center bg-black/45 font-display text-3xl font-bold text-white">+<%= extraMedia %></span><% } %>
+    </button>
+    <% }) %>
   </div>
-  <% if (item.content) { %><p class="whitespace-pre-wrap px-4 pb-4 text-pretty leading-7"><%= item.content %></p><% } %>
-  <% if (item.media?.length) { %><div class="grid gap-0.5 <%= item.media.length > 1 ? 'grid-cols-2' : '' %>"><% item.media.forEach(function(media) { %><img class="max-h-[34rem] w-full bg-stone-100 object-cover" src="<%= media.url %>" alt="<%= media.alt || 'Image shared in post' %>" loading="lazy"><% }) %></div><% } %>
-  <div class="flex items-center justify-between border-t border-stone-100 px-4 py-3 text-sm text-stone-500"><span data-reaction-count><%= item.reactionCount || 0 %> reactions</span><a href="/posts/<%= item._id %>"><%= item.commentCount || 0 %> comments</a></div>
-  <% if (currentUser) { %><div class="grid grid-cols-3 border-t border-stone-100 p-1">
-    <details class="relative"><summary class="action-button list-none <%= item.myReaction ? 'text-accent-700' : '' %>"><%= item.myReaction || 'React' %></summary><div class="absolute bottom-full left-0 z-20 mb-2 flex rounded-lg border border-stone-200 bg-white p-1 shadow-md"><% ['like','love','haha','wow','sad','angry'].forEach(function(reaction) { %><button class="reaction-choice px-2 py-1.5 text-sm capitalize hover:bg-stone-100" data-react="<%= reaction %>" data-post="<%= item._id %>"><%= reaction %></button><% }) %></div></details>
-    <a class="action-button" href="/posts/<%= item._id %>#comments">Comment</a><button class="action-button" data-copy="<%= item._id %>">Share</button>
-  </div><% } %>
+  <% } %>
+
+  <div class="mx-4 flex min-h-[2.5rem] items-center justify-between gap-3 text-15 text-muted">
+    <span class="flex items-center gap-1.5 <%= item.reactionCount ? '' : 'invisible' %>" data-reaction-summary>
+      <span class="flex -space-x-1" data-reaction-icons><% top.forEach(function (type) { %><svg class="size-[1.125rem] rounded-full ring-2 ring-white"><use href="#r-<%= type %>"/></svg><% }) %></span>
+      <span data-reaction-count><%= compact(item.reactionCount || 0) %></span>
+    </span>
+    <a class="hover:underline <%= item.commentCount ? '' : 'invisible' %>" href="/posts/<%= item._id %>#comments" data-comment-count-label><span data-comment-count><%= item.commentCount || 0 %></span> <%= item.commentCount === 1 ? 'comment' : 'comments' %></a>
+  </div>
+
+  <% if (currentUser) { %>
+  <div class="mx-4 flex gap-1 border-t border-line py-1">
+    <div class="reaction-wrap relative flex flex-1">
+      <button type="button" class="action-button <%= reaction ? reaction.color : '' %>" data-react="<%= item.myReaction || 'like' %>" data-post="<%= item._id %>" data-reaction-toggle aria-pressed="<%= item.myReaction ? 'true' : 'false' %>">
+        <% if (reaction) { %><svg class="size-[1.125rem]"><use href="#r-<%= item.myReaction %>"/></svg><% } else { %><svg class="icon"><use href="#i-like"/></svg><% } %>
+        <span><%= reaction ? reaction.label : 'Like' %></span>
+      </button>
+      <div class="reaction-bar" role="toolbar" aria-label="Reactions">
+        <% Object.keys(REACTION_LABELS).forEach(function (type) { %>
+        <button type="button" class="reaction-choice" data-react="<%= type %>" data-post="<%= item._id %>" aria-label="<%= REACTION_LABELS[type].label %>" title="<%= REACTION_LABELS[type].label %>"><svg><use href="#r-<%= type %>"/></svg></button>
+        <% }) %>
+      </div>
+    </div>
+    <button type="button" class="action-button" data-focus-comment="<%= item._id %>"><svg class="icon"><use href="#i-comment"/></svg><span>Comment</span></button>
+    <button type="button" class="action-button" data-copy="<%= item._id %>"><svg class="icon"><use href="#i-share"/></svg><span>Share</span></button>
+  </div>
+  <div class="border-t border-line px-4 pb-3 pt-2">
+    <ul class="space-y-2 pb-1 empty:hidden" data-comment-list></ul>
+    <% if (item.commentCount > 0 && !locals.hideViewAll) { %><a class="mb-2 inline-block text-15 font-semibold text-muted hover:underline" href="/posts/<%= item._id %>#comments">View all comments</a><% } %>
+    <form class="flex items-center gap-2" data-comment-form action="/api/posts/<%= item._id %>/comments" method="post">
+      <%- include('avatar', { person: currentUser, size: 'size-8 text-xs' }) %>
+      <label class="sr-only" for="comment-<%= item._id %>">Write a comment</label>
+      <div class="relative flex-1">
+        <input id="comment-<%= item._id %>" name="content" class="pill-input h-9 pr-10" placeholder="Write a comment…" maxlength="1500" autocomplete="off" required>
+        <button type="submit" class="absolute right-1 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full text-brand-600 hover:bg-line" aria-label="Post comment"><svg class="icon size-4"><use href="#i-send"/></svg></button>
+      </div>
+    </form>
+  </div>
+  <% } else { %><div class="h-2"></div><% } %>
 </article>

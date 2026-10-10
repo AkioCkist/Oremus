@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fb0e0"/><stop offset=".5" stop-color="#cfe2f2"/><stop offset="1" stop-color="#eef4f8"/></linearGradient>
+    <linearGradient id="m1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7d8ea3"/><stop offset="1" stop-color="#9fb0c0"/></linearGradient>
+    <linearGradient id="m2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4f7a52"/><stop offset="1" stop-color="#6f9a5a"/></linearGradient>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fb860"/><stop offset="1" stop-color="#4f7a3a"/></linearGradient>
+  </defs>
+  <rect width="1080" height="1920" fill="url(#sky)"/>
+  <g fill="#fff" opacity=".8"><ellipse cx="260" cy="320" rx="160" ry="40"/><ellipse cx="360" cy="290" rx="110" ry="46"/><ellipse cx="820" cy="460" rx="180" ry="44"/><ellipse cx="740" cy="430" rx="100" ry="40"/></g>
+  <path d="M-40 980 220 560l160 220 190-360 220 330 140-160 190 410Z" fill="url(#m1)"/>
+  <path d="M220 560l-60 100 50-20 40 40 30-60Zm350-140-70 130 60-30 40 50 40-60Zm360 170-60 80 50-10 30 30Z" fill="#fff" opacity=".9"/>
+  <path d="M-40 1180c120-200 260-320 400-300s260 140 380 120 280-150 380-120v400H-40Z" fill="url(#m2)"/>
+  <path d="M-40 1920V1300c200-80 420-90 620-40s340 40 540-20v680Z" fill="url(#g)"/>
+  <path d="M480 1920c40-200 100-380 180-560" stroke="#b9a27e" stroke-width="70" stroke-linecap="round" fill="none" opacity=".8"/>
+  <g transform="translate(560 1360)">
+    <circle cx="-90" cy="200" r="90" fill="none" stroke="#1d1d1d" stroke-width="16"/>
+    <circle cx="150" cy="200" r="90" fill="none" stroke="#1d1d1d" stroke-width="16"/>
+    <path d="M-90 200 0 70h130l20 130M0 70l40 130h110M40 200l-130 0" stroke="#6b7c2e" stroke-width="14" fill="none" stroke-linejoin="round"/>
+    <path d="M-10 60h40M120 50l30-20" stroke="#1d1d1d" stroke-width="12" stroke-linecap="round"/>
+    <path d="M10 -150c40 0 70 40 60 100l-30 110" stroke="#2f3e2a" stroke-width="64" stroke-linecap="round" fill="none"/>
+    <path d="M60 -110 140 40" stroke="#2f3e2a" stroke-width="30" stroke-linecap="round"/>
+    <path d="M40 60 70 150 40 200" stroke="#3a3a3a" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <rect x="-40" y="-170" width="70" height="120" rx="20" fill="#556b2f"/>
+    <circle cx="50" cy="-210" r="42" fill="#d8a885"/>
+    <path d="M8 -222c0-34 26-52 46-52s42 20 42 44Z" fill="#c43c2c"/>
+  </g>
+</svg>

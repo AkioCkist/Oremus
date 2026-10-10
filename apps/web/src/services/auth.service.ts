@@ -10,6 +10,10 @@ import { audit } from './audit.service.js';
 
 const digest = (value: string) => crypto.createHash('sha256').update(value).digest('hex');
 const cookieBase = { httpOnly: true, secure: env.COOKIE_SECURE, sameSite: 'lax' as const, path: '/' };
+const sessionRefreshDays = 1;
+const invalidPasswordHash = '$2b$12$bOpTTq8VuI94HKKW9SbdNujtK/LBatZknphyhXacDlsYj13M/WSiW';
+type SessionContext = { ip?: string; userAgent?: string };
+type RefreshClaims = jwt.JwtPayload & { type: 'refresh'; family: string; remember?: boolean };
 
 function signAccess(userId: string): { token: string; jti: string } {
   const jti = crypto.randomUUID();
@@ -17,43 +21,56 @@ function signAccess(userId: string): { token: string; jti: string } {
   return { token, jti };
 }
 
-function signRefresh(userId: string, family: string): string {
-  return jwt.sign({ type: 'refresh', family }, env.JWT_REFRESH_SECRET, { subject: userId, jwtid: crypto.randomUUID(), expiresIn: `${env.REFRESH_TOKEN_DAYS}d` });
+function refreshDays(remember: boolean): number {
+  return remember ? env.REFRESH_TOKEN_DAYS : sessionRefreshDays;
 }
 
-async function persistRefresh(userId: string, raw: string, family: string, context: { ip?: string; userAgent?: string }): Promise<void> {
-  await RefreshToken.create({ userId, tokenHash: digest(raw), family, expiresAt: new Date(Date.now() + env.REFRESH_TOKEN_DAYS * 86_400_000), ip: context.ip, userAgent: context.userAgent });
+function signRefresh(userId: string, family: string, remember: boolean): string {
+  return jwt.sign({ type: 'refresh', family, remember }, env.JWT_REFRESH_SECRET, { subject: userId, jwtid: crypto.randomUUID(), expiresIn: `${refreshDays(remember)}d` });
 }
 
-function setCookies(res: Response, access: string, refresh: string): void {
-  res.cookie('access_token', access, { ...cookieBase, maxAge: 15 * 60_000 });
-  res.cookie('refresh_token', refresh, { ...cookieBase, maxAge: env.REFRESH_TOKEN_DAYS * 86_400_000 });
+async function persistRefresh(userId: string, raw: string, family: string, remember: boolean, context: SessionContext): Promise<void> {
+  await RefreshToken.create({ userId, tokenHash: digest(raw), family, expiresAt: new Date(Date.now() + refreshDays(remember) * 86_400_000), ip: context.ip, userAgent: context.userAgent });
+}
+
+function setCookies(res: Response, access: string, refresh: string, remember: boolean): void {
+  const accessLifetime = remember ? { maxAge: 15 * 60_000 } : {};
+  const refreshLifetime = remember ? { maxAge: env.REFRESH_TOKEN_DAYS * 86_400_000 } : {};
+  res.cookie('access_token', access, { ...cookieBase, ...accessLifetime });
+  res.cookie('refresh_token', refresh, { ...cookieBase, ...refreshLifetime });
+}
+
+export function clearSessionCookies(res: Response): void {
+  res.clearCookie('access_token', cookieBase);
+  res.clearCookie('refresh_token', cookieBase);
 }
 
 export async function register(input: { email: string; username: string; displayName: string; password: string }, res: Response, context: { ip?: string; userAgent?: string }) {
   if (await User.exists({ $or: [{ email: input.email }, { username: input.username }] })) throw new AppError(409, 'That email or username is already in use.', 'IDENTITY_TAKEN');
   const user = await User.create({ ...input, passwordHash: await bcrypt.hash(input.password, 12) });
-  const family = crypto.randomUUID(), refresh = signRefresh(user.id, family), access = signAccess(user.id);
-  await persistRefresh(user.id, refresh, family, context);
-  setCookies(res, access.token, refresh);
+  const remember = false, family = crypto.randomUUID(), refresh = signRefresh(user.id, family, remember), access = signAccess(user.id);
+  await persistRefresh(user.id, refresh, family, remember, context);
+  setCookies(res, access.token, refresh, remember);
   await audit('auth.register', user.id, 'User', user.id, {}, context.ip);
   return publicUser(user);
 }
 
-export async function login(input: { email: string; password: string }, res: Response, context: { ip?: string; userAgent?: string }) {
+export async function login(input: { email: string; password: string; remember: boolean }, res: Response, context: SessionContext) {
   const user = await User.findOne({ email: input.email, deletedAt: null }).select('+passwordHash');
-  if (!user || !(await bcrypt.compare(input.password, user.passwordHash))) throw new AppError(401, 'Email or password is incorrect.', 'INVALID_CREDENTIALS');
-  const family = crypto.randomUUID(), refresh = signRefresh(user.id, family), access = signAccess(user.id);
-  await persistRefresh(user.id, refresh, family, context);
-  setCookies(res, access.token, refresh);
+  const passwordMatches = await bcrypt.compare(input.password, user?.passwordHash || invalidPasswordHash);
+  if (!user || !passwordMatches) throw new AppError(401, 'Email or password is incorrect.', 'INVALID_CREDENTIALS');
+  const family = crypto.randomUUID(), refresh = signRefresh(user.id, family, input.remember), access = signAccess(user.id);
+  await persistRefresh(user.id, refresh, family, input.remember, context);
+  setCookies(res, access.token, refresh, input.remember);
   await audit('auth.login', user.id, 'User', user.id, {}, context.ip);
   return publicUser(user);
 }
 
-export async function rotate(raw: string | undefined, res: Response, context: { ip?: string; userAgent?: string }) {
+async function rotateSession(raw: string | undefined, res: Response, context: SessionContext) {
   if (!raw) throw new AppError(401, 'Refresh token is missing.', 'REFRESH_REQUIRED');
-  let claims: jwt.JwtPayload;
-  try { claims = jwt.verify(raw, env.JWT_REFRESH_SECRET) as jwt.JwtPayload; } catch { throw new AppError(401, 'Session has expired.', 'REFRESH_INVALID'); }
+  let claims: RefreshClaims;
+  try { claims = jwt.verify(raw, env.JWT_REFRESH_SECRET) as RefreshClaims; } catch { throw new AppError(401, 'Session has expired.', 'REFRESH_INVALID'); }
+  if (claims.type !== 'refresh' || !claims.family || !claims.sub) throw new AppError(401, 'Session is invalid.', 'REFRESH_INVALID');
   const record = await RefreshToken.findOne({ tokenHash: digest(raw) });
   if (!record || record.revokedAt) {
     if (claims.family) await RefreshToken.updateMany({ family: claims.family, revokedAt: null }, { revokedAt: new Date() });
@@ -61,17 +78,27 @@ export async function rotate(raw: string | undefined, res: Response, context: { 
   }
   const user = await User.findOne({ _id: claims.sub, deletedAt: null });
   if (!user) throw new AppError(401, 'Account is unavailable.', 'ACCOUNT_UNAVAILABLE');
-  const next = signRefresh(user.id, record.family), nextHash = digest(next), access = signAccess(user.id);
+  const remember = claims.remember !== false;
+  const next = signRefresh(user.id, record.family, remember), nextHash = digest(next), access = signAccess(user.id);
   record.revokedAt = new Date(); record.replacedByHash = nextHash; await record.save();
-  await persistRefresh(user.id, next, record.family, context);
-  setCookies(res, access.token, next);
-  return publicUser(user);
+  await persistRefresh(user.id, next, record.family, remember, context);
+  setCookies(res, access.token, next, remember);
+  return { user, jti: access.jti };
+}
+
+export async function rotate(raw: string | undefined, res: Response, context: SessionContext) {
+  const session = await rotateSession(raw, res, context);
+  return publicUser(session.user);
+}
+
+export async function restoreSession(raw: string | undefined, res: Response, context: SessionContext) {
+  return rotateSession(raw, res, context);
 }
 
 export async function logout(rawRefresh: string | undefined, jti: string | undefined, res: Response): Promise<void> {
   if (rawRefresh) await RefreshToken.updateOne({ tokenHash: digest(rawRefresh), revokedAt: null }, { revokedAt: new Date() });
   if (jti) await redis.set(`deny:${jti}`, '1', { EX: 15 * 60 });
-  res.clearCookie('access_token', cookieBase); res.clearCookie('refresh_token', cookieBase);
+  clearSessionCookies(res);
 }
 
 export async function requestPasswordReset(email: string): Promise<string | null> {

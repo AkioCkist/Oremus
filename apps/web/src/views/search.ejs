@@ -1,2 +1,61 @@
-<%- include('partials/head') %><%- include('partials/nav') %><main id="main" class="mx-auto max-w-4xl px-4 py-8 pb-24"><p class="eyebrow">Discover</p><h1 class="mt-2 text-balance text-3xl font-bold"><%= q ? `Results for “${q}”` : 'Search Oremus' %></h1><% if (!q) { %><div class="empty-state mt-6"><h2 class="font-semibold">What are you looking for?</h2><p class="mt-2 text-stone-600">Search for people, conversations, or communities.</p></div><% } else if (!results.length) { %><div class="empty-state mt-6"><h2 class="font-semibold">No results found</h2><p class="mt-2 text-stone-600">Try a different name or a broader phrase.</p></div><% } else { %><ul class="card mt-6 divide-y divide-stone-100"><% results.forEach(function(result) { %><li><a class="flex gap-4 p-4 hover:bg-stone-50" href="<%= result.url %>"><span class="avatar size-11"><%= result.kind.charAt(0).toUpperCase() %></span><span><strong class="block"><%= result.title %></strong><small class="text-stone-500"><%= result.subtitle || result.kind %></small></span></a></li><% }) %></ul><% } %></main><%- include('partials/foot') %>
+<%- include('partials/head') %><%- include('partials/nav') %>
+<% const kinds = [['all', 'All', 'i-search'], ['user', 'People', 'i-users'], ['post', 'Posts', 'i-feed'], ['group', 'Groups', 'i-group']]; const link = (k) => `/search?${q ? 'q=' + encodeURIComponent(q) + '&' : ''}kind=${k}`; -%>
+<main id="main" class="grid min-h-[calc(100dvh-3.5rem)] lg:grid-cols-[22.5rem_minmax(0,1fr)]">
+  <aside class="border-b border-line bg-white lg:sticky lg:top-14 lg:h-[calc(100dvh-3.5rem)] lg:border-b-0 lg:border-r" aria-label="Search filters">
+    <div class="p-4">
+      <p class="text-[0.8125rem] text-muted">Search results</p>
+      <h1 class="font-display text-2xl font-extrabold"><%= q ? `“${q}”` : 'Search' %></h1>
+      <form action="/search" method="get" role="search" class="relative mt-3">
+        <input type="hidden" name="kind" value="<%= kind %>">
+        <label for="search-page-input" class="sr-only">Search Oremus</label>
+        <svg class="icon pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"><use href="#i-search"/></svg>
+        <input id="search-page-input" name="q" type="search" minlength="2" class="pill-input pl-9" placeholder="Search people, posts, groups" value="<%= q %>" autocomplete="off">
+      </form>
+      <div class="divider mt-4"></div>
+      <h2 class="pb-1 pt-2 text-[1.0625rem] font-bold">Filters</h2>
+      <nav class="flex gap-1 overflow-x-auto lg:flex-col" aria-label="Result type">
+        <% kinds.forEach(function (k) { const on = kind === k[0]; %>
+        <a class="side-link shrink-0 <%= on ? 'bg-brand-50 text-brand-700 hover:bg-brand-50' : '' %>" href="<%= link(k[0]) %>" <%= on ? 'aria-current=page' : '' %>><span class="grid size-9 place-items-center rounded-full <%= on ? 'bg-brand-600 text-white' : 'bg-[#e4e6eb]' %>"><svg class="icon"><use href="#<%= k[2] %>"/></svg></span><%= k[1] %></a>
+        <% }) %>
+      </nav>
+    </div>
+  </aside>
 
+  <section class="px-3 py-5 pb-24 sm:px-6" aria-live="polite">
+    <div class="mx-auto max-w-feed space-y-3">
+      <% if (!q) { %>
+        <% if (people.length) { %>
+        <div class="card p-4">
+          <h2 class="card-title text-xl">People you may know</h2>
+          <ul class="mt-3 grid gap-3 sm:grid-cols-2">
+            <% people.forEach(function (person) { %>
+            <li class="flex items-center gap-3 rounded-lg border border-line p-3">
+              <a href="/profile/<%= person.username %>"><%- include('partials/avatar', { person, size: 'size-14 text-lg' }) %></a>
+              <div class="min-w-0 flex-1"><a class="block truncate font-semibold hover:underline" href="/profile/<%= person.username %>"><%= person.displayName %></a><p class="truncate text-[0.8125rem] text-muted"><%= (person.profile && person.profile.bio) || '@' + person.username %></p>
+                <button type="button" class="btn-soft btn-sm mt-2 w-full" data-follow="<%= person._id %>"><svg class="icon size-4"><use href="#i-user-plus"/></svg>Follow</button></div>
+            </li>
+            <% }) %>
+          </ul>
+        </div>
+        <% } else { %>
+        <div class="empty-state"><div class="empty-icon"><svg class="icon size-7"><use href="#i-search"/></svg></div><h2 class="mt-4 text-xl font-bold">What are you looking for?</h2><p class="mt-1 text-muted">Search for people, posts or groups.</p></div>
+        <% } %>
+      <% } else if (q.length < 2) { %>
+        <div class="empty-state"><h2 class="text-xl font-bold">Keep typing…</h2><p class="mt-1 text-muted">Enter at least 2 characters.</p></div>
+      <% } else if (!results.length) { %>
+        <div class="empty-state"><div class="empty-icon"><svg class="icon size-7"><use href="#i-search"/></svg></div><h2 class="mt-4 text-xl font-bold">We didn't find any results</h2><p class="mt-1 text-muted">Make sure everything is spelled correctly or try different keywords.</p></div>
+      <% } else { %>
+        <% results.forEach(function (r) { const icon = r.kind === 'user' ? 'i-user' : r.kind === 'group' ? 'i-group' : 'i-feed'; %>
+        <a class="card flex items-center gap-3 p-4 transition-colors hover:bg-[#fafafa]" href="<%= r.url %>">
+          <% if (r.kind === 'user') { %><%- include('partials/avatar', { person: { displayName: r.title, avatarUrl: r.image_url }, size: 'size-14 text-lg' }) %>
+          <% } else if (r.image_url) { %><img class="size-14 shrink-0 rounded-lg object-cover" src="<%= r.image_url %>" alt="">
+          <% } else { %><span class="grid size-14 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-600"><svg class="icon size-6"><use href="#<%= icon %>"/></svg></span><% } %>
+          <span class="min-w-0 flex-1"><span class="block truncate text-[1.0625rem] font-semibold"><%= r.title %></span><span class="block truncate text-[0.8125rem] text-muted"><%= r.kind === 'user' ? 'Person' : r.kind === 'group' ? 'Group' : 'Post' %><%= r.subtitle && r.subtitle !== 'Post' ? ' · ' + r.subtitle : '' %></span></span>
+          <svg class="icon text-subtle"><use href="#i-chevron-right"/></svg>
+        </a>
+        <% }) %>
+      <% } %>
+    </div>
+  </section>
+</main>
+<%- include('partials/foot') %>

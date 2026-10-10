@@ -61,7 +61,8 @@ docker compose config --quiet
 - **FastAPI owns ranking and search:** it applies a transparent recency/relationship/engagement ranking and performs cached, cross-collection search. Express falls back to chronological order if ranking is temporarily unavailable.
 - **Redis is operational:** it backs feed/profile/group/search caches, prefix invalidation, auth and creation rate limits, access-token denylisting, cache diagnostics, and the Socket.IO pub/sub adapter.
 - **Security:** bcrypt password hashes, short-lived access JWTs, rotating refresh JWTs stored as hashes, replay-family revocation, HTTP-only SameSite cookies, CSRF tokens, Helmet CSP, validation, sanitization, generated upload names, MIME/size limits, ownership checks, and redacted structured logs.
-- **UI:** responsive three-column desktop layout and bottom mobile navigation, restrained green accent, native semantics, visible focus, labeled controls, local form errors, structural empty states, and a keyboard-capable native alert dialog for destructive actions.
+- **UI:** Facebook-style layout (sticky header with centre tabs, left shortcuts, right contacts rail, bottom mobile navigation), indigo brand on a neutral `#f0f2f5` canvas, Red Hat Display/Text type, an inline SVG icon sprite with six reaction emoji (`src/views/partials/icons.ejs`), and generated SVG artwork in `public/assets/img`. Tokens live in `tailwind.config.js`; component classes in `src/views-or-client/styles.css`.
+- **Stories:** 24-hour photo or text stories (`Story`, `StoryView` models, `services/story.service.ts`). Audience is `public` or `followers` (per-user default in settings). The viewer at `/stories` records views, five reactions, and replies that land in Messages; authors see viewers and keep everything in `/stories/archive`.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the service map, document model, route map, cache behavior, and verification matrix.
 
@@ -70,5 +71,5 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the service map, document m
 - Uploads use a validated local volume. Replace it with S3-compatible object storage before horizontal production deployment.
 - Password reset returns its token only in development; production should connect the service to a transactional email provider.
 - MongoDB text indexes provide the initial search implementation. At larger scale, swap the FastAPI search internals for Atlas Search/OpenSearch without changing the Express boundary.
-- Presence, typing indicators, video, stories, ads, and algorithmic ML recommendations are outside the core product scope.
+- Presence, typing indicators, video, ads, and algorithmic ML recommendations are outside the core product scope.
 
