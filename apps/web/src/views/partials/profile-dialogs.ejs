@@ -1,0 +1,98 @@
+<%# Facebook-style profile editing popups. Included once per page (foot) for signed-in users. -%>
+<% const me = currentUser; const meInfo = me.profile || {}; -%>
+
+<!-- Edit profile -->
+<dialog id="edit-profile-dialog" class="w-[min(43.75rem,calc(100%-1.5rem))] rounded-xl p-0 shadow-pop" aria-labelledby="edit-profile-title">
+  <div class="relative border-b border-line px-4 py-3 text-center"><h2 id="edit-profile-title" class="text-xl font-bold">Edit profile</h2><button type="button" class="icon-btn absolute right-3 top-2" data-close-dialog="edit-profile-dialog" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button></div>
+  <div class="max-h-[78dvh] overflow-y-auto px-4 pb-4">
+    <section class="border-b border-line py-4">
+      <div class="flex items-center justify-between"><h3 class="text-xl font-bold">Profile picture</h3><button type="button" class="btn-ghost text-brand-600" data-pick-photo-kind="avatar">Edit</button></div>
+      <button type="button" class="mx-auto mt-4 block rounded-full" data-pick-photo-kind="avatar" aria-label="Change profile picture"><%- include('avatar', { person: me, size: 'size-[10.5rem] text-5xl' }) %></button>
+    </section>
+    <section class="border-b border-line py-4">
+      <div class="flex items-center justify-between"><h3 class="text-xl font-bold">Cover photo</h3><button type="button" class="btn-ghost text-brand-600" data-pick-photo-kind="cover"><%= meInfo.coverUrl ? 'Edit' : 'Add' %></button></div>
+      <button type="button" class="mt-4 block aspect-[16/6] w-full overflow-hidden rounded-lg bg-field" data-pick-photo-kind="cover" aria-label="Change cover photo"><img class="size-full object-cover" src="<%= meInfo.coverUrl || '/assets/img/default-cover.svg' %>" alt=""></button>
+    </section>
+    <section class="border-b border-line py-4">
+      <div class="flex items-center justify-between"><h3 class="text-xl font-bold">Bio</h3><button type="button" class="btn-ghost text-brand-600" data-toggle="bio-form"><%= meInfo.bio ? 'Edit' : 'Add' %></button></div>
+      <p class="mt-3 whitespace-pre-wrap text-center text-15 <%= meInfo.bio ? '' : 'text-muted' %>"><%= meInfo.bio || 'Describe yourself…' %></p>
+      <form id="bio-form" class="mt-3 hidden" data-api-form data-method="PATCH" data-reload action="/api/profile/details" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <label class="sr-only" for="bio-input">Bio</label>
+        <textarea id="bio-input" name="bio" rows="3" maxlength="240" class="input w-full resize-none bg-field text-center" placeholder="Describe who you are" data-char-count="bio-count"><%= meInfo.bio || '' %></textarea>
+        <p class="mt-1 text-right text-[0.8125rem] text-muted"><span id="bio-count"><%= 240 - (meInfo.bio || '').length %></span> characters remaining</p>
+        <p class="form-error mt-2 hidden" data-form-error role="alert"></p>
+        <div class="mt-3 flex items-center justify-between gap-2">
+          <span class="flex items-center gap-1.5 text-[0.8125rem] text-muted"><svg class="icon size-4"><use href="#<%= meInfo.privacy === 'followers' ? 'i-users' : 'i-globe' %>"/></svg><%= meInfo.privacy === 'followers' ? 'Followers' : 'Public' %></span>
+          <span class="flex gap-2"><button type="button" class="btn-secondary" data-toggle="bio-form">Cancel</button><button type="submit" class="btn-primary">Save</button></span>
+        </div>
+      </form>
+    </section>
+    <section class="py-4">
+      <div class="flex items-center justify-between"><h3 class="text-xl font-bold">Customize your intro</h3><button type="button" class="btn-ghost text-brand-600" data-open-dialog="edit-details-dialog">Edit</button></div>
+      <ul class="mt-3 space-y-3 text-15">
+        <li class="flex items-center gap-3"><svg class="icon text-subtle"><use href="#i-user"/></svg><span><strong class="font-semibold"><%= me.displayName %></strong> <span class="text-muted">@<%= me.username %></span></span></li>
+        <li class="flex items-center gap-3 <%= meInfo.location ? '' : 'text-muted' %>"><svg class="icon text-subtle"><use href="#i-pin"/></svg><%= meInfo.location ? `Lives in ${meInfo.location}` : 'Current city' %></li>
+        <li class="flex items-center gap-3 <%= meInfo.website ? '' : 'text-muted' %>"><svg class="icon text-subtle"><use href="#i-link"/></svg><span class="truncate"><%= meInfo.website || 'Website' %></span></li>
+        <li class="flex items-center gap-3"><svg class="icon text-subtle"><use href="#<%= meInfo.privacy === 'followers' ? 'i-lock' : 'i-globe' %>"/></svg><%= meInfo.privacy === 'followers' ? 'Details visible to followers' : 'Public profile' %></li>
+      </ul>
+    </section>
+    <button type="button" class="btn-soft w-full" data-open-dialog="edit-details-dialog">Edit your about info</button>
+  </div>
+</dialog>
+
+<!-- Edit details -->
+<dialog id="edit-details-dialog" class="w-[min(34rem,calc(100%-1.5rem))] rounded-xl p-0 shadow-pop" aria-labelledby="edit-details-title">
+  <form data-api-form data-method="PATCH" data-reload action="/api/profile/details" method="post">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="relative border-b border-line px-4 py-3 text-center"><h2 id="edit-details-title" class="text-xl font-bold">Edit details</h2><button type="button" class="icon-btn absolute right-3 top-2" data-close-dialog="edit-details-dialog" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button></div>
+    <div class="max-h-[70dvh] space-y-4 overflow-y-auto p-4">
+      <p class="text-15 text-muted">Details you select will appear on your profile.</p>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div><label class="label" for="details-name">Name</label><input class="input mt-1.5 w-full" id="details-name" name="displayName" value="<%= me.displayName %>" required minlength="2" maxlength="60" autocomplete="name"></div>
+        <div><label class="label" for="details-username">Username</label><input class="input mt-1.5 w-full" id="details-username" name="username" value="<%= me.username %>" required pattern="[a-zA-Z0-9_]{3,24}" autocomplete="username"></div>
+      </div>
+      <div><label class="label" for="details-location">Current city</label><div class="input-icon mt-1.5"><svg class="icon size-[1.125rem]"><use href="#i-pin"/></svg><input class="input w-full" id="details-location" name="location" maxlength="80" value="<%= meInfo.location || '' %>" placeholder="e.g. Da Nang, Vietnam"></div></div>
+      <div><label class="label" for="details-website">Website</label><div class="input-icon mt-1.5"><svg class="icon size-[1.125rem]"><use href="#i-link"/></svg><input class="input w-full" id="details-website" name="website" type="url" maxlength="200" value="<%= meInfo.website || '' %>" placeholder="https://"></div></div>
+      <div><label class="label" for="details-privacy">Who can see your details</label><select class="input mt-1.5 w-full" id="details-privacy" name="privacy"><option value="public" <%= meInfo.privacy !== 'followers' ? 'selected' : '' %>>Public — anyone on Oremus</option><option value="followers" <%= meInfo.privacy === 'followers' ? 'selected' : '' %>>Followers only</option></select></div>
+      <p class="form-error hidden" data-form-error role="alert"></p>
+    </div>
+    <div class="flex justify-end gap-2 border-t border-line p-4"><button type="button" class="btn-secondary" data-close-dialog="edit-details-dialog">Cancel</button><button type="submit" class="btn-primary px-6">Save</button></div>
+  </form>
+</dialog>
+
+<!-- Choose profile picture / cover photo -->
+<dialog id="photo-picker-dialog" class="w-[min(43.75rem,calc(100%-1.5rem))] rounded-xl p-0 shadow-pop" aria-labelledby="photo-picker-title" data-photo-picker>
+  <div class="relative border-b border-line px-4 py-3 text-center">
+    <button type="button" class="icon-btn absolute left-3 top-2 hidden" data-picker-back aria-label="Back to photos"><svg class="icon"><use href="#i-arrow-left"/></svg></button>
+    <h2 id="photo-picker-title" class="text-xl font-bold" data-picker-title>Choose profile picture</h2>
+    <button type="button" class="icon-btn absolute right-3 top-2" data-close-dialog="photo-picker-dialog" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button>
+  </div>
+  <!-- Step 1: library -->
+  <div class="max-h-[75dvh] overflow-y-auto p-4" data-picker-list>
+    <div class="flex gap-2">
+      <label class="btn-soft h-10 flex-1 cursor-pointer"><svg class="icon"><use href="#i-plus"/></svg>Upload photo<input type="file" class="sr-only" accept="image/jpeg,image/png,image/webp,image/gif" data-picker-file></label>
+      <button type="button" class="icon-btn size-10 rounded-lg" data-picker-remove title="Remove current photo" aria-label="Remove current photo"><svg class="icon"><use href="#i-trash"/></svg></button>
+    </div>
+    <div class="mt-2" data-picker-sections><p class="py-8 text-center text-muted">Loading your photos…</p></div>
+  </div>
+  <!-- Step 2: preview -->
+  <div class="hidden" data-picker-preview>
+    <div class="flex flex-col items-center bg-canvas px-4 py-5 sm:px-6">
+      <div class="relative cursor-grab touch-none select-none overflow-hidden bg-stage shadow-float outline-none focus-visible:ring-4 focus-visible:ring-brand-200 active:cursor-grabbing" tabindex="0" role="application" aria-roledescription="photo cropper" aria-label="Drag to reposition. Arrow keys move the photo, plus and minus zoom." data-crop-frame>
+        <img class="pointer-events-none absolute left-0 top-0 max-w-none origin-top-left" alt="Selected photo preview" draggable="false" data-picker-image>
+        <div class="pointer-events-none absolute inset-0" data-crop-mask></div>
+        <span class="pointer-events-none absolute left-1/2 top-3 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/55 px-3 py-1.5 text-[0.8125rem] font-semibold text-white" data-crop-hint><svg class="icon size-4"><use href="#i-move"/></svg>Drag to reposition</span>
+      </div>
+      <div class="mt-4 flex w-full max-w-sm items-center gap-3" data-crop-zoom-row>
+        <button type="button" class="icon-btn-ghost" data-crop-zoom="-1" aria-label="Zoom out"><svg class="icon"><use href="#i-minus"/></svg></button>
+        <label class="sr-only" for="crop-zoom">Zoom</label>
+        <input id="crop-zoom" type="range" min="1" max="4" step="0.01" value="1" class="h-1.5 flex-1 cursor-pointer accent-brand-600" data-crop-zoom-input>
+        <button type="button" class="icon-btn-ghost" data-crop-zoom="1" aria-label="Zoom in"><svg class="icon"><use href="#i-plus"/></svg></button>
+      </div>
+    </div>
+    <p class="px-4 pt-3 text-center text-[0.8125rem] text-muted" data-picker-note>Your profile picture is public.</p>
+    <p class="form-error mx-4 mt-3 hidden" data-picker-error role="alert"></p>
+    <div class="flex justify-end gap-2 p-4"><button type="button" class="btn-ghost text-brand-600" data-picker-back>Cancel</button><button type="button" class="btn-primary px-8" data-picker-save>Save</button></div>
+  </div>
+</dialog>

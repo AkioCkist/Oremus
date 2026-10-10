@@ -14,6 +14,7 @@ pageRoutes.get('/profile/:username', asyncHandler(page.profile));
 pageRoutes.get('/posts/:postId', asyncHandler(page.post));
 pageRoutes.get('/groups', asyncHandler(page.groups));
 pageRoutes.get('/groups/:slug', asyncHandler(page.group));
+pageRoutes.get('/g/:groupId', asyncHandler(page.groupById));
 pageRoutes.get('/stories', requirePageAuth, asyncHandler(page.stories));
 pageRoutes.get('/stories/archive', requirePageAuth, asyncHandler(page.storyArchive));
 pageRoutes.get('/stories/:username', requirePageAuth, asyncHandler(page.stories));

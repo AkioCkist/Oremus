@@ -1,6 +1,9 @@
 import request from 'supertest';
+import express from 'express';
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../app.js';
+import { errorHandler } from '../middleware/error.js';
+import { registerSchema } from '../validators/index.js';
 
 describe('authentication boundaries', () => {
   const app = createApp();
@@ -19,5 +22,24 @@ describe('authentication boundaries', () => {
     expect(response.body).toMatchObject({
       error: { code: 'AUTH_REQUIRED', message: 'Please sign in to continue.' },
     });
+  });
+});
+
+describe('validation responses', () => {
+  const app = express();
+  app.get('/auth/validation-test', () => {
+    registerSchema.parse({ email: 'a@example.com', username: 'person', displayName: 'Person', password: 'alllowercase' });
+  });
+  app.use(errorHandler);
+
+  it('returns a friendly message instead of the serialized Zod error', async () => {
+    const response = await request(app).get('/auth/validation-test');
+
+    expect(response.status).toBe(422);
+    expect(response.body.error).toMatchObject({
+      code: 'VALIDATION_ERROR',
+      message: 'Password must include an uppercase letter.'
+    });
+    expect(response.body.error.message).not.toContain('"validation"');
   });
 });

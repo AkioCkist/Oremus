@@ -10,7 +10,7 @@
             <label class="label" for="password">Password <span class="text-red-600" aria-hidden="true">*</span></label>
             <div class="input-icon relative mt-1.5">
               <svg class="icon size-[1.125rem]"><use href="#i-key"/></svg>
-              <input class="input w-full pr-11" id="password" name="password" type="password" autocomplete="new-password" placeholder="••••••••••" required minlength="10" aria-describedby="password-help" data-password-source>
+              <input class="input w-full pr-11" id="password" name="password" type="password" autocomplete="new-password" placeholder="••••••••••" required minlength="10" maxlength="128" pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{10,128}" title="Use at least 10 characters, including an uppercase letter, a lowercase letter, and a number." aria-describedby="password-help" data-password-source>
               <button type="button" class="absolute right-1.5 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-hover" data-toggle-password="password" aria-label="Show password" aria-pressed="false"><svg class="icon size-[1.125rem]"><use href="#i-eye-off"/></svg></button>
             </div>
             <p id="password-help" class="helper">At least 10 characters with upper- and lowercase letters and a number.</p>

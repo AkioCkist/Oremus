@@ -12,8 +12,12 @@ async function assertCanAccessPost(post: any, viewerId: string): Promise<void> {
   const authorId = String(post.authorId?._id || post.authorId);
   if (authorId === viewerId) return;
   if (post.groupId) {
-    const [member, group] = await Promise.all([GroupMember.exists({ groupId: post.groupId, userId: viewerId }), Group.findById(post.groupId).select('privacy').lean()]);
-    if (member || (group as any)?.privacy === 'public') return;
+    const [member, group]: any[] = await Promise.all([GroupMember.findOne({ groupId: post.groupId, userId: viewerId }).select('role').lean(), Group.findById(post.groupId).select('privacy').lean()]);
+    if (post.groupStatus && post.groupStatus !== 'approved') {
+      if (['admin', 'moderator'].includes(member?.role)) return;
+      throw new AppError(403, 'This post is waiting for admin approval.', 'POST_PENDING');
+    }
+    if (member || group?.privacy === 'public') return;
     throw new AppError(403, 'This group post is not available to you.', 'POST_FORBIDDEN');
   }
   if (post.visibility === 'public') return;
@@ -22,12 +26,22 @@ async function assertCanAccessPost(post: any, viewerId: string): Promise<void> {
 }
 
 export async function createPost(authorId: string, input: any, files: Express.Multer.File[] = []) {
-  if (input.groupId && !(await GroupMember.exists({ groupId: input.groupId, userId: authorId }))) throw new AppError(403, 'Join this group before posting.', 'GROUP_MEMBERSHIP_REQUIRED');
+  let groupStatus = 'approved';
+  let groupInfo: any = null;
+  if (input.groupId) {
+    const [member, group]: any[] = await Promise.all([GroupMember.findOne({ groupId: input.groupId, userId: authorId }).select('role').lean(), Group.findById(input.groupId).select('name ownerId settings').lean()]);
+    if (!member || !group) throw new AppError(403, 'Join this group before posting.', 'GROUP_MEMBERSHIP_REQUIRED');
+    const manager = ['admin', 'moderator'].includes(member.role);
+    if (group.settings?.whoCanPost === 'admins' && !manager) throw new AppError(403, 'Only admins can post in this group.', 'GROUP_POSTING_RESTRICTED');
+    if (group.settings?.postApproval && !manager) groupStatus = 'pending';
+    groupInfo = group;
+  }
   const media = files.map((file) => ({ url: `/uploads/${file.filename}`, mimeType: file.mimetype, alt: '' }));
   const content = clean(input.content || '');
   if (!content && media.length === 0) throw new AppError(422, 'Write something or add an image.', 'EMPTY_POST');
-  const post = await Post.create({ authorId, groupId: input.groupId || null, content, visibility: input.visibility, media });
+  const post = await Post.create({ authorId, groupId: input.groupId || null, content, visibility: input.visibility, media, groupStatus });
   if (input.groupId) await GroupPost.create({ groupId: input.groupId, postId: post.id, authorId });
+  if (groupStatus === 'pending') await notify({ recipientId: String(groupInfo.ownerId), actorId: authorId, type: 'group_post', entityType: 'Group', entityId: input.groupId, text: `posted in ${groupInfo.name} and is waiting for approval` });
   await invalidateSocialCaches([authorId]);
   return post;
 }

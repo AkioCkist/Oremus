@@ -1,9 +1,9 @@
 import type { NextFunction, Request, Response } from 'express';
-import { Follow, GroupMember, Notification, Post, User } from '../models/index.js';
+import { Follow, Group, GroupMember, Notification, Post, User } from '../models/index.js';
 import { getFeed, searchAll } from '../services/feed.service.js';
 import { getProfile } from '../services/user.service.js';
 import { getPostDetail, withReactionSummary } from '../services/post.service.js';
-import { getGroup, listGroups } from '../services/group.service.js';
+import { GROUP_ARTWORK, GROUP_TYPE_LABELS, getGroup, inviteCandidates, listGroups } from '../services/group.service.js';
 import { countUnreadConversations, listConversations, listMessages, markConversationRead } from '../services/message.service.js';
 import { getStoryTray, listArchive } from '../services/story.service.js';
 import { AppError } from '../utils/errors.js';
@@ -64,18 +64,26 @@ export async function post(req: Request, res: Response) {
 }
 
 export async function groups(req: Request, res: Response) {
-  const [all, mine] = await Promise.all([listGroups(req.user?.id), req.user ? myGroups(req.user.id, 20) : Promise.resolve([])]);
-  res.render('groups/index', { ...base(req, 'Groups'), groups: all, myGroups: mine });
+  const [all, mine, candidates] = await Promise.all([listGroups(req.user?.id), req.user ? myGroups(req.user.id, 20) : Promise.resolve([]), req.user ? inviteCandidates(req.user.id, null) : Promise.resolve([])]);
+  res.render('groups/index', { ...base(req, 'Groups'), groups: all, myGroups: mine, groupArtwork: GROUP_ARTWORK, groupTypes: GROUP_TYPE_LABELS, inviteCandidates: candidates, openCreate: req.query.create === '1' });
 }
 
 export async function group(req: Request, res: Response) {
   const detail = await getGroup(param(req, 'slug'), req.user?.id);
-  const [posts, members, mine] = await Promise.all([
+  const [posts, members, mine, candidates] = await Promise.all([
     withReactionSummary(detail.posts, req.user?.id),
     GroupMember.find({ groupId: detail.group._id }).sort({ createdAt: 1 }).limit(8).populate('userId', AUTHOR_FIELDS).lean(),
-    req.user ? myGroups(req.user.id, 20) : Promise.resolve([])
+    req.user ? myGroups(req.user.id, 20) : Promise.resolve([]),
+    req.user && detail.member ? inviteCandidates(req.user.id, detail.group._id) : Promise.resolve([])
   ]);
-  res.render('groups/detail', { ...base(req, detail.group.name), ...detail, posts, members: members.map((item: any) => item.userId).filter(Boolean), myGroups: mine });
+  res.render('groups/detail', { ...base(req, detail.group.name), ...detail, posts, members: members.map((item: any) => item.userId).filter(Boolean), myGroups: mine, groupArtwork: GROUP_ARTWORK, groupTypes: GROUP_TYPE_LABELS, inviteCandidates: candidates });
+}
+
+/** Stable link for notifications that only know the group id. */
+export async function groupById(req: Request, res: Response) {
+  const group: any = await Group.findById(param(req, 'groupId')).select('slug').lean().catch(() => null);
+  if (!group) throw new AppError(404, 'Group not found.', 'GROUP_NOT_FOUND');
+  res.redirect(`/groups/${group.slug}`);
 }
 
 export async function messages(req: Request, res: Response) {

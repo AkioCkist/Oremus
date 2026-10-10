@@ -6,12 +6,14 @@
     comment: { icon: 'i-comment', bg: 'bg-[#45bd62]' },
     follow: { icon: 'i-user-plus', bg: 'bg-brand-600' },
     group_request: { icon: 'i-group', bg: 'bg-[#f7b928]' },
+    group_invite: { icon: 'i-group', bg: 'bg-brand-600' },
+    group_post: { icon: 'i-feed', bg: 'bg-[#45bd62]' },
     message: { icon: 'i-chat', bg: 'bg-[#0084ff]' }
   };
   const hrefOf = function (n) {
     if (n.entityType === 'Post') return `/posts/${n.entityId}`;
     if (n.entityType === 'Conversation') return `/messages/${n.entityId}`;
-    if (n.entityType === 'Group') return '/groups';
+    if (n.entityType === 'Group') return `/g/${n.entityId}`;
     if (n.entityType === 'Story') return '/stories/archive';
     return `/profile/${n.actorId.username}`;
   };

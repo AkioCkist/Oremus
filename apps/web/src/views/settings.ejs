@@ -16,44 +16,31 @@
 
   <section class="px-3 py-5 pb-24 sm:px-6">
     <div class="mx-auto max-w-2xl space-y-4">
-      <form class="space-y-4" data-api-form data-method="PATCH" action="/api/profile" method="post" enctype="multipart/form-data">
-        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <section id="profile" class="card scroll-mt-20 p-5">
-          <h2 class="card-title text-xl">Profile</h2>
-          <p class="text-15 text-muted">How people see you on Oremus.</p>
-          <div class="mt-4 grid gap-4 sm:grid-cols-2">
-            <div><label class="label" for="displayName">Name</label><input class="input mt-1.5 w-full" id="displayName" name="displayName" value="<%= currentUser.displayName %>" required minlength="2" maxlength="60" autocomplete="name"></div>
-            <div><label class="label" for="username">Username</label><input class="input mt-1.5 w-full" id="username" name="username" value="<%= currentUser.username %>" required pattern="[a-zA-Z0-9_]{3,24}" autocomplete="username" aria-describedby="username-help"><p id="username-help" class="helper">oremus.app/profile/<%= currentUser.username %></p></div>
-          </div>
-          <div class="mt-4"><label class="label" for="bio">Bio</label><textarea class="input mt-1.5 w-full" id="bio" name="bio" rows="3" maxlength="240" placeholder="Describe who you are"><%= info.bio || '' %></textarea></div>
-          <div class="mt-4 grid gap-4 sm:grid-cols-2">
-            <div><label class="label" for="location">Current city</label><input class="input mt-1.5 w-full" id="location" name="location" maxlength="80" value="<%= info.location || '' %>" placeholder="e.g. Da Nang, Vietnam"></div>
-            <div><label class="label" for="website">Website</label><input class="input mt-1.5 w-full" id="website" name="website" type="url" maxlength="200" value="<%= info.website || '' %>" placeholder="https://"></div>
-          </div>
-        </section>
-        <section id="photos" class="card scroll-mt-20 p-5">
-          <h2 class="card-title text-xl">Profile picture &amp; cover</h2>
-          <div class="mt-4 grid gap-5 sm:grid-cols-[auto_1fr] sm:items-center">
-            <%- include('partials/avatar', { person: currentUser, size: 'size-24 text-3xl' }) %>
-            <div><label class="label" for="avatar">Profile picture</label><input class="file-input mt-1.5" id="avatar" name="avatar" type="file" accept="image/jpeg,image/png,image/webp,image/gif"></div>
-          </div>
-          <div class="mt-5">
-            <label class="label" for="cover">Cover photo</label>
-            <div class="mt-1.5 aspect-[16/5] overflow-hidden rounded-lg bg-field"><img class="size-full object-cover" src="<%= info.coverUrl || '/assets/img/default-cover.svg' %>" alt=""></div>
-            <input class="file-input mt-2" id="cover" name="cover" type="file" accept="image/jpeg,image/png,image/webp,image/gif">
-          </div>
-        </section>
-        <section id="privacy" class="card scroll-mt-20 p-5">
-          <h2 class="card-title text-xl">Privacy</h2>
-          <label class="label mt-4 block" for="privacy-select">Who can see your profile details</label>
-          <select class="input mt-1.5 w-full" id="privacy-select" name="privacy"><option value="public" <%= info.privacy !== 'followers' ? 'selected' : '' %>>Public — anyone on Oremus</option><option value="followers" <%= info.privacy === 'followers' ? 'selected' : '' %>>Followers only</option></select>
-        </section>
-        <div class="card sticky bottom-16 flex items-center justify-between gap-3 p-4 md:bottom-4">
-          <p class="form-error hidden flex-1" data-form-error role="alert"></p>
-          <span class="flex-1 text-[0.8125rem] text-muted">Changes apply to your profile right away.</span>
-          <button class="btn-primary" type="submit">Save changes</button>
+      <section id="profile" class="card scroll-mt-20 overflow-hidden">
+        <div class="relative aspect-[16/5] bg-field"><img class="size-full object-cover" src="<%= info.coverUrl || '/assets/img/default-cover.svg' %>" alt=""><button type="button" class="btn absolute bottom-3 right-3 bg-white text-ink shadow-card hover:bg-hover" data-pick-photo-kind="cover"><svg class="icon"><use href="#i-camera"/></svg><span class="hidden sm:inline">Edit cover photo</span></button></div>
+        <div class="flex flex-wrap items-end gap-4 px-5 pb-5">
+          <div class="relative -mt-10"><%- include('partials/avatar', { person: currentUser, size: 'size-24 text-3xl ring-4 ring-white' }) %><button type="button" class="icon-btn absolute -bottom-1 -right-1 size-9" data-pick-photo-kind="avatar" aria-label="Update profile picture"><svg class="icon size-[1.125rem]"><use href="#i-camera"/></svg></button></div>
+          <div class="min-w-0 flex-1"><h2 class="truncate text-xl font-bold"><%= currentUser.displayName %></h2><p class="truncate text-15 text-muted">@<%= currentUser.username %><%= info.location ? ' · ' + info.location : '' %></p></div>
+          <div class="flex gap-2"><button type="button" class="btn-primary" data-open-dialog="edit-profile-dialog"><svg class="icon"><use href="#i-edit"/></svg>Edit profile</button><a class="btn-secondary" href="/profile/<%= currentUser.username %>">View profile</a></div>
         </div>
-      </form>
+      </section>
+      <section id="photos" class="card scroll-mt-20 p-5">
+        <h2 class="card-title text-xl">Photos</h2>
+        <p class="mt-1 text-15 text-muted">Pick from your uploads and previous photos, or upload a new one.</p>
+        <div class="mt-4 grid gap-2 sm:grid-cols-2">
+          <button type="button" class="flex items-center gap-3 rounded-lg p-2 text-left hover:bg-hover" data-pick-photo-kind="avatar"><span class="icon-btn"><svg class="icon"><use href="#i-user"/></svg></span><span><span class="block font-semibold">Profile picture</span><span class="block text-[0.8125rem] text-muted">Choose or upload</span></span></button>
+          <button type="button" class="flex items-center gap-3 rounded-lg p-2 text-left hover:bg-hover" data-pick-photo-kind="cover"><span class="icon-btn"><svg class="icon"><use href="#i-image"/></svg></span><span><span class="block font-semibold">Cover photo</span><span class="block text-[0.8125rem] text-muted">Choose or upload</span></span></button>
+        </div>
+      </section>
+      <section id="privacy" class="card scroll-mt-20 p-5">
+        <h2 class="card-title text-xl">Privacy</h2>
+        <form class="mt-3 flex flex-wrap items-end gap-3" data-api-form data-method="PATCH" action="/api/profile/details" method="post">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <div class="min-w-[14rem] flex-1"><label class="label" for="privacy-select">Who can see your profile details</label><select class="input mt-1.5 w-full" id="privacy-select" name="privacy"><option value="public" <%= info.privacy !== 'followers' ? 'selected' : '' %>>Public — anyone on Oremus</option><option value="followers" <%= info.privacy === 'followers' ? 'selected' : '' %>>Followers only</option></select></div>
+          <button class="btn-secondary" type="submit">Save</button>
+          <p class="form-error hidden w-full" data-form-error role="alert"></p>
+        </form>
+      </section>
 
       <section id="stories" class="card scroll-mt-20 p-5">
         <h2 class="card-title text-xl">Stories</h2>

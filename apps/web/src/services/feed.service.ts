@@ -12,7 +12,7 @@ export async function getFeed(userId: string, page = 1, limit = 15) {
   ]);
   const following = new Set(follows.map((item: any) => String(item.followingId)));
   const groupIds = memberships.map((item: any) => item.groupId);
-  const candidates = await Post.find({ deletedAt: null, $or: [{ authorId: userId, groupId: null }, { groupId: null, visibility: 'public' }, { authorId: { $in: [...following] }, groupId: null, visibility: 'followers' }, { groupId: { $in: groupIds } }] })
+  const candidates = await Post.find({ deletedAt: null, groupStatus: { $nin: ['pending', 'declined'] }, $or: [{ authorId: userId, groupId: null }, { groupId: null, visibility: 'public' }, { authorId: { $in: [...following] }, groupId: null, visibility: 'followers' }, { groupId: { $in: groupIds } }] })
     .sort({ createdAt: -1 }).limit(120).populate('authorId', 'username displayName profile.avatarUrl').populate('groupId', 'name slug').lean();
   const payload = candidates.map((post: any) => ({ post_id: String(post._id), author_id: String(post.authorId?._id || post.authorId), created_at: post.createdAt, reaction_count: post.reactionCount, comment_count: post.commentCount, is_following: following.has(String(post.authorId?._id || post.authorId)), is_group_member: post.groupId ? groupIds.some((id: any) => String(id) === String(post.groupId?._id || post.groupId)) : false }));
   let orderedIds: string[];

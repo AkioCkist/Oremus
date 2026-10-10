@@ -1,4 +1,4 @@
-import { Follow, User } from '../models/index.js';
+import { Follow, Post, User } from '../models/index.js';
 import { AppError } from '../utils/errors.js';
 import { cacheGet, cacheSet, invalidateSocialCaches } from './cache.service.js';
 import { notify } from './notification.service.js';
@@ -44,3 +44,55 @@ export async function toggleFollow(actorId: string, targetId: string) {
   return { following: true };
 }
 
+
+const HISTORY_LIMIT = 12;
+const unique = (values: Array<string | undefined | null>) => [...new Set(values.filter((value): value is string => !!value))];
+
+/** Photos the user may pick from: their post images plus previous profile pictures and covers. */
+export async function getPhotoLibrary(userId: string) {
+  const [user, posts] = await Promise.all([
+    User.findById(userId).select('profile').lean(),
+    Post.find({ authorId: userId, deletedAt: null, 'media.0': { $exists: true } }).sort({ createdAt: -1 }).limit(60).select('media').lean()
+  ]);
+  if (!user) throw new AppError(404, 'User not found.', 'USER_NOT_FOUND');
+  const profile: any = (user as any).profile || {};
+  const uploads = unique(posts.flatMap((post: any) => (post.media || []).filter((media: any) => String(media.mimeType).startsWith('image/')).map((media: any) => media.url)));
+  const profilePictures = unique([profile.avatarUrl, ...(profile.avatarHistory || [])]);
+  const coverPhotos = unique([profile.coverUrl, ...(profile.coverHistory || [])]);
+  return { suggested: unique([...uploads, ...profilePictures, ...coverPhotos]).slice(0, 6), uploads, profilePictures, coverPhotos, current: { avatarUrl: profile.avatarUrl || '', coverUrl: profile.coverUrl || '' } };
+}
+
+/** Partial profile update used by the Edit profile / Edit details popups. */
+export async function updateProfileDetails(userId: string, input: Record<string, string | undefined>) {
+  if (input.username && await User.exists({ username: input.username, _id: { $ne: userId } })) throw new AppError(409, 'That username is already in use.', 'USERNAME_TAKEN');
+  const fields: Record<string, string> = { displayName: 'displayName', username: 'username', bio: 'profile.bio', location: 'profile.location', website: 'profile.website', privacy: 'profile.privacy' };
+  const update: Record<string, string> = {};
+  for (const [key, path] of Object.entries(fields)) if (input[key] !== undefined) update[path] = input[key]!;
+  if (!Object.keys(update).length) throw new AppError(422, 'Nothing to update.', 'EMPTY_UPDATE');
+  const user = await User.findByIdAndUpdate(userId, update, { new: true, runValidators: true });
+  await invalidateSocialCaches([userId]);
+  return user;
+}
+
+/** Sets the profile picture or cover from a new upload, a photo from the library, or removes it. */
+export async function setProfilePhoto(userId: string, input: { kind: 'avatar' | 'cover'; url?: string; remove: boolean }, file?: Express.Multer.File) {
+  const user = await User.findById(userId);
+  if (!user) throw new AppError(404, 'User not found.', 'USER_NOT_FOUND');
+  let url: string;
+  if (file) url = `/uploads/${file.filename}`;
+  else if (input.remove) url = '';
+  else {
+    const library = await getPhotoLibrary(userId);
+    const allowed = new Set([...library.uploads, ...library.profilePictures, ...library.coverPhotos]);
+    if (!input.url || !allowed.has(input.url)) throw new AppError(422, 'Choose one of your photos or upload a new one.', 'INVALID_PHOTO');
+    url = input.url;
+  }
+  const field = input.kind === 'avatar' ? 'avatarUrl' : 'coverUrl';
+  const historyField = input.kind === 'avatar' ? 'avatarHistory' : 'coverHistory';
+  const profile: any = user.profile;
+  profile[historyField] = unique([url, profile[field], ...(profile[historyField] || [])]).slice(0, HISTORY_LIMIT);
+  profile[field] = url;
+  await user.save();
+  await invalidateSocialCaches([userId]);
+  return user;
+}

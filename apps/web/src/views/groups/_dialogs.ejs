@@ -1,0 +1,167 @@
+<%#
+  Group popups. Locals: formMode ('create' | 'edit'), optional group (edit mode), groupArtwork, groupTypes, inviteCandidates.
+-%>
+<% const g = locals.group || null; const editing = formMode === 'edit'; const candidates = locals.inviteCandidates || []; -%>
+<script type="application/json" id="group-form-data"><%- JSON.stringify({
+  mode: formMode,
+  groupId: g ? String(g._id) : null,
+  artwork: groupArtwork,
+  group: g ? { name: g.name, description: g.description || '', privacy: g.privacy, visibility: g.visibility || 'visible', groupType: g.groupType || 'general', location: g.location || '', tags: g.tags || [], rules: g.rules || [], questions: g.questions || [], settings: Object.assign({ whoCanPost: 'anyone', postApproval: false, whoCanApprove: 'admins' }, g.settings || {}), coverUrl: g.coverUrl || '' } : null,
+  types: groupTypes,
+  me: { displayName: currentUser.displayName }
+}).replace(/</g, '\\u003c') %></script>
+
+<!-- Create / edit group -->
+<dialog id="group-dialog" class="m-auto h-[min(48rem,calc(100dvh-1.5rem))] w-[min(72rem,calc(100%-1.5rem))] max-w-none overflow-hidden rounded-xl p-0 shadow-pop" aria-labelledby="group-dialog-title" data-group-dialog>
+  <form class="grid h-full lg:grid-cols-[23.5rem_minmax(0,1fr)]" data-group-form novalidate>
+    <!-- Left: settings -->
+    <div class="flex min-h-0 flex-col border-r border-line bg-white">
+      <div class="flex items-center gap-2 border-b border-line px-4 py-3">
+        <button type="button" class="icon-btn" data-close-dialog="group-dialog" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button>
+        <div class="min-w-0"><p class="text-[0.8125rem] text-muted">Groups › <%= editing ? 'Settings' : 'Create group' %></p><h2 id="group-dialog-title" class="truncate text-2xl font-bold"><%= editing ? 'Edit group' : 'Create group' %></h2></div>
+      </div>
+      <div class="flex items-center gap-3 px-4 pt-3">
+        <%- include('../partials/avatar', { person: currentUser, size: 'size-10 text-sm' }) %>
+        <div><p class="font-semibold leading-tight"><%= currentUser.displayName %></p><p class="text-[0.8125rem] text-muted">Admin</p></div>
+      </div>
+      <nav class="flex gap-1 px-4 pt-3" role="tablist" aria-label="Group setup steps">
+        <% [['basics', 'Basics'], ['personalize', 'Personalize'], ['membership', 'Rules']].forEach(function (step, i) { %>
+        <button type="button" role="tab" class="chip flex-1 justify-center px-2 text-[0.8125rem]" data-group-step-tab="<%= step[0] %>" aria-selected="<%= i === 0 ? 'true' : 'false' %>"><span class="grid size-5 place-items-center rounded-full bg-[#e4e6eb] text-2xs" data-step-number><%= i + 1 %></span><%= step[1] %></button>
+        <% }) %>
+      </nav>
+
+      <div class="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+        <!-- Step 1: basics -->
+        <section class="space-y-4 pt-4" data-group-step="basics" role="tabpanel">
+          <div><label class="label" for="g-name">Group name</label><input id="g-name" class="input mt-1.5 w-full" maxlength="80" placeholder="Group name" data-g="name" required></div>
+          <fieldset>
+            <legend class="label">Choose privacy</legend>
+            <div class="mt-1.5 space-y-2">
+              <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-line p-3 has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50"><span class="icon-btn size-9 shrink-0"><svg class="icon size-[1.125rem]"><use href="#i-globe"/></svg></span><span class="flex-1"><span class="block font-semibold">Public</span><span class="block text-[0.8125rem] text-muted">Anyone can see who's in the group and what they post.</span></span><input type="radio" name="g-privacy" value="public" class="check mt-1 size-5" data-g="privacy"></label>
+              <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-line p-3 has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50"><span class="icon-btn size-9 shrink-0"><svg class="icon size-[1.125rem]"><use href="#i-lock"/></svg></span><span class="flex-1"><span class="block font-semibold">Private</span><span class="block text-[0.8125rem] text-muted">Only members can see who's in the group and what they post.</span></span><input type="radio" name="g-privacy" value="private" class="check mt-1 size-5" data-g="privacy"></label>
+            </div>
+          </fieldset>
+          <fieldset data-g-visibility-block>
+            <legend class="label">Hide group</legend>
+            <div class="mt-1.5 space-y-2">
+              <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-line p-3 has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50"><span class="icon-btn size-9 shrink-0"><svg class="icon size-[1.125rem]"><use href="#i-eye"/></svg></span><span class="flex-1"><span class="block font-semibold">Visible</span><span class="block text-[0.8125rem] text-muted">Anyone can find this group.</span></span><input type="radio" name="g-visibility" value="visible" class="check mt-1 size-5" data-g="visibility"></label>
+              <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-line p-3 has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50"><span class="icon-btn size-9 shrink-0"><svg class="icon size-[1.125rem]"><use href="#i-eye-off"/></svg></span><span class="flex-1"><span class="block font-semibold">Hidden</span><span class="block text-[0.8125rem] text-muted">Only members and invited people can find this group.</span></span><input type="radio" name="g-visibility" value="hidden" class="check mt-1 size-5" data-g="visibility"></label>
+            </div>
+          </fieldset>
+          <div><label class="label" for="g-type">Group type</label><select id="g-type" class="input mt-1.5 w-full" data-g="groupType"><% Object.keys(groupTypes).forEach(function (key) { %><option value="<%= key %>"><%= groupTypes[key] %></option><% }) %></select><p class="helper">Helps people understand what your group is for.</p></div>
+          <div>
+            <p class="label">Invite people <span class="font-normal text-muted">(optional)</span></p>
+            <% if (candidates.length) { %>
+            <div class="relative mt-1.5"><svg class="icon pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"><use href="#i-search"/></svg><input type="search" class="pill-input pl-9" placeholder="Search for people" data-invite-filter="group-dialog" aria-label="Search people to invite"></div>
+            <ul class="mt-2 max-h-56 space-y-0.5 overflow-y-auto" data-invite-list="group-dialog">
+              <% candidates.forEach(function (p) { %>
+              <li data-invite-name="<%= p.displayName.toLowerCase() %>"><label class="flex cursor-pointer items-center gap-3 rounded-lg p-2 hover:bg-hover"><%- include('../partials/avatar', { person: p, size: 'size-9 text-xs' }) %><span class="min-w-0 flex-1"><span class="block truncate font-medium"><%= p.displayName %></span><% if (p.invited) { %><span class="block text-xs text-muted">Already invited</span><% } %></span><input type="checkbox" class="check size-5" value="<%= p._id %>" data-g-invite <%= p.invited ? 'disabled' : '' %>></label></li>
+              <% }) %>
+            </ul>
+            <% } else { %><p class="mt-1.5 text-[0.8125rem] text-muted">Follow people to invite them to your groups.</p><% } %>
+          </div>
+        </section>
+
+        <!-- Step 2: personalize -->
+        <section class="hidden space-y-4 pt-4" data-group-step="personalize" role="tabpanel">
+          <div>
+            <p class="label">Cover photo</p>
+            <div class="relative mt-1.5 aspect-[16/6] overflow-hidden rounded-lg bg-field"><img class="size-full object-cover" alt="" src="/assets/img/default-cover.svg" data-g-cover-thumb></div>
+            <div class="mt-2 flex gap-2"><button type="button" class="btn-secondary flex-1" data-g-pick-cover><svg class="icon"><use href="#i-camera"/></svg>Choose or upload</button><button type="button" class="btn-ghost" data-g-remove-cover>Remove</button></div>
+          </div>
+          <div><label class="label" for="g-description">Description</label><textarea id="g-description" rows="4" maxlength="500" class="input mt-1.5 w-full resize-none" placeholder="What is this group about?" data-g="description" data-char-count="g-description-count"></textarea><p class="mt-1 text-right text-xs text-muted"><span id="g-description-count">500</span> characters remaining</p></div>
+          <div><label class="label" for="g-location">Location</label><div class="input-icon mt-1.5"><svg class="icon size-[1.125rem]"><use href="#i-pin"/></svg><input id="g-location" class="input w-full" maxlength="80" placeholder="e.g. Da Nang, Vietnam" data-g="location"></div></div>
+          <div>
+            <label class="label" for="g-tag-input">Topics</label>
+            <div class="mt-1.5 flex min-h-11 flex-wrap items-center gap-1.5 rounded-lg border border-[#ccd0d5] px-2 py-1.5 focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-100" data-g-tags>
+              <input id="g-tag-input" class="min-w-[8rem] flex-1 border-0 bg-transparent px-1 py-1 text-15 focus:outline-none focus:ring-0" maxlength="30" placeholder="Add a topic and press Enter" data-g-tag-input>
+            </div>
+            <p class="helper">Up to 5 topics help people discover your group.</p>
+            <div class="mt-2 flex flex-wrap gap-1.5" data-g-tag-suggestions>
+              <% ['community', 'photography', 'gardening', 'travel', 'food', 'fitness', 'tech', 'books'].forEach(function (tag) { %><button type="button" class="chip h-7 px-2.5 text-xs" data-g-add-tag="<%= tag %>">+ <%= tag %></button><% }) %>
+            </div>
+          </div>
+        </section>
+
+        <!-- Step 3: rules & membership -->
+        <section class="hidden space-y-5 pt-4" data-group-step="membership" role="tabpanel">
+          <div>
+            <div class="flex items-center justify-between"><p class="label">Group rules</p><span class="text-xs text-muted"><span data-g-rule-count>0</span>/10</span></div>
+            <ol class="mt-2 space-y-2" data-g-rules></ol>
+            <button type="button" class="btn-secondary mt-2 w-full" data-g-add-rule><svg class="icon"><use href="#i-plus"/></svg>Add rule</button>
+            <p class="mt-3 text-xs font-semibold text-muted">Example rules</p>
+            <div class="mt-1.5 flex flex-wrap gap-1.5">
+              <% ['Be kind and courteous', 'No hate speech or bullying', 'No promotions or spam', "Respect everyone's privacy"].forEach(function (rule) { %><button type="button" class="chip h-7 px-2.5 text-xs" data-g-example-rule="<%= rule %>">+ <%= rule %></button><% }) %>
+            </div>
+          </div>
+          <div>
+            <div class="flex items-center justify-between"><p class="label">Membership questions</p><span class="text-xs text-muted"><span data-g-question-count>0</span>/3</span></div>
+            <p class="helper mt-0.5">Asked when people request to join a private group.</p>
+            <ol class="mt-2 space-y-2" data-g-questions></ol>
+            <button type="button" class="btn-secondary mt-2 w-full" data-g-add-question><svg class="icon"><use href="#i-plus"/></svg>Add question</button>
+          </div>
+          <fieldset>
+            <legend class="label">Who can post</legend>
+            <div class="mt-1.5 grid grid-cols-2 gap-2">
+              <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-line p-2.5 text-15 has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50"><input type="radio" name="g-who-post" value="anyone" class="check" data-g="settings.whoCanPost">Anyone in the group</label>
+              <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-line p-2.5 text-15 has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50"><input type="radio" name="g-who-post" value="admins" class="check" data-g="settings.whoCanPost">Only admins</label>
+            </div>
+          </fieldset>
+          <label class="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-line p-3">
+            <span><span class="block font-semibold">Approve all member posts</span><span class="block text-[0.8125rem] text-muted">Posts from members must be approved by an admin or moderator.</span></span>
+            <input type="checkbox" class="peer sr-only" data-g="settings.postApproval">
+            <span class="relative h-6 w-11 shrink-0 rounded-full bg-[#ccd0d5] transition-colors after:absolute after:left-0.5 after:top-0.5 after:size-5 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:bg-brand-600 peer-checked:after:translate-x-5 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-500" aria-hidden="true"></span>
+          </label>
+          <fieldset>
+            <legend class="label">Who can approve member requests</legend>
+            <div class="mt-1.5 grid grid-cols-2 gap-2">
+              <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-line p-2.5 text-15 has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50"><input type="radio" name="g-who-approve" value="admins" class="check" data-g="settings.whoCanApprove">Admins &amp; moderators</label>
+              <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-line p-2.5 text-15 has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50"><input type="radio" name="g-who-approve" value="anyone" class="check" data-g="settings.whoCanApprove">Anyone in the group</label>
+            </div>
+          </fieldset>
+        </section>
+      </div>
+
+      <div class="border-t border-line p-4">
+        <p class="form-error mb-3 hidden" data-group-error role="alert"></p>
+        <div class="flex gap-2">
+          <button type="button" class="btn-secondary flex-1" data-group-back>Back</button>
+          <button type="button" class="btn-primary flex-1" data-group-next>Next</button>
+          <button type="submit" class="btn-primary flex-1 hidden" data-group-submit><%= editing ? 'Save changes' : 'Create' %></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: live preview -->
+    <div class="hidden min-h-0 overflow-y-auto bg-canvas p-6 lg:block" aria-label="Preview">
+      <div class="card overflow-hidden">
+        <p class="border-b border-line px-4 py-3 text-15 font-semibold">Desktop preview</p>
+        <div class="p-4">
+          <div class="overflow-hidden rounded-lg border border-line">
+            <div class="aspect-[16/6] bg-field"><img class="size-full object-cover" alt="" src="/assets/img/default-cover.svg" data-gp-cover></div>
+            <div class="px-4 pb-3 pt-4">
+              <p class="font-display text-2xl font-extrabold text-muted" data-gp-name>Group name</p>
+              <p class="mt-1 flex items-center gap-1.5 text-15 text-muted"><svg class="icon size-4"><use href="#i-globe" data-gp-privacy-icon/></svg><span data-gp-privacy>Public group</span> · <span><%= editing && g ? plural(g.memberCount, 'member') : '1 member' %></span></p>
+              <div class="mt-3 flex border-t border-line pt-1 text-[0.8125rem] font-semibold text-muted"><span class="tab h-10 px-3 tab-active">Discussion</span><span class="tab h-10 px-3">About</span><span class="tab h-10 px-3">Members</span></div>
+            </div>
+          </div>
+          <div class="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_16rem]">
+            <div class="space-y-3">
+              <div class="rounded-lg border border-line p-3"><div class="flex items-center gap-2"><span class="size-9 rounded-full bg-field"></span><span class="h-9 flex-1 rounded-full bg-field"></span></div></div>
+              <div class="rounded-lg border border-line p-3"><div class="flex items-center gap-2"><span class="size-9 rounded-full bg-field"></span><span class="h-3 w-32 rounded bg-field"></span></div><div class="mt-3 h-3 w-full rounded bg-field"></div><div class="mt-2 h-3 w-2/3 rounded bg-field"></div></div>
+            </div>
+            <div class="space-y-3 rounded-lg border border-line p-3 text-[0.8125rem]">
+              <p class="text-15 font-bold">About</p>
+              <p class="whitespace-pre-wrap text-muted" data-gp-description>Your description will appear here.</p>
+              <p class="flex items-center gap-2"><svg class="icon size-4 text-subtle"><use href="#i-eye" data-gp-visibility-icon/></svg><span data-gp-visibility>Visible</span></p>
+              <p class="flex items-center gap-2"><svg class="icon size-4 text-subtle"><use href="#i-briefcase"/></svg><span data-gp-type>General</span></p>
+              <p class="hidden items-center gap-2" data-gp-location-row><svg class="icon size-4 text-subtle"><use href="#i-pin"/></svg><span data-gp-location></span></p>
+              <div class="flex flex-wrap gap-1" data-gp-tags></div>
+              <p class="hidden text-muted" data-gp-rules></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+</dialog>

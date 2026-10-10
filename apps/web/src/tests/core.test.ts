@@ -5,7 +5,9 @@ import { assertOwner } from '../services/permissions.js';
 
 describe('authentication policy', () => {
   it('requires a strong password during registration', () => {
-    expect(() => registerSchema.parse({ email: 'a@example.com', username: 'person', displayName: 'Person', password: 'weak' })).toThrow();
+    const result = registerSchema.safeParse({ email: 'a@example.com', username: 'person', displayName: 'Person', password: 'alllowercase' });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.issues[0]?.message).toBe('Password must include an uppercase letter.');
   });
   it('stores password-compatible hashes rather than plaintext', async () => {
     const hash = await bcrypt.hash('CircleSpace123', 4);

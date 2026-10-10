@@ -64,6 +64,8 @@
   </form>
 </dialog>
 
+<%- include('profile-dialogs') %>
+
 <dialog id="story-dialog" class="w-[min(56rem,calc(100%-1.5rem))] rounded-xl p-0 shadow-pop" aria-labelledby="story-dialog-title">
   <form data-api-form action="/api/stories" method="post" enctype="multipart/form-data" data-story-form class="grid md:grid-cols-[20rem_1fr]">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">

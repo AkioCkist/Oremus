@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildStoryTray, canViewStory } from '../services/story.service.js';
-import { storyReactionSchema, storyReplySchema, storySchema } from '../validators/index.js';
+import { groupJoinSchema, groupSchema, profileDetailsSchema, profilePhotoSchema, storyReactionSchema, storyReplySchema, storySchema } from '../validators/index.js';
 import { extractLinks, initials, timeAgo, toneOf } from '../utils/view-helpers.js';
 
 const author = (id: string, name: string) => ({ _id: id, username: name.toLowerCase(), displayName: name, profile: { avatarUrl: '' } });
@@ -70,5 +70,35 @@ describe('view helpers', () => {
   });
   it('extracts unique links from chat text', () => {
     expect(extractLinks('see https://a.dev/x and https://a.dev/x, http://b.io')).toEqual(['https://a.dev/x', 'http://b.io']);
+  });
+});
+
+describe('profile popups validation', () => {
+  it('accepts partial profile updates without filling defaults', () => {
+    expect(profileDetailsSchema.parse({ bio: 'Hi' })).toEqual({ bio: 'Hi' });
+    expect(() => profileDetailsSchema.parse({ username: 'no spaces' })).toThrow();
+  });
+  it('requires a photo kind and coerces remove', () => {
+    expect(profilePhotoSchema.parse({ kind: 'cover', remove: 'true' }).remove).toBe(true);
+    expect(() => profilePhotoSchema.parse({ kind: 'banner' })).toThrow();
+  });
+});
+
+describe('group creation options', () => {
+  it('forces public groups to stay visible and dedupes topics', () => {
+    const group = groupSchema.parse({ name: 'Runners', privacy: 'public', visibility: 'hidden', tags: ['Run', 'run'] });
+    expect(group.visibility).toBe('visible');
+    expect(group.tags).toEqual(['run']);
+    expect(group.settings).toEqual({ whoCanPost: 'anyone', postApproval: false, whoCanApprove: 'admins' });
+  });
+  it('keeps private groups hidden when asked and caps rules and questions', () => {
+    expect(groupSchema.parse({ name: 'Secret club', privacy: 'private', visibility: 'hidden' }).visibility).toBe('hidden');
+    expect(() => groupSchema.parse({ name: 'Too many', questions: ['a', 'b', 'c', 'd'] })).toThrow();
+    expect(() => groupSchema.parse({ name: 'Too many', rules: Array.from({ length: 11 }, () => ({ title: 'x' })) })).toThrow();
+    expect(() => groupSchema.parse({ name: 'Bad type', groupType: 'casino' })).toThrow();
+  });
+  it('accepts join answers and rule agreement', () => {
+    expect(groupJoinSchema.parse({})).toEqual({ answers: [], agreeRules: false });
+    expect(groupJoinSchema.parse({ answers: ['Fuji X100'], agreeRules: true }).agreeRules).toBe(true);
   });
 });

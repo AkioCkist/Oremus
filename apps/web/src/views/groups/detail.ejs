@@ -1,43 +1,84 @@
 <%- include('../partials/head') %><%- include('../partials/nav') %>
-<% const isAdmin = member && ['admin', 'moderator'].includes(member.role); const canSee = group.privacy === 'public' || member; -%>
+<%
+  const canSee = group.privacy === 'public' || member;
+  const privacyIcon = group.visibility === 'hidden' ? 'i-eye-off' : group.privacy === 'private' ? 'i-lock' : 'i-globe';
+  const privacyLabel = group.privacy === 'private' ? (group.visibility === 'hidden' ? 'Private · Hidden' : 'Private') : 'Public';
+  const settings = group.settings || {};
+  const rules = group.rules || [];
+  const questions = group.questions || [];
+  const needsJoinForm = group.privacy === 'private' && !(invite && invite.byAdmin) && (rules.length || questions.length);
+-%>
 <main id="main" class="pb-24 md:pb-10">
   <section class="bg-white shadow-card">
     <div class="mx-auto max-w-[71.25rem]">
       <div class="relative aspect-[16/6] max-h-[25rem] overflow-hidden bg-field sm:rounded-b-xl">
         <img class="size-full object-cover" src="<%= group.coverUrl || '/assets/img/default-cover.svg' %>" alt="">
+        <% if (isAdmin) { %><button type="button" class="btn absolute bottom-4 right-4 bg-white text-ink shadow-card hover:bg-hover" data-open-group-dialog data-group-step-open="personalize"><svg class="icon"><use href="#i-camera"/></svg><span class="hidden sm:inline">Edit cover</span></button><% } %>
       </div>
       <div class="px-4 lg:px-8">
         <div class="flex flex-col gap-4 border-b border-line py-5 md:flex-row md:items-end md:justify-between">
           <div class="min-w-0">
             <h1 class="text-balance font-display text-[2rem] font-extrabold leading-tight"><%= group.name %></h1>
-            <p class="mt-1 flex items-center gap-1.5 font-semibold text-muted"><svg class="icon size-4"><use href="#<%= group.privacy === 'private' ? 'i-lock' : 'i-globe' %>"/></svg><%= group.privacy === 'private' ? 'Private' : 'Public' %> group · <%= plural(group.memberCount, 'member') %></p>
+            <p class="mt-1 flex flex-wrap items-center gap-1.5 font-semibold text-muted"><svg class="icon size-4"><use href="#<%= privacyIcon %>"/></svg><%= privacyLabel %> group · <%= plural(group.memberCount, 'member') %><% if (group.groupType && group.groupType !== 'general') { %> · <%= groupTypes[group.groupType] %><% } %></p>
             <% if (members.length) { %>
-            <div class="mt-3 flex -space-x-2">
-              <% members.forEach(function (p) { %><a href="/profile/<%= p.username %>" title="<%= p.displayName %>"><%- include('../partials/avatar', { person: p, size: 'size-9 text-xs ring-2 ring-white' }) %></a><% }) %>
-            </div>
+            <div class="mt-3 flex -space-x-2"><% members.forEach(function (p) { %><a href="/profile/<%= p.username %>" title="<%= p.displayName %>"><%- include('../partials/avatar', { person: p, size: 'size-9 text-xs ring-2 ring-white' }) %></a><% }) %></div>
             <% } %>
           </div>
-          <div class="flex gap-2">
+          <div class="flex flex-wrap gap-2">
             <% if (member) { %>
-              <span class="btn-secondary cursor-default"><svg class="icon"><use href="#i-check"/></svg><%= member.role === 'admin' ? 'Admin' : member.role === 'moderator' ? 'Moderator' : 'Joined' %></span>
-              <button type="button" class="btn-primary" data-open-composer data-group-id="<%= group._id %>" data-group-name="<%= group.name %>"><svg class="icon"><use href="#i-plus"/></svg>Post</button>
+              <details class="relative" data-menu>
+                <summary class="btn-secondary cursor-pointer list-none"><svg class="icon"><use href="#i-check"/></svg><%= member.role === 'admin' ? 'Admin' : member.role === 'moderator' ? 'Moderator' : 'Joined' %><svg class="icon size-4"><use href="#i-chevron-down"/></svg></summary>
+                <div class="menu right-0 top-11 w-60">
+                  <% if (isAdmin) { %><button type="button" class="menu-item" data-open-group-dialog><span class="menu-icon"><svg class="icon"><use href="#i-settings"/></svg></span>Group settings</button><% } %>
+                  <button type="button" class="menu-item" data-open-dialog="group-invite-dialog"><span class="menu-icon"><svg class="icon"><use href="#i-user-plus"/></svg></span>Invite people</button>
+                  <% if (String(group.ownerId) !== String(currentUser._id)) { %><button type="button" class="menu-item" data-group-leave="<%= group._id %>"><span class="menu-icon"><svg class="icon"><use href="#i-logout"/></svg></span>Leave group</button><% } %>
+                </div>
+              </details>
+              <button type="button" class="btn-primary" data-open-dialog="group-invite-dialog"><svg class="icon"><use href="#i-plus"/></svg>Invite</button>
+              <% if (isAdmin) { %><button type="button" class="btn-secondary" data-open-group-dialog><svg class="icon"><use href="#i-settings"/></svg>Manage</button><% } %>
             <% } else if (pending) { %>
               <span class="btn-secondary cursor-default"><svg class="icon"><use href="#i-clock"/></svg>Request pending</span>
             <% } else if (currentUser) { %>
-              <button type="button" class="btn-primary" data-group-join="<%= group._id %>"><svg class="icon"><use href="#i-group"/></svg>Join group</button>
+              <button type="button" class="btn-primary" <%- needsJoinForm ? 'data-open-dialog="group-join-dialog"' : `data-group-join="${group._id}"` %>><svg class="icon"><use href="#i-group"/></svg><%= group.privacy === 'private' && !(invite && invite.byAdmin) ? 'Request to join' : 'Join group' %></button>
             <% } else { %>
               <a class="btn-primary" href="/login">Log in to join</a>
             <% } %>
           </div>
         </div>
-        <nav aria-label="Group sections" class="flex"><span class="tab tab-active" aria-current="page">Discussion</span><a class="tab" href="#about">About</a><% if (isAdmin && requests.length) { %><a class="tab" href="#requests">Requests (<%= requests.length %>)</a><% } %></nav>
+        <nav aria-label="Group sections" class="flex"><span class="tab tab-active" aria-current="page">Discussion</span><a class="tab" href="#about">About</a><% if (rules.length) { %><a class="tab" href="#rules">Rules</a><% } %><% if (requests.length) { %><a class="tab" href="#requests">Requests (<%= requests.length %>)</a><% } %><% if (pendingPosts.length) { %><a class="tab" href="#pending-posts">Pending posts (<%= pendingPosts.length %>)</a><% } %></nav>
       </div>
     </div>
   </section>
 
   <div class="mx-auto mt-4 grid max-w-[71.25rem] gap-4 px-0 sm:px-4 lg:grid-cols-[minmax(0,1fr)_22rem] lg:px-8">
     <section class="min-w-0 space-y-4" aria-label="Discussion">
-      <% if (member) { %><%- include('../partials/composer', { composerGroup: group }) %><% } %>
+      <% if (invite && !member) { %>
+      <div class="card flex flex-wrap items-center gap-3 p-4">
+        <%- include('../partials/avatar', { person: invite.invitedBy, size: 'size-10 text-sm' }) %>
+        <p class="min-w-0 flex-1 text-15"><strong class="font-semibold"><%= invite.invitedBy && invite.invitedBy.displayName %></strong> invited you to join this group.<% if (invite.byAdmin) { %> <span class="text-muted">You can join right away.</span><% } %></p>
+        <% if (!pending) { %><button type="button" class="btn-primary" <%- needsJoinForm ? 'data-open-dialog="group-join-dialog"' : `data-group-join="${group._id}"` %>>Accept invite</button><% } %>
+      </div>
+      <% } %>
+      <% if (myPending) { %><div class="card flex items-center gap-3 p-4 text-15"><span class="icon-btn shrink-0 bg-brand-50 text-brand-600"><svg class="icon"><use href="#i-clock"/></svg></span>You have <%= plural(myPending, 'post') %> waiting for admin approval.</div><% } %>
+      <% if (member && canPost) { %><%- include('../partials/composer', { composerGroup: group }) %><% } else if (member) { %><div class="card flex items-center gap-3 p-4 text-15 text-muted"><svg class="icon"><use href="#i-lock"/></svg>Only admins can post in this group.</div><% } %>
+
+      <% if (pendingPosts.length) { %>
+      <section id="pending-posts" class="card p-4">
+        <h2 class="card-title">Pending posts</h2>
+        <p class="text-[0.8125rem] text-muted">Approve posts to publish them to the group.</p>
+        <ul class="mt-3 space-y-3">
+          <% pendingPosts.forEach(function (p) { %>
+          <li class="rounded-lg border border-line p-3">
+            <div class="flex items-center gap-2"><%- include('../partials/avatar', { person: p.authorId, size: 'size-9 text-xs' }) %><p class="flex-1 text-15"><strong class="font-semibold"><%= p.authorId.displayName %></strong> <span class="text-[0.8125rem] text-muted">· <%= timeAgo(p.createdAt) %></span></p></div>
+            <% if (p.content) { %><p class="mt-2 line-clamp-4 whitespace-pre-wrap text-15"><%= p.content %></p><% } %>
+            <% if (p.media && p.media.length) { %><div class="mt-2 flex gap-1"><% p.media.forEach(function (m) { %><img class="size-16 rounded-md object-cover" src="<%= m.url %>" alt=""><% }) %></div><% } %>
+            <div class="mt-3 flex gap-2"><button type="button" class="btn-primary btn-sm" data-post-decision="approve" data-post="<%= p._id %>">Approve</button><button type="button" class="btn-secondary btn-sm" data-post-decision="reject" data-post="<%= p._id %>">Decline</button></div>
+          </li>
+          <% }) %>
+        </ul>
+      </section>
+      <% } %>
+
       <% if (!canSee) { %>
         <div class="empty-state"><div class="empty-icon"><svg class="icon size-7"><use href="#i-lock"/></svg></div><h2 class="mt-4 text-xl font-bold">This group is private</h2><p class="mt-1 text-muted">Join to see who's in it and what they post.</p></div>
       <% } else if (posts.length) { posts.forEach(function (item) { %><%- include('../partials/post-card', { item }) %><% }) } else { %>
@@ -50,19 +91,39 @@
         <h2 class="card-title">About</h2>
         <% if (group.description) { %><p class="mt-2 whitespace-pre-wrap text-15"><%= group.description %></p><% } %>
         <ul class="mt-3 space-y-3 text-15">
-          <li class="flex gap-3"><svg class="icon mt-0.5 text-subtle"><use href="#<%= group.privacy === 'private' ? 'i-lock' : 'i-globe' %>"/></svg><span><strong class="block font-semibold"><%= group.privacy === 'private' ? 'Private' : 'Public' %></strong><span class="text-[0.8125rem] text-muted"><%= group.privacy === 'private' ? 'Only members can see who is in the group and what they post.' : "Anyone can see who's in the group and what they post." %></span></span></li>
-          <li class="flex gap-3"><svg class="icon mt-0.5 text-subtle"><use href="#i-clock"/></svg><span><strong class="block font-semibold">History</strong><span class="text-[0.8125rem] text-muted">Group created on <%= new Date(group.createdAt).toLocaleDateString('en', { month: 'long', day: 'numeric', year: 'numeric' }) %></span></span></li>
+          <li class="flex gap-3"><svg class="icon mt-0.5 shrink-0 text-subtle"><use href="#<%= group.privacy === 'private' ? 'i-lock' : 'i-globe' %>"/></svg><span><strong class="block font-semibold"><%= group.privacy === 'private' ? 'Private' : 'Public' %></strong><span class="text-[0.8125rem] text-muted"><%= group.privacy === 'private' ? "Only members can see who's in the group and what they post." : "Anyone can see who's in the group and what they post." %></span></span></li>
+          <li class="flex gap-3"><svg class="icon mt-0.5 shrink-0 text-subtle"><use href="#<%= group.visibility === 'hidden' ? 'i-eye-off' : 'i-eye' %>"/></svg><span><strong class="block font-semibold"><%= group.visibility === 'hidden' ? 'Hidden' : 'Visible' %></strong><span class="text-[0.8125rem] text-muted"><%= group.visibility === 'hidden' ? 'Only members and invited people can find this group.' : 'Anyone can find this group.' %></span></span></li>
+          <li class="flex gap-3"><svg class="icon mt-0.5 shrink-0 text-subtle"><use href="#i-briefcase"/></svg><span><strong class="block font-semibold"><%= groupTypes[group.groupType || 'general'] %></strong><span class="text-[0.8125rem] text-muted">Group type</span></span></li>
+          <% if (group.location) { %><li class="flex gap-3"><svg class="icon mt-0.5 shrink-0 text-subtle"><use href="#i-pin"/></svg><span><strong class="block font-semibold"><%= group.location %></strong><span class="text-[0.8125rem] text-muted">Location</span></span></li><% } %>
+          <li class="flex gap-3"><svg class="icon mt-0.5 shrink-0 text-subtle"><use href="#i-clock"/></svg><span><strong class="block font-semibold">History</strong><span class="text-[0.8125rem] text-muted">Group created on <%= new Date(group.createdAt).toLocaleDateString('en', { month: 'long', day: 'numeric', year: 'numeric' }) %></span></span></li>
+          <% if (settings.postApproval) { %><li class="flex gap-3"><svg class="icon mt-0.5 shrink-0 text-subtle"><use href="#i-shield"/></svg><span><strong class="block font-semibold">Posts are reviewed</strong><span class="text-[0.8125rem] text-muted">Admins approve member posts before they appear.</span></span></li><% } %>
         </ul>
+        <% if (group.tags && group.tags.length) { %><div class="mt-3 flex flex-wrap gap-1.5"><% group.tags.forEach(function (tag) { %><a class="rounded-full bg-field px-2.5 py-1 text-[0.8125rem] font-semibold text-ink hover:bg-line" href="/search?kind=group&q=<%= encodeURIComponent(tag) %>">#<%= tag %></a><% }) %></div><% } %>
       </section>
-      <% if (isAdmin && requests.length) { %>
+
+      <% if (rules.length) { %>
+      <section id="rules" class="card p-4">
+        <h2 class="card-title">Group rules from the admins</h2>
+        <ol class="mt-3 space-y-3">
+          <% rules.forEach(function (rule, i) { %><li class="flex gap-3"><span class="grid size-7 shrink-0 place-items-center rounded-full bg-field text-[0.8125rem] font-bold"><%= i + 1 %></span><div><p class="font-semibold"><%= rule.title %></p><% if (rule.details) { %><p class="mt-0.5 whitespace-pre-wrap text-[0.8125rem] text-muted"><%= rule.details %></p><% } %></div></li><% }) %>
+        </ol>
+      </section>
+      <% } %>
+
+      <% if (requests.length) { %>
       <section id="requests" class="card p-4">
         <h2 class="card-title">Member requests</h2>
-        <ul class="mt-3 space-y-3">
+        <ul class="mt-3 space-y-4">
           <% requests.forEach(function (request) { %>
-          <li class="flex items-center gap-3">
-            <%- include('../partials/avatar', { person: request.userId, size: 'size-10 text-sm' }) %>
-            <div class="min-w-0 flex-1"><p class="truncate font-semibold"><%= request.userId.displayName %></p><p class="truncate text-[0.8125rem] text-muted">@<%= request.userId.username %></p></div>
-            <div class="flex gap-1"><button type="button" class="btn-primary btn-sm" data-group-decision="approve" data-request="<%= request._id %>">Approve</button><button type="button" class="btn-secondary btn-sm" data-group-decision="reject" data-request="<%= request._id %>">Decline</button></div>
+          <li>
+            <div class="flex items-center gap-3">
+              <%- include('../partials/avatar', { person: request.userId, size: 'size-10 text-sm' }) %>
+              <div class="min-w-0 flex-1"><p class="truncate font-semibold"><%= request.userId.displayName %></p><p class="truncate text-[0.8125rem] text-muted">Requested <%= timeAgo(request.createdAt) %> ago<%= request.agreedToRules ? ' · Agreed to rules' : '' %></p></div>
+            </div>
+            <% if (request.answers && request.answers.length) { %>
+            <dl class="mt-2 space-y-1.5 rounded-lg bg-field p-2.5 text-[0.8125rem]"><% request.answers.forEach(function (a) { %><div><dt class="font-semibold"><%= a.question %></dt><dd class="text-muted"><%= a.answer %></dd></div><% }) %></dl>
+            <% } %>
+            <div class="mt-2 flex gap-2"><button type="button" class="btn-primary btn-sm flex-1" data-group-decision="approve" data-request="<%= request._id %>">Approve</button><button type="button" class="btn-secondary btn-sm flex-1" data-group-decision="reject" data-request="<%= request._id %>">Decline</button></div>
           </li>
           <% }) %>
         </ul>
@@ -71,4 +132,52 @@
     </aside>
   </div>
 </main>
+
+<% if (currentUser) { %>
+<% if (isAdmin) { %><%- include('_dialogs', { formMode: 'edit' }) %><% } %>
+
+<% if (!member && needsJoinForm) { %>
+<dialog id="group-join-dialog" class="w-[min(34rem,calc(100%-1.5rem))] rounded-xl p-0 shadow-pop" aria-labelledby="group-join-title">
+  <form data-group-join-form="<%= group._id %>">
+    <div class="relative border-b border-line px-4 py-3 text-center"><h2 id="group-join-title" class="text-xl font-bold">Join <%= group.name %></h2><button type="button" class="icon-btn absolute right-3 top-2" data-close-dialog="group-join-dialog" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button></div>
+    <div class="max-h-[65dvh] space-y-4 overflow-y-auto p-4">
+      <p class="text-15 text-muted">Your answers will only be seen by the group admins and moderators.</p>
+      <% questions.forEach(function (question, i) { %>
+      <div><label class="label" for="join-answer-<%= i %>"><%= question %></label><textarea id="join-answer-<%= i %>" rows="2" maxlength="500" required class="input mt-1.5 w-full resize-none" data-join-answer placeholder="Write an answer…"></textarea></div>
+      <% }) %>
+      <% if (rules.length) { %>
+      <div class="rounded-lg border border-line p-3">
+        <p class="font-semibold">Group rules</p>
+        <ol class="mt-2 list-decimal space-y-1 pl-5 text-[0.8125rem]"><% rules.forEach(function (rule) { %><li><strong class="font-semibold"><%= rule.title %></strong><% if (rule.details) { %> — <span class="text-muted"><%= rule.details %></span><% } %></li><% }) %></ol>
+        <label class="mt-3 flex cursor-pointer items-center gap-2 text-15"><input type="checkbox" class="check size-5" data-join-agree required>I agree to the group rules</label>
+      </div>
+      <% } %>
+      <p class="form-error hidden" data-form-error role="alert"></p>
+    </div>
+    <div class="flex justify-end gap-2 border-t border-line p-4"><button type="button" class="btn-secondary" data-close-dialog="group-join-dialog">Cancel</button><button type="submit" class="btn-primary px-6">Submit</button></div>
+  </form>
+</dialog>
+<% } %>
+
+<% if (member) { %>
+<dialog id="group-invite-dialog" class="w-[min(30rem,calc(100%-1.5rem))] rounded-xl p-0 shadow-pop" aria-labelledby="group-invite-title">
+  <form data-group-invite-form="<%= group._id %>">
+    <div class="relative border-b border-line px-4 py-3 text-center"><h2 id="group-invite-title" class="text-xl font-bold">Invite people to this group</h2><button type="button" class="icon-btn absolute right-3 top-2" data-close-dialog="group-invite-dialog" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button></div>
+    <div class="p-4">
+      <% if (inviteCandidates.length) { %>
+      <div class="relative"><svg class="icon pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"><use href="#i-search"/></svg><input type="search" class="pill-input pl-9" placeholder="Search for people by name" data-invite-filter="group-invite-dialog" aria-label="Search people to invite"></div>
+      <p class="mt-3 text-[0.8125rem] font-semibold text-muted">Suggested</p>
+      <ul class="mt-1 max-h-[45dvh] space-y-0.5 overflow-y-auto" data-invite-list="group-invite-dialog">
+        <% inviteCandidates.forEach(function (p) { %>
+        <li data-invite-name="<%= p.displayName.toLowerCase() %>"><label class="flex cursor-pointer items-center gap-3 rounded-lg p-2 hover:bg-hover"><%- include('../partials/avatar', { person: p, size: 'size-10 text-sm' }) %><span class="min-w-0 flex-1"><span class="block truncate font-medium"><%= p.displayName %></span><% if (p.invited) { %><span class="block text-xs text-muted">Invite sent</span><% } %></span><input type="checkbox" class="check size-5" value="<%= p._id %>" data-invite-pick <%= p.invited ? 'disabled' : '' %>></label></li>
+        <% }) %>
+      </ul>
+      <% } else { %><p class="py-8 text-center text-muted">Everyone you're connected with is already here or invited.</p><% } %>
+      <p class="form-error mt-3 hidden" data-form-error role="alert"></p>
+    </div>
+    <div class="flex items-center justify-between gap-2 border-t border-line p-4"><span class="text-[0.8125rem] text-muted"><span data-invite-count>0</span> selected</span><span class="flex gap-2"><button type="button" class="btn-secondary" data-close-dialog="group-invite-dialog">Cancel</button><button type="submit" class="btn-primary px-6">Send invites</button></span></div>
+  </form>
+</dialog>
+<% } %>
+<% } %>
 <%- include('../partials/foot') %>

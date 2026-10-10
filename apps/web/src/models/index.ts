@@ -6,6 +6,7 @@ export const REACTION_TYPES = ['like', 'love', 'haha', 'wow', 'sad', 'angry'] as
 export const STORY_REACTIONS = ['love', 'haha', 'angry', 'sad', 'like'] as const;
 export const STORY_BACKGROUNDS = ['sunset', 'ocean', 'forest', 'night', 'candy', 'sun'] as const;
 export const STORY_TTL_MS = 24 * 60 * 60 * 1000;
+export const GROUP_TYPES = ['general', 'social', 'learning', 'hobbies', 'buy_sell', 'gaming', 'jobs', 'parenting', 'work'] as const;
 
 const options = { timestamps: true, versionKey: false } as const;
 const objectId = Schema.Types.ObjectId;
@@ -17,6 +18,9 @@ const profileSchema = new Schema({
   avatarUrl: { type: String, default: '' },
   coverUrl: { type: String, default: '' },
   privacy: { type: String, enum: ['public', 'followers'], default: 'public' },
+  // Previously used photos, newest first, for the "Profile pictures" / "Cover photos" pickers.
+  avatarHistory: { type: [String], default: [] },
+  coverHistory: { type: [String], default: [] },
   storyAudience: { type: String, enum: ['public', 'followers'], default: 'followers' }
 }, { _id: false });
 
@@ -52,6 +56,8 @@ const postSchema = new Schema({
   content: { type: String, maxlength: 5000, default: '' },
   media: { type: [postMediaSchema], default: [] },
   visibility: { type: String, enum: ['public', 'followers', 'private'], default: 'public' },
+  // Group posts wait for admin approval when the group turns on post approval.
+  groupStatus: { type: String, enum: ['approved', 'pending', 'declined'], default: 'approved' },
   reactionCount: { type: Number, default: 0 },
   commentCount: { type: Number, default: 0 },
   editedAt: Date,
@@ -83,6 +89,21 @@ const groupSchema = new Schema({
   description: { type: String, maxlength: 500, default: '' },
   coverUrl: { type: String, default: '' },
   privacy: { type: String, enum: ['public', 'private'], default: 'public' },
+  // Facebook-style: private groups can be hidden from search and the directory.
+  visibility: { type: String, enum: ['visible', 'hidden'], default: 'visible' },
+  groupType: { type: String, enum: GROUP_TYPES, default: 'general' },
+  location: { type: String, maxlength: 80, default: '' },
+  tags: { type: [{ type: String, maxlength: 30 }], default: [] },
+  rules: { type: [new Schema({ title: { type: String, required: true, maxlength: 80 }, details: { type: String, maxlength: 500, default: '' } }, { _id: false })], default: [] },
+  questions: { type: [{ type: String, maxlength: 250 }], default: [] },
+  settings: {
+    type: new Schema({
+      whoCanPost: { type: String, enum: ['anyone', 'admins'], default: 'anyone' },
+      postApproval: { type: Boolean, default: false },
+      whoCanApprove: { type: String, enum: ['admins', 'anyone'], default: 'admins' }
+    }, { _id: false }),
+    default: () => ({})
+  },
   ownerId: { type: objectId, ref: 'User', required: true },
   memberCount: { type: Number, default: 1 }
 }, options);
@@ -99,6 +120,8 @@ const groupJoinRequestSchema = new Schema({
   groupId: { type: objectId, ref: 'Group', required: true },
   userId: { type: objectId, ref: 'User', required: true },
   status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+  answers: { type: [new Schema({ question: String, answer: { type: String, maxlength: 500 } }, { _id: false })], default: [] },
+  agreedToRules: { type: Boolean, default: false },
   reviewedBy: { type: objectId, ref: 'User' },
   reviewedAt: Date
 }, options);
@@ -110,6 +133,15 @@ const groupPostSchema = new Schema({
   authorId: { type: objectId, ref: 'User', required: true }
 }, options);
 groupPostSchema.index({ groupId: 1, createdAt: -1 });
+
+const groupInviteSchema = new Schema({
+  groupId: { type: objectId, ref: 'Group', required: true },
+  userId: { type: objectId, ref: 'User', required: true },
+  invitedBy: { type: objectId, ref: 'User', required: true },
+  // Invites from admins/moderators skip membership approval, as on Facebook.
+  byAdmin: { type: Boolean, default: false }
+}, options);
+groupInviteSchema.index({ groupId: 1, userId: 1 }, { unique: true });
 
 const conversationSchema = new Schema({
   seedKey: { type: String, unique: true, sparse: true, select: false },
@@ -130,7 +162,7 @@ messageSchema.index({ conversationId: 1, createdAt: -1 });
 const notificationSchema = new Schema({
   recipientId: { type: objectId, ref: 'User', required: true, index: true },
   actorId: { type: objectId, ref: 'User', required: true },
-  type: { type: String, enum: ['reaction', 'comment', 'follow', 'group_request', 'message', 'story_reaction'], required: true },
+  type: { type: String, enum: ['reaction', 'comment', 'follow', 'group_request', 'group_invite', 'group_post', 'message', 'story_reaction'], required: true },
   entityType: { type: String, required: true },
   entityId: { type: objectId, required: true },
   text: { type: String, required: true, maxlength: 180 },
@@ -191,6 +223,7 @@ export const Comment: Model<any> = models.Comment || model('Comment', commentSch
 export const Group: Model<any> = models.Group || model('Group', groupSchema);
 export const GroupMember: Model<any> = models.GroupMember || model('GroupMember', groupMemberSchema);
 export const GroupJoinRequest: Model<any> = models.GroupJoinRequest || model('GroupJoinRequest', groupJoinRequestSchema);
+export const GroupInvite: Model<any> = models.GroupInvite || model('GroupInvite', groupInviteSchema);
 export const GroupPost: Model<any> = models.GroupPost || model('GroupPost', groupPostSchema);
 export const Conversation: Model<any> = models.Conversation || model('Conversation', conversationSchema);
 export const Message: Model<any> = models.Message || model('Message', messageSchema);

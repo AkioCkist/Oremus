@@ -45,8 +45,8 @@ async def search(db: AsyncIOMotorDatabase, redis: Redis, query: str, limit: int)
         {"content": 1, "authorId": 1},
     ).sort("createdAt", -1).limit(per_kind).to_list(per_kind)
     groups = await db.groups.find(
-        {"$or": [{"name": pattern}, {"description": pattern}]},
-        {"name": 1, "description": 1, "coverUrl": 1},
+        {"$or": [{"name": pattern}, {"description": pattern}], "visibility": {"$ne": "hidden"}},
+        {"name": 1, "description": 1, "coverUrl": 1, "slug": 1},
     ).limit(per_kind).to_list(per_kind)
 
     items = [
