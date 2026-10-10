@@ -1,23 +1,33 @@
-import { Follow, Post, User } from '../models/index.js';
+import { Follow, Friendship, Post, User } from '../models/index.js';
 import { AppError } from '../utils/errors.js';
 import { cacheGet, cacheSet, invalidateSocialCaches } from './cache.service.js';
 import { notify } from './notification.service.js';
+import { getFriendshipState } from './friendship.service.js';
+import { assertNotBlocked, getSocialState } from './social.service.js';
 
 export async function getProfile(username: string, viewerId?: string) {
   const user = await User.findOne({ username, deletedAt: null });
   if (!user) throw new AppError(404, 'Profile not found.', 'PROFILE_NOT_FOUND');
+  const social = viewerId ? await getSocialState(viewerId, user.id) : { blocked: false, blockedByMe: false, seeLess: false, restrictPosts: false };
+  if (social.blocked && !social.blockedByMe) throw new AppError(404, 'Profile not found.', 'PROFILE_NOT_FOUND');
+  if (social.blockedByMe) return { _id: user._id, username: user.username, displayName: user.displayName, profile: {}, friends: 0, followers: 0, following: 0, isFollowing: false, isSelf: false, canViewDetails: false, friendState: 'none', ...social };
   const key = `profile:${user.id}`;
   let summary = await cacheGet<any>(key);
   if (!summary) {
-    const [followers, following] = await Promise.all([Follow.countDocuments({ followingId: user.id }), Follow.countDocuments({ followerId: user.id })]);
-    summary = { ...user.toObject(), followers, following };
+    const [followers, following, friends] = await Promise.all([
+      Follow.countDocuments({ followingId: user.id }),
+      Follow.countDocuments({ followerId: user.id }),
+      Friendship.countDocuments({ status: 'accepted', $or: [{ userAId: user.id }, { userBId: user.id }] })
+    ]);
+    summary = { ...user.toObject(), followers, following, friends };
     await cacheSet(key, summary, 120);
   }
   const isFollowing = viewerId ? !!(await Follow.exists({ followerId: viewerId, followingId: user.id })) : false;
   const isSelf = viewerId === user.id;
   const canViewDetails = summary.profile?.privacy === 'public' || isSelf || isFollowing;
   if (!canViewDetails) summary = { ...summary, profile: { ...summary.profile, bio: '', location: '', website: '', coverUrl: '' } };
-  return { ...summary, isFollowing, isSelf, canViewDetails };
+  const friendState = viewerId ? await getFriendshipState(viewerId, user.id) : 'none';
+  return { ...summary, isFollowing, isSelf, canViewDetails, friendState, ...social };
 }
 
 export async function updateProfile(userId: string, input: any, files: { [fieldname: string]: Express.Multer.File[] } = {}) {
@@ -36,9 +46,10 @@ export async function toggleFollow(actorId: string, targetId: string) {
   if (actorId === targetId) throw new AppError(400, 'You cannot follow yourself.', 'INVALID_FOLLOW');
   const target = await User.findOne({ _id: targetId, deletedAt: null });
   if (!target) throw new AppError(404, 'User not found.', 'USER_NOT_FOUND');
+  await assertNotBlocked(actorId, targetId);
   const existing = await Follow.findOne({ followerId: actorId, followingId: targetId });
   if (existing) { await existing.deleteOne(); await invalidateSocialCaches([actorId, targetId]); return { following: false }; }
-  await Follow.create({ followerId: actorId, followingId: targetId });
+  await Follow.updateOne({ followerId: actorId, followingId: targetId }, { $setOnInsert: { followerId: actorId, followingId: targetId } }, { upsert: true });
   await notify({ recipientId: targetId, actorId, type: 'follow', entityType: 'User', entityId: actorId, text: 'started following you' });
   await invalidateSocialCaches([actorId, targetId]);
   return { following: true };

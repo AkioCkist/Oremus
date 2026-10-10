@@ -1,0 +1,10 @@
+<dialog id="break-dialog" class="w-[min(32rem,calc(100%-2rem))] rounded-xl p-0 shadow-pop" aria-labelledby="break-title" aria-describedby="break-description">
+  <div class="flex items-center justify-between border-b border-line px-4 py-3"><h2 id="break-title" class="text-balance text-xl font-bold">Take a break</h2><button type="button" class="icon-btn" data-close-dialog="break-dialog" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button></div>
+  <form data-break-form class="space-y-4 p-4">
+    <p id="break-description" class="text-pretty text-15 text-muted">Choose what you see and share. Your friendship and messages stay the same, and they won't be notified.</p>
+    <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-line p-3"><input type="checkbox" class="check mt-1 shrink-0" name="seeLess"><span><span class="block font-semibold">See less of this person</span><span class="mt-1 block text-pretty text-sm text-muted">Hide their posts and stories from your home feed. You can still visit their profile.</span></span></label>
+    <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-line p-3"><input type="checkbox" class="check mt-1 shrink-0" name="restrictPosts"><span><span class="block font-semibold">Limit what they see</span><span class="mt-1 block text-pretty text-sm text-muted">They won't see posts or stories you share with followers. Your public posts remain visible.</span></span></label>
+    <p class="hidden form-error" role="alert" data-break-error></p>
+    <div class="flex justify-end gap-2"><button type="button" class="btn-secondary" data-close-dialog="break-dialog">Cancel</button><button type="submit" class="btn-primary" data-break-save>Save</button></div>
+  </form>
+</dialog>

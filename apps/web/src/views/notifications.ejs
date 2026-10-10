@@ -5,6 +5,8 @@
     story_reaction: { icon: 'r-love', fill: true, bg: '' },
     comment: { icon: 'i-comment', bg: 'bg-[#45bd62]' },
     follow: { icon: 'i-user-plus', bg: 'bg-brand-600' },
+    friend_request: { icon: 'i-user-plus', bg: 'bg-brand-600' },
+    friend_accept: { icon: 'i-users', bg: 'bg-brand-600' },
     group_request: { icon: 'i-group', bg: 'bg-[#f7b928]' },
     group_invite: { icon: 'i-group', bg: 'bg-brand-600' },
     group_post: { icon: 'i-feed', bg: 'bg-[#45bd62]' },
@@ -48,11 +50,14 @@
             </span>
             <% if (!n.readAt) { %><span class="size-3 shrink-0 rounded-full bg-brand-600" data-unread-dot aria-label="Unread"></span><% } %>
           </a>
+          <% if (n.type === 'friend_request' && n.friendState === 'incoming') { %>
+          <div class="ml-[4.25rem] pb-3 pr-3"><%- include('partials/friend-controls', { person: n.actorId, state: n.friendState, compact: true, full: false }) %></div>
+          <% } %>
         </li>
         <% }) %>
       </ul>
       <% } else { %>
-      <div class="px-6 pb-10 pt-6 text-center"><div class="empty-icon"><svg class="icon size-7"><use href="#i-bell"/></svg></div><h2 class="mt-4 text-lg font-bold"><%= filter === 'unread' ? 'No unread notifications' : "You're all caught up" %></h2><p class="mt-1 text-muted">Reactions, comments, follows and messages will show up here.</p><a class="btn-primary mt-5" href="/">Back to feed</a></div>
+      <div class="px-6 pb-10 pt-6 text-center"><div class="empty-icon"><svg class="icon size-7"><use href="#i-bell"/></svg></div><h2 class="mt-4 text-lg font-bold"><%= filter === 'unread' ? 'No unread notifications' : "You're all caught up" %></h2><p class="mt-1 text-pretty text-muted">Friend requests, reactions, comments and messages will show up here.</p><a class="btn-primary mt-5" href="/">Back to feed</a></div>
       <% } %>
     </div>
   </section>

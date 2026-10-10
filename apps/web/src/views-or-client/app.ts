@@ -145,6 +145,94 @@ async function confirmAction(title = 'Move to trash?', description = "This can't
   });
 }
 
+type FriendState = 'none' | 'outgoing' | 'incoming' | 'friends';
+
+function friendButton(action: string, label: string, icon: string, primary: boolean, compact: boolean, full: boolean) {
+  const button = document.createElement('button');
+  button.type = 'button'; button.dataset.friendAction = action;
+  button.className = `${primary ? 'btn-primary' : 'btn-secondary'} ${compact ? 'btn-sm' : ''} ${full ? 'w-full' : ''}`.trim();
+  button.append(svgUse(icon, 'icon size-4'), document.createTextNode(label));
+  return button;
+}
+
+function paintFriendControls(container: HTMLElement, state: FriendState) {
+  const compact = container.dataset.compact === 'true', full = container.dataset.full === 'true';
+  container.replaceChildren();
+  if (state === 'incoming') {
+    container.append(friendButton('accept', 'Confirm', 'i-check', true, compact, full), friendButton('decline', 'Delete request', 'i-x', false, compact, full));
+  } else if (state === 'outgoing') {
+    container.append(friendButton('cancel', 'Cancel request', 'i-clock', false, compact, full));
+  } else if (state === 'friends') {
+    const menu = document.createElement('details'); menu.className = `relative ${full ? 'w-full' : ''}`; menu.dataset.menu = '';
+    const summary = document.createElement('summary'); summary.className = `btn-secondary cursor-pointer ${compact ? 'btn-sm' : ''} ${full ? 'w-full' : ''}`;
+    summary.append(svgUse('i-users', 'icon size-4'), document.createTextNode('Friends'), svgUse('i-chevron-down', 'icon size-4'));
+    const items = document.createElement('div'); items.className = 'menu right-0 top-full mt-2';
+    const pause = document.createElement('button'); pause.type = 'button'; pause.className = 'menu-item'; pause.dataset.openBreak = container.dataset.userId; pause.dataset.userName = container.dataset.userName;
+    pause.append(svgUse('i-pause', 'icon'), document.createTextNode('Take a break'));
+    const unfriend = friendButton('unfriend', 'Unfriend', 'i-user', false, false, false); unfriend.className = 'menu-item';
+    items.append(pause, unfriend); menu.append(summary, items); container.appendChild(menu);
+  } else {
+    container.append(friendButton('request', 'Add friend', 'i-user-plus', true, compact, full));
+  }
+  const error = document.createElement('p');
+  error.className = 'hidden basis-full text-sm text-red-600'; error.dataset.friendError = ''; error.setAttribute('role', 'alert');
+  container.appendChild(error);
+  container.removeAttribute('aria-busy');
+}
+
+function syncFriendState(userId: string, state: FriendState) {
+  $$<HTMLElement>('[data-friend-controls]').filter((item) => item.dataset.userId === userId).forEach((item) => paintFriendControls(item, state));
+  $$<HTMLElement>('[data-friend-message]').filter((item) => item.dataset.friendMessage === userId).forEach((item) => item.classList.toggle('hidden', state !== 'friends'));
+}
+
+function syncFollowState(userId: string, following: boolean) {
+  $$<HTMLButtonElement>('[data-follow]').filter((button) => button.dataset.follow === userId).forEach((button) => {
+    button.dataset.following = String(following);
+    button.replaceChildren(svgUse(following ? 'i-check' : 'i-user-plus', 'icon size-4'), document.createTextNode(following ? 'Following' : 'Follow'));
+  });
+}
+
+const breakDialog = $<HTMLDialogElement>('#break-dialog');
+const breakForm = $<HTMLFormElement>('[data-break-form]');
+let socialActionPending = false;
+async function openBreak(userId: string, userName: string) {
+  if (!breakDialog || !breakForm) return;
+  breakForm.dataset.userId = userId;
+  $('#break-title', breakDialog)!.textContent = `Take a break from ${userName}`;
+  const save = $<HTMLButtonElement>('[data-break-save]', breakForm)!;
+  const error = $('[data-break-error]', breakForm)!;
+  const checks = $$<HTMLInputElement>('input[type=checkbox]', breakForm);
+  error.classList.add('hidden'); save.disabled = true; checks.forEach((check) => { check.disabled = true; });
+  breakDialog.showModal();
+  try {
+    const state = await request(`/api/users/${userId}/break`);
+    if (state.blocked) throw new Error('This person is unavailable.');
+    $<HTMLInputElement>('[name=seeLess]', breakForm)!.checked = state.seeLess;
+    $<HTMLInputElement>('[name=restrictPosts]', breakForm)!.checked = state.restrictPosts;
+    save.disabled = false; checks.forEach((check) => { check.disabled = false; });
+  } catch (caught) {
+    error.textContent = caught instanceof Error ? caught.message : 'Could not load break settings.'; error.classList.remove('hidden');
+  }
+}
+
+breakForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const userId = breakForm.dataset.userId;
+  if (!userId) return;
+  const save = $<HTMLButtonElement>('[data-break-save]', breakForm)!, error = $('[data-break-error]', breakForm)!;
+  save.disabled = true; error.classList.add('hidden'); breakForm.setAttribute('aria-busy', 'true'); socialActionPending = true;
+  try {
+    const result = await postJson(`/api/users/${userId}/break`, {
+      seeLess: $<HTMLInputElement>('[name=seeLess]', breakForm)!.checked,
+      restrictPosts: $<HTMLInputElement>('[name=restrictPosts]', breakForm)!.checked
+    });
+    if (result.seeLess && window.location.pathname === '/') $$<HTMLElement>('[data-post-author]').filter((post) => post.dataset.postAuthor === userId).forEach((post) => post.remove());
+    $$('[data-break-label]').forEach((label) => { label.textContent = result.seeLess || result.restrictPosts ? 'Edit break settings' : 'Take a break'; });
+    breakDialog?.close(); showToast('Break settings saved.');
+  } catch (caught) { error.textContent = caught instanceof Error ? caught.message : 'Could not save settings.'; error.classList.remove('hidden'); }
+  finally { save.disabled = false; breakForm.removeAttribute('aria-busy'); socialActionPending = false; }
+});
+
 /* ---------- Menus (<details data-menu>) ---------- */
 
 document.addEventListener('click', (event) => {
@@ -759,16 +847,28 @@ $$<HTMLTextAreaElement>('[data-char-count]').forEach((field) => field.addEventLi
 /* ---------- Photo actions: file picking, action menu, editable thumbnails ---------- */
 
 const IMAGE_TYPES = 'image/jpeg,image/png,image/webp,image/gif';
+const MEDIA_TYPES = `${IMAGE_TYPES},video/mp4,video/webm,video/quicktime`;
 
 /** Opens the OS file chooser without needing an <input> in the markup. Resolves with [] when cancelled. */
-function pickImageFiles(multiple = false): Promise<File[]> {
+function pickImageFiles(multiple = false, accept = IMAGE_TYPES): Promise<File[]> {
   return new Promise((resolve) => {
-    const input = Object.assign(document.createElement('input'), { type: 'file', accept: IMAGE_TYPES, multiple, className: 'hidden' });
+    const input = Object.assign(document.createElement('input'), { type: 'file', accept, multiple, className: 'hidden' });
     const done = (files: File[]) => { input.remove(); resolve(files); };
     input.addEventListener('change', () => done([...(input.files || [])]), { once: true });
     input.addEventListener('cancel', () => done([]), { once: true });
     document.body.appendChild(input); input.click();
   });
+}
+
+const pickMediaFiles = (multiple = false) => pickImageFiles(multiple, MEDIA_TYPES);
+const isVideoUrl = (url: string) => /\.(mp4|webm|mov)(#.*)?$/i.test(url);
+
+/** Object URLs avoid base64-encoding large videos; one URL per file is reused across repaints. */
+const previewUrls = new WeakMap<File, string>();
+function previewUrl(file: File) {
+  let url = previewUrls.get(file);
+  if (!url) { url = URL.createObjectURL(file); previewUrls.set(file, url); }
+  return url;
 }
 
 function setInputFiles(input: HTMLInputElement, files: File[]) {
@@ -804,9 +904,11 @@ function openPhotoMenu(anchor: HTMLElement, items: PhotoMenuItem[]) {
   ($('button', menu) as HTMLButtonElement | null)?.focus();
 }
 
-/** Thumbnail grid where every photo has Replace / Remove buttons, plus an "Add photos" tile while below the limit. */
-function renderPhotoTiles(container: HTMLElement, tiles: Array<{ src: string }>, actions: { replace: (index: number) => void; remove: (index: number) => void; add?: () => void; max: number }) {
-  const single = tiles.length === 1 && !(actions.add && tiles.length < actions.max);
+/** Thumbnail grid where every photo/video has Replace / Remove buttons, plus an "Add" tile (while below `max`, if one is set). */
+function renderPhotoTiles(container: HTMLElement, tiles: Array<{ src: string; video?: boolean }>, actions: { replace: (index: number) => void; remove: (index: number) => void; add?: () => void; max?: number }) {
+  const max = actions.max ?? Infinity;
+  const canAdd = !!actions.add && tiles.length < max;
+  const single = tiles.length === 1 && !canAdd;
   const tileButton = (icon: string, label: string, onClick: () => void) => {
     const button = document.createElement('button'); button.type = 'button';
     button.className = 'grid size-8 place-items-center rounded-full bg-surface/95 text-ink shadow-float hover:bg-surface';
@@ -817,68 +919,71 @@ function renderPhotoTiles(container: HTMLElement, tiles: Array<{ src: string }>,
   const nodes: HTMLElement[] = tiles.map((tile, index) => {
     const wrap = document.createElement('div');
     wrap.className = `relative overflow-hidden rounded-md bg-field ${single ? 'aspect-[4/3]' : 'aspect-square'}`;
-    const img = Object.assign(document.createElement('img'), { src: tile.src, alt: `Photo ${index + 1}`, className: 'size-full object-cover' });
+    const kind = tile.video ? 'video' : 'photo';
+    const preview = tile.video
+      ? Object.assign(document.createElement('video'), { src: tile.src, muted: true, playsInline: true, preload: 'metadata', className: 'size-full bg-black object-cover' })
+      : Object.assign(document.createElement('img'), { src: tile.src, alt: `Photo ${index + 1}`, className: 'size-full object-cover' });
+    wrap.appendChild(preview);
+    if (tile.video) {
+      const badge = document.createElement('span'); badge.className = 'pointer-events-none absolute inset-0 grid place-items-center';
+      const circle = document.createElement('span'); circle.className = 'grid size-10 place-items-center rounded-full bg-black/55 text-white';
+      circle.appendChild(svgUse('i-play', 'icon size-5 translate-x-px fill-current')); badge.appendChild(circle); wrap.appendChild(badge);
+    }
     const bar = document.createElement('div'); bar.className = 'absolute right-1.5 top-1.5 flex gap-1';
-    bar.append(tileButton('i-edit', `Replace photo ${index + 1}`, () => actions.replace(index)), tileButton('i-x', `Remove photo ${index + 1}`, () => actions.remove(index)));
-    wrap.append(img, bar); return wrap;
+    bar.append(tileButton('i-edit', `Replace ${kind} ${index + 1}`, () => actions.replace(index)), tileButton('i-x', `Remove ${kind} ${index + 1}`, () => actions.remove(index)));
+    wrap.appendChild(bar); return wrap;
   });
-  if (actions.add && tiles.length < actions.max) {
+  if (canAdd) {
     const add = document.createElement('button'); add.type = 'button';
     add.className = 'grid aspect-square place-items-center rounded-md border-2 border-dashed border-strong text-muted hover:bg-hover';
     const inner = document.createElement('span'); inner.className = 'flex flex-col items-center gap-1 text-[0.8125rem] font-semibold';
-    inner.append(svgUse('i-plus', 'icon size-6'), `Add photos (${tiles.length}/${actions.max})`);
+    inner.append(svgUse('i-plus', 'icon size-6'), Number.isFinite(max) ? `Add photos/videos (${tiles.length}/${max})` : 'Add photos/videos');
     add.appendChild(inner); add.addEventListener('click', actions.add); nodes.push(add);
   }
   container.replaceChildren(...nodes);
-  container.classList.toggle('grid-cols-1', single); container.classList.toggle('grid-cols-2', !single);
+  const columns = single ? 1 : nodes.length > 4 ? 3 : 2;
+  container.classList.toggle('grid-cols-1', columns === 1); container.classList.toggle('grid-cols-2', columns === 2); container.classList.toggle('grid-cols-3', columns === 3);
 }
 
-/* Create post: draft photos */
+/* Create post: draft photos and videos */
 const composerFilesInput = $<HTMLInputElement>('[data-composer-files]');
 let draftFiles: File[] = [];
 async function paintDraftPhotos() {
   if (!composerFilesInput) return;
   setInputFiles(composerFilesInput, draftFiles);
   const previews = $('[data-composer-previews]')!;
-  const sources = await Promise.all(draftFiles.map(readAsDataUrl));
-  renderPhotoTiles(previews, sources.map((src) => ({ src })), {
-    max: 4,
-    replace: async (index) => { const [file] = await pickImageFiles(); if (file) { draftFiles[index] = file; void paintDraftPhotos(); } },
+  renderPhotoTiles(previews, draftFiles.map((file) => ({ src: previewUrl(file), video: file.type.startsWith('video/') })), {
+    replace: async (index) => { const [file] = await pickMediaFiles(); if (file) { draftFiles[index] = file; void paintDraftPhotos(); } },
     remove: (index) => { draftFiles.splice(index, 1); void paintDraftPhotos(); },
-    add: async () => addDraftPhotos(await pickImageFiles(true))
+    add: async () => addDraftPhotos(await pickMediaFiles(true))
   });
   previews.classList.toggle('hidden', draftFiles.length === 0);
 }
 function addDraftPhotos(files: File[]) {
   if (!files.length) return;
-  if (draftFiles.length + files.length > 4) showToast('You can add up to 4 photos per post.', 'error');
-  draftFiles = [...draftFiles, ...files].slice(0, 4);
+  draftFiles = [...draftFiles, ...files];
   void paintDraftPhotos();
 }
 composerFilesInput?.addEventListener('change', () => addDraftPhotos([...(composerFilesInput.files || [])]));
 
-/* Edit post: keep, replace, remove or add photos */
+/* Edit post: keep, replace, remove or add photos and videos */
 const editPostForm = $<HTMLFormElement>('[data-edit-post-form]');
-let editSlots: Array<{ id?: string; file?: File; src: string }> = [];
+let editSlots: Array<{ id?: string; file?: File; src: string; video?: boolean }> = [];
+const fileSlot = (file: File) => ({ file, src: previewUrl(file), video: file.type.startsWith('video/') });
 function paintEditSlots() {
   const container = $('[data-edit-media]', editPostForm!);
   if (!container) return;
   renderPhotoTiles(container, editSlots, {
-    max: 4,
-    replace: async (index) => { const [file] = await pickImageFiles(); if (file) { editSlots[index] = { file, src: await readAsDataUrl(file) }; paintEditSlots(); } },
+    replace: async (index) => { const [file] = await pickMediaFiles(); if (file) { editSlots[index] = fileSlot(file); paintEditSlots(); } },
     remove: (index) => { editSlots.splice(index, 1); paintEditSlots(); },
-    add: async () => {
-      const files = (await pickImageFiles(true)).slice(0, 4 - editSlots.length);
-      for (const file of files) editSlots.push({ file, src: await readAsDataUrl(file) });
-      paintEditSlots();
-    }
+    add: async () => { editSlots.push(...(await pickMediaFiles(true)).map(fileSlot)); paintEditSlots(); }
   });
 }
 function openEditPost(postId: string, card: Element | null) {
   if (!editPostForm) return;
   editPostForm.dataset.postId = postId;
   $<HTMLTextAreaElement>('#edit-post-content', editPostForm)!.value = $('[data-post-content]', card || document)?.textContent?.trim() || '';
-  try { editSlots = JSON.parse((card as HTMLElement | null)?.dataset.postMedia || '[]').map((media: { id: string; url: string }) => ({ id: media.id, src: media.url })); } catch { editSlots = []; }
+  try { editSlots = JSON.parse((card as HTMLElement | null)?.dataset.postMedia || '[]').map((media: { id: string; url: string; mimeType?: string }) => ({ id: media.id, src: media.url, video: String(media.mimeType).startsWith('video/') })); } catch { editSlots = []; }
   $('[data-form-error]', editPostForm)!.classList.add('hidden');
   paintEditSlots(); openDialog('edit-post-dialog'); $<HTMLTextAreaElement>('#edit-post-content', editPostForm)!.focus();
 }
@@ -915,19 +1020,20 @@ if (storyDialog) {
 /* "…" menus on photos (post images, profile picture, cover) */
 async function photoMenuFor(trigger: HTMLElement): Promise<PhotoMenuItem[]> {
   const { photoMenu: kind, url = '', post, media } = trigger.dataset;
-  const view: PhotoMenuItem = { label: kind === 'avatar' ? 'View profile picture' : kind === 'cover' ? 'View cover photo' : 'View photo', icon: 'i-eye', run: () => openPhotoViewer(url, post) };
+  const noun = kind === 'post' && isVideoUrl(url) ? 'video' : 'photo';
+  const view: PhotoMenuItem = { label: kind === 'avatar' ? 'View profile picture' : kind === 'cover' ? 'View cover photo' : `View ${noun}`, icon: 'i-eye', run: () => openPhotoViewer(url, post) };
   if (kind === 'post') {
     return [view,
-      { label: 'Replace photo', icon: 'i-edit', run: async () => {
-        const [file] = await pickImageFiles(); if (!file) return;
+      { label: `Replace ${noun}`, icon: 'i-edit', run: async () => {
+        const [file] = await pickMediaFiles(); if (!file) return;
         const body = new FormData(); body.append('photo', file);
         try { await request(`/api/posts/${post}/media/${media}`, { method: 'PUT', body }); window.location.reload(); }
-        catch (caught) { showToast(caught instanceof Error ? caught.message : 'Could not replace photo.', 'error'); }
+        catch (caught) { showToast(caught instanceof Error ? caught.message : `Could not replace ${noun}.`, 'error'); }
       } },
-      { label: 'Delete photo', icon: 'i-trash', danger: true, run: async () => {
-        if (!(await confirmAction('Delete this photo?', 'It will be removed from the post. A post left empty moves to trash.', 'Delete'))) return;
+      { label: `Delete ${noun}`, icon: 'i-trash', danger: true, run: async () => {
+        if (!(await confirmAction(`Delete this ${noun}?`, 'It will be removed from the post. A post left empty moves to trash.', 'Delete'))) return;
         try { const result = await request(`/api/posts/${post}/media/${media}`, { method: 'DELETE' }); showToast(result.message); window.setTimeout(() => window.location.reload(), 500); }
-        catch (caught) { showToast(caught instanceof Error ? caught.message : 'Could not delete photo.', 'error'); }
+        catch (caught) { showToast(caught instanceof Error ? caught.message : `Could not delete ${noun}.`, 'error'); }
       } }];
   }
   const photoKind = kind === 'cover' ? 'cover' : 'avatar';
@@ -961,6 +1067,7 @@ let openPhotoViewer: (url: string, postId?: string) => void = () => undefined;
 if (photoViewer) {
   const stage = $('[data-viewer-stage]', photoViewer)!;
   const image = $<HTMLImageElement>('[data-lightbox-image]', photoViewer)!;
+  const video = $<HTMLVideoElement>('[data-lightbox-video]', photoViewer)!;
   const panel = $('[data-viewer-panel]', photoViewer)!;
   const commentsList = $('[data-viewer-comments]', photoViewer)!;
   const commentForm = $<HTMLFormElement>('[data-viewer-comment-form]', photoViewer)!;
@@ -983,9 +1090,18 @@ if (photoViewer) {
     $<HTMLButtonElement>('[data-viewer-zoom="out"]', photoViewer)!.disabled = zoom <= 1;
   };
   const setZoom = (value: number) => { zoom = Math.min(MAX_ZOOM, Math.max(1, Math.round(value * 100) / 100)); applyZoom(); };
+  const stopVideo = () => { video.pause(); video.removeAttribute('src'); video.load(); };
   const showPhoto = (next: number) => {
     index = (next + photos.length) % photos.length;
-    image.src = photos[index]!; image.alt = post?.media?.[index]?.alt || `Photo ${index + 1}`;
+    const url = photos[index]!;
+    const isVideo = isVideoUrl(url);
+    image.classList.toggle('hidden', isVideo); video.classList.toggle('hidden', !isVideo);
+    $$<HTMLButtonElement>('[data-viewer-zoom]', photoViewer).forEach((button) => button.classList.toggle('hidden', isVideo));
+    if (isVideo) {
+      image.removeAttribute('src');
+      if (video.getAttribute('src') !== url) { video.src = url; void video.play().catch(() => undefined); }
+      video.setAttribute('aria-label', post?.media?.[index]?.alt || `Video ${index + 1}`);
+    } else { stopVideo(); image.src = url; image.alt = post?.media?.[index]?.alt || `Photo ${index + 1}`; }
     zoom = 1; applyZoom();
     const multiple = photos.length > 1;
     $$('[data-viewer-nav]', photoViewer).forEach((button) => { button.classList.toggle('hidden', !multiple); button.classList.toggle('grid', multiple); });
@@ -995,7 +1111,7 @@ if (photoViewer) {
   $$('[data-viewer-zoom]', photoViewer).forEach((button) => button.addEventListener('click', () => setZoom(zoom + (button.dataset.viewerZoom === 'in' ? 0.5 : -0.5))));
   image.addEventListener('dblclick', () => setZoom(zoom > 1 ? 1 : 2));
   image.addEventListener('click', () => { if (zoom === 1) setZoom(2); });
-  stage.addEventListener('wheel', (event) => { if (!image.src) return; event.preventDefault(); setZoom(zoom + (event.deltaY < 0 ? 0.25 : -0.25)); }, { passive: false });
+  stage.addEventListener('wheel', (event) => { if (!image.src || image.classList.contains('hidden')) return; event.preventDefault(); setZoom(zoom + (event.deltaY < 0 ? 0.25 : -0.25)); }, { passive: false });
   let drag: { x: number; y: number; panX: number; panY: number } | null = null;
   image.addEventListener('pointerdown', (event) => { if (zoom === 1) return; drag = { x: event.clientX, y: event.clientY, panX, panY }; image.setPointerCapture(event.pointerId); image.style.cursor = 'grabbing'; image.classList.remove('transition-transform'); });
   image.addEventListener('pointermove', (event) => { if (!drag) return; panX = drag.panX + event.clientX - drag.x; panY = drag.panY + event.clientY - drag.y; applyZoom(); });
@@ -1013,11 +1129,12 @@ if (photoViewer) {
     if ((event.target as HTMLElement).closest('input, textarea')) return;
     if (event.key === 'ArrowRight' && photos.length > 1) showPhoto(index + 1);
     else if (event.key === 'ArrowLeft' && photos.length > 1) showPhoto(index - 1);
+    else if ((event.target as HTMLElement).closest('video')) return;
     else if (event.key === '+' || event.key === '=') setZoom(zoom + 0.5);
     else if (event.key === '-') setZoom(zoom - 0.5);
   });
   // `close` fires asynchronously; skip the reset if the viewer was reopened in the meantime.
-  photoViewer.addEventListener('close', () => { if (document.fullscreenElement) void document.exitFullscreen(); if (!photoViewer.open) { image.removeAttribute('src'); loadToken++; } });
+  photoViewer.addEventListener('close', () => { if (document.fullscreenElement) void document.exitFullscreen(); if (!photoViewer.open) { image.removeAttribute('src'); stopVideo(); loadToken++; } });
 
   /* Post column */
   const togglePanelButtons = $$('[data-viewer-toggle-panel]', photoViewer);
@@ -1412,6 +1529,7 @@ document.addEventListener('click', async (event) => {
     }
     if (data.openDialog) {
       openDialog(data.openDialog);
+      if (data.openDialog === 'profile-search-dialog') $<HTMLInputElement>('#profile-search-query')?.focus();
       if (data.focusBio !== undefined) { const form = $('#bio-form'); form?.classList.remove('hidden'); $<HTMLTextAreaElement>('textarea', form || document)?.focus(); }
       return;
     }
@@ -1440,14 +1558,54 @@ document.addEventListener('click', async (event) => {
       openEditPost(data.editPost, target.closest('[data-post-id]'));
       return;
     }
+    if (data.friendAction) {
+      const controls = target.closest<HTMLElement>('[data-friend-controls]');
+      const userId = controls?.dataset.userId, userName = controls?.dataset.userName || 'this person';
+      if (!controls || !userId) return;
+      target.closest('details')?.removeAttribute('open');
+      if (data.friendAction === 'unfriend' && !await confirmAction(`Unfriend ${userName}?`, 'They will disappear from Chats and neither of you can message the other until you become friends again.', 'Unfriend')) return;
+      const buttons = $$<HTMLButtonElement>('button', controls), error = $('[data-friend-error]', controls);
+      buttons.forEach((button) => { button.disabled = true; }); controls.setAttribute('aria-busy', 'true'); error?.classList.add('hidden');
+      try {
+        const result = await postJson(`/api/users/${userId}/friendship`, { action: data.friendAction });
+        syncFriendState(userId, result.state);
+        if (result.following !== undefined) syncFollowState(userId, result.following);
+        const messages: Record<string, string> = { request: 'Friend request sent.', cancel: 'Friend request canceled.', accept: `You and ${userName} are now friends.`, decline: 'Friend request deleted.', unfriend: `You and ${userName} are no longer friends.` };
+        showToast(messages[data.friendAction] || 'Friendship updated.');
+      } catch (caught) {
+        const message = caught instanceof Error ? caught.message : 'Could not update this friendship.';
+        if (error) { error.textContent = message; error.classList.remove('hidden'); }
+        buttons.forEach((button) => { button.disabled = false; }); controls.removeAttribute('aria-busy');
+      }
+      return;
+    }
     if (data.follow) {
-      const result = await request(`/api/users/${data.follow}/follow`, { method: 'POST' });
-      const label = result.following ? 'Following' : 'Follow';
-      if (data.followStyle !== undefined) {
-        target.classList.toggle('btn-primary', !result.following); target.classList.toggle('btn-secondary', result.following);
-        target.replaceChildren(svgUse(result.following ? 'i-check' : 'i-user-plus', 'icon'), Object.assign(document.createElement('span'), { textContent: label }));
-      } else target.replaceChildren(svgUse(result.following ? 'i-check' : 'i-user-plus', 'icon size-4'), document.createTextNode(label));
-      showToast(result.following ? 'You are now following them.' : 'Unfollowed.'); return;
+      const button = target as HTMLButtonElement, previouslyFollowing = data.following === 'true';
+      button.disabled = true;
+      try {
+        const result = await request(`/api/users/${data.follow}/follow`, { method: 'POST' });
+        syncFollowState(data.follow, result.following);
+        const count = $('[data-profile-followers]');
+        if (count && result.following !== previouslyFollowing) {
+          const next = Math.max(0, Number(count.dataset.count) + (result.following ? 1 : -1));
+          count.dataset.count = String(next); count.textContent = `${new Intl.NumberFormat('en', { notation: 'compact' }).format(next)} ${next === 1 ? 'follower' : 'followers'}`;
+        }
+        showToast(result.following ? 'Following. Their posts are now prioritized in your home feed.' : 'Unfollowed.');
+      } finally { button.disabled = false; }
+      return;
+    }
+    if (data.openBreak) { target.closest('details')?.removeAttribute('open'); await openBreak(data.openBreak, data.userName || 'this person'); return; }
+    if (data.copyProfile) { target.closest('details')?.removeAttribute('open'); await navigator.clipboard.writeText(`${window.location.origin}${data.copyProfile}`); showToast('Profile link copied.'); return; }
+    if (data.blockUser) {
+      target.closest('details')?.removeAttribute('open');
+      const unblock = data.unblock === 'true', userName = data.userName || 'this person';
+      if (!await confirmAction(`${unblock ? 'Unblock' : 'Block'} ${userName}?`, unblock ? 'You can see each other again. Your friendship and follows will not be restored automatically.' : 'You will be unfriended and unfollow each other. Neither of you can see the other’s profile, add as a friend or send messages. You can unblock them later.', unblock ? 'Unblock' : 'Block')) return;
+      socialActionPending = true; (target as HTMLButtonElement).disabled = true;
+      try {
+        await postJson(`/api/users/${data.blockUser}/block`, { blocked: !unblock });
+        window.location.reload();
+      } finally { socialActionPending = false; (target as HTMLButtonElement).disabled = false; }
+      return;
     }
     if (data.messageUser) { const result = await postJson('/api/conversations', { memberId: data.messageUser }); window.location.assign(result.redirect); return; }
     if (data.react && data.post) {
@@ -1477,7 +1635,12 @@ document.addEventListener('click', async (event) => {
       showToast('All notifications marked as read.'); return;
     }
     if (data.logout !== undefined) { const result = await request('/auth/logout', { method: 'POST' }); window.location.assign(result.redirect); }
-  } catch (caught) { showToast(caught instanceof Error ? caught.message : 'Action failed.', 'error'); }
+  } catch (caught) {
+    const message = caught instanceof Error ? caught.message : 'Action failed.';
+    const error = target.closest('.profile-actions')?.querySelector<HTMLElement>('[data-profile-action-error]');
+    if (error) { error.textContent = message; error.classList.remove('hidden'); }
+    showToast(message, 'error');
+  }
 });
 
 // Touch devices have no hover: a long press on Like opens the reaction bar.
@@ -1553,6 +1716,18 @@ if (typeof io === 'function' && me.id) {
   const socket = io();
   const activeConversation = $('[data-conversation]')?.dataset.conversation;
   if (activeConversation) socket.emit('conversation:join', activeConversation);
+  socket.on('friendship:changed', (relation: any) => {
+    syncFriendState(relation.userId, relation.state);
+    syncFollowState(relation.userId, relation.following);
+    if (window.location.pathname.startsWith('/messages')) window.location.assign('/messages');
+  });
+  socket.on('social:changed', (relation: any) => {
+    if (socialActionPending) return;
+    if (relation.unavailable || relation.blocked !== undefined) {
+      if (window.location.pathname.startsWith('/messages')) window.location.assign('/messages');
+      else window.location.reload();
+    }
+  });
   socket.on('notification:new', (notification: any) => {
     if (notification?.type === 'message' && String(notification.entityId) === activeConversation) return;
     showToast('You have a new notification.');

@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { connectInfrastructure, disconnectInfrastructure } from '../config/database.js';
-import { Comment, Conversation, Follow, Group, GroupMember, GroupPost, Message, Post, Reaction, Story, User, STORY_TTL_MS } from '../models/index.js';
+import { Comment, Conversation, Follow, Friendship, Group, GroupMember, GroupPost, Message, Post, Reaction, Story, User, STORY_TTL_MS } from '../models/index.js';
 
 async function seed() {
   await connectInfrastructure();
@@ -19,6 +19,11 @@ async function seed() {
   const [maya, leo, anika, jonah, ethan, olivia] = users;
   const follows = [[maya, leo], [maya, anika], [maya, ethan], [maya, olivia], [leo, maya], [anika, maya], [ethan, maya], [olivia, maya], [jonah, maya], [olivia, anika]];
   for (const [follower, following] of follows) await Follow.updateOne({ followerId: follower.id, followingId: following.id }, {}, { upsert: true });
+  const friendPairs = [[maya, leo], [maya, anika], [maya, ethan], [maya, olivia]];
+  for (const [first, second] of friendPairs) {
+    const [userAId, userBId] = [String(first.id), String(second.id)].sort();
+    await Friendship.updateOne({ userAId, userBId }, { requesterId: first.id, status: 'accepted', acceptedAt: new Date() }, { upsert: true });
+  }
   const group = await Group.findOneAndUpdate({ slug: 'city-gardeners' }, { name: 'City Gardeners', slug: 'city-gardeners', description: 'Practical growing advice for balconies, rooftops, and small urban spaces.', coverUrl: '/assets/img/seed/garden-cover.svg', privacy: 'public', visibility: 'visible', groupType: 'hobbies', location: 'Da Nang, Vietnam', tags: ['gardening', 'balcony', 'urban'], rules: [{ title: 'Be kind and courteous', details: 'Everyone starts somewhere. Share advice, not judgement.' }, { title: 'No promotions or spam', details: 'Plant sales belong in the monthly swap thread.' }], settings: { whoCanPost: 'anyone', postApproval: false, whoCanApprove: 'admins' }, ownerId: maya.id, memberCount: 3 }, { upsert: true, new: true });
   for (const [user, role] of [[maya, 'admin'], [leo, 'member'], [jonah, 'member']] as const) await GroupMember.updateOne({ groupId: group.id, userId: user.id }, { role }, { upsert: true });
   const photoGroup = await Group.findOneAndUpdate({ slug: 'street-photography' }, { name: 'Street Photography', slug: 'street-photography', description: 'Candid city moments, gear talk, and weekly photo walks across Southeast Asia.', coverUrl: '/assets/img/seed/photo-cover.svg', privacy: 'private', visibility: 'visible', groupType: 'learning', location: 'Singapore', tags: ['photography', 'street', 'travel'], rules: [{ title: 'Only share your own photos', details: 'Credit collaborators and never repost without permission.' }, { title: "Respect everyone's privacy", details: 'Ask before posting recognisable faces of strangers.' }], questions: ['What do you usually shoot with?', 'Which city would you love to photograph next?'], settings: { whoCanPost: 'anyone', postApproval: true, whoCanApprove: 'admins' }, ownerId: anika.id, memberCount: 3 }, { upsert: true, new: true });

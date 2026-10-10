@@ -43,6 +43,35 @@ const followSchema = new Schema({
 }, options);
 followSchema.index({ followerId: 1, followingId: 1 }, { unique: true });
 
+// Store each unordered pair once. userAId/userBId are always sorted by id in the
+// friendship service, while requesterId preserves the direction of a pending request.
+const friendshipSchema = new Schema({
+  userAId: { type: objectId, ref: 'User', required: true },
+  userBId: { type: objectId, ref: 'User', required: true },
+  requesterId: { type: objectId, ref: 'User', required: true },
+  status: { type: String, enum: ['pending', 'accepted'], default: 'pending' },
+  acceptedAt: { type: Date, default: null }
+}, options);
+friendshipSchema.index({ userAId: 1, userBId: 1 }, { unique: true });
+friendshipSchema.index({ userAId: 1, status: 1, acceptedAt: -1 });
+friendshipSchema.index({ userBId: 1, status: 1, acceptedAt: -1 });
+
+const blockSchema = new Schema({
+  blockerId: { type: objectId, ref: 'User', required: true },
+  blockedId: { type: objectId, ref: 'User', required: true }
+}, options);
+blockSchema.index({ blockerId: 1, blockedId: 1 }, { unique: true });
+blockSchema.index({ blockedId: 1, blockerId: 1 });
+
+const socialPreferenceSchema = new Schema({
+  userId: { type: objectId, ref: 'User', required: true },
+  targetId: { type: objectId, ref: 'User', required: true },
+  seeLess: { type: Boolean, default: false },
+  restrictPosts: { type: Boolean, default: false }
+}, options);
+socialPreferenceSchema.index({ userId: 1, targetId: 1 }, { unique: true });
+socialPreferenceSchema.index({ targetId: 1, restrictPosts: 1 });
+
 const postMediaSchema = new Schema({
   url: { type: String, required: true },
   mimeType: { type: String, required: true },
@@ -164,7 +193,7 @@ messageSchema.index({ conversationId: 1, createdAt: -1 });
 const notificationSchema = new Schema({
   recipientId: { type: objectId, ref: 'User', required: true, index: true },
   actorId: { type: objectId, ref: 'User', required: true },
-  type: { type: String, enum: ['reaction', 'comment', 'follow', 'group_request', 'group_invite', 'group_post', 'message', 'story_reaction'], required: true },
+  type: { type: String, enum: ['reaction', 'comment', 'follow', 'friend_request', 'friend_accept', 'group_request', 'group_invite', 'group_post', 'message', 'story_reaction'], required: true },
   entityType: { type: String, required: true },
   entityId: { type: objectId, required: true },
   text: { type: String, required: true, maxlength: 180 },
@@ -219,6 +248,9 @@ auditLogSchema.index({ createdAt: -1 });
 export type IUser = InferSchemaType<typeof userSchema>;
 export const User: Model<any> = models.User || model('User', userSchema);
 export const Follow: Model<any> = models.Follow || model('Follow', followSchema);
+export const Friendship: Model<any> = models.Friendship || model('Friendship', friendshipSchema);
+export const Block: Model<any> = models.Block || model('Block', blockSchema);
+export const SocialPreference: Model<any> = models.SocialPreference || model('SocialPreference', socialPreferenceSchema);
 export const Post: Model<any> = models.Post || model('Post', postSchema);
 export const Reaction: Model<any> = models.Reaction || model('Reaction', reactionSchema);
 export const Comment: Model<any> = models.Comment || model('Comment', commentSchema);

@@ -26,12 +26,15 @@
         <div class="flex items-center justify-between px-2 pb-1 pt-1"><h2 class="font-display text-[1.0625rem] font-bold text-muted">People you may know</h2><a class="text-15 text-brand-600 hover:underline" href="/search?kind=user">See all</a></div>
         <ul>
           <% suggestions.forEach(function (person) { %>
-          <li class="flex items-center gap-3 rounded-lg p-2 hover:bg-rail-hover">
+          <li class="flex flex-wrap items-center gap-3 rounded-lg p-2 hover:bg-rail-hover">
             <a href="/profile/<%= person.username %>" class="flex min-w-0 flex-1 items-center gap-3">
               <%- include('partials/avatar', { person, size: 'size-10 text-sm' }) %>
               <span class="min-w-0"><span class="block truncate font-semibold"><%= person.displayName %></span><span class="block truncate text-[0.8125rem] text-muted">@<%= person.username %></span></span>
             </a>
-            <button type="button" class="btn-soft btn-sm" data-follow="<%= person._id %>" aria-label="Follow <%= person.displayName %>"><svg class="icon size-4"><use href="#i-user-plus"/></svg>Follow</button>
+            <div class="flex w-full flex-wrap gap-2 pl-12">
+              <%- include('partials/friend-controls', { person, state: person.friendState, compact: true, full: false }) %>
+              <%- include('partials/follow-button', { person, following: person.isFollowing, compact: true, full: false }) %>
+            </div>
           </li>
           <% }) %>
         </ul>

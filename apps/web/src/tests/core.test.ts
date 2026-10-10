@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import { describe, expect, it } from 'vitest';
 import { loginSchema, registerSchema, postSchema, reactionSchema } from '../validators/index.js';
 import { assertOwner } from '../services/permissions.js';
+import { friendshipPair, stateFromFriendship } from '../services/friendship.service.js';
 
 describe('authentication policy', () => {
   it('requires a strong password during registration', () => {
@@ -35,5 +36,20 @@ describe('ownership checks', () => {
   it('allows the owner and rejects another user', () => {
     expect(() => assertOwner('owner', 'owner')).not.toThrow();
     expect(() => assertOwner('owner', 'intruder')).toThrowError(/own/);
+  });
+});
+
+describe('friendship state', () => {
+  it('stores either direction under the same canonical pair', () => {
+    expect(friendshipPair('b', 'a')).toEqual({ userAId: 'a', userBId: 'b' });
+    expect(friendshipPair('a', 'b')).toEqual({ userAId: 'a', userBId: 'b' });
+  });
+
+  it('shows Facebook-style request states from each side', () => {
+    const pending = { status: 'pending', requesterId: 'alice' };
+    expect(stateFromFriendship('alice', 'bob', pending)).toBe('outgoing');
+    expect(stateFromFriendship('bob', 'alice', pending)).toBe('incoming');
+    expect(stateFromFriendship('alice', 'bob', { ...pending, status: 'accepted' })).toBe('friends');
+    expect(stateFromFriendship('alice', 'bob')).toBe('none');
   });
 });

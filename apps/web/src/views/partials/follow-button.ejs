@@ -1,0 +1,1 @@
+<button type="button" class="btn-secondary <%= compact ? 'btn-sm' : '' %> <%= full ? 'w-full' : '' %>" data-follow="<%= person._id || person.id %>" data-follow-style data-following="<%= following %>"><svg class="icon size-4"><use href="#<%= following ? 'i-check' : 'i-user-plus' %>"/></svg><span><%= following ? 'Following' : 'Follow' %></span></button>

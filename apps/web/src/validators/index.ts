@@ -36,8 +36,8 @@ export const postFeelingSchema = z.discriminatedUnion('type', [
 ]);
 export const postPlaceSchema = z.object({ id: z.string().max(60).default(''), name: z.string().trim().min(1).max(120), address: z.string().trim().max(200).default(''), lat: z.number().min(-90).max(90), lon: z.number().min(-180).max(180) });
 export const postSchema = z.object({ content: z.string().trim().max(5000).default(''), visibility: z.enum(['public', 'followers', 'private']).default('public'), groupId: z.string().optional(), feeling: jsonField(postFeelingSchema), place: jsonField(postPlaceSchema) });
-const mediaSlot = z.union([z.object({ id: z.string().min(1) }), z.object({ upload: z.number().int().min(0).max(3) })]);
-export const postEditSchema = z.object({ content: z.string().trim().max(5000).default(''), visibility: z.enum(['public', 'followers', 'private']).optional(), layout: jsonField(z.array(mediaSlot).max(4)) });
+const mediaSlot = z.union([z.object({ id: z.string().min(1) }), z.object({ upload: z.number().int().min(0) })]);
+export const postEditSchema = z.object({ content: z.string().trim().max(5000).default(''), visibility: z.enum(['public', 'followers', 'private']).optional(), layout: jsonField(z.array(mediaSlot)) });
 export const photoDeleteSchema = z.object({ url: z.string().min(1).max(500) });
 export const placeSearchSchema = z.object({ q: z.string().trim().min(2).max(100), lat: z.coerce.number().min(-90).max(90).optional(), lon: z.coerce.number().min(-180).max(180).optional() });
 export const placeNearbySchema = z.object({ lat: z.coerce.number().min(-90).max(90), lon: z.coerce.number().min(-180).max(180) });
@@ -63,6 +63,9 @@ export const groupSchema = z.object({
 export const groupJoinSchema = z.object({ answers: z.array(z.string().trim().max(500)).max(3).default([]), agreeRules: z.boolean().default(false) });
 export const groupInviteSchema = z.object({ userIds: z.array(z.string().min(1)).min(1).max(50) });
 export const decisionSchema = z.object({ decision: z.enum(['approve', 'reject']) });
+export const friendActionSchema = z.object({ action: z.enum(['request', 'cancel', 'accept', 'decline', 'unfriend']) });
+export const breakSchema = z.object({ seeLess: z.boolean(), restrictPosts: z.boolean() });
+export const blockActionSchema = z.object({ blocked: z.boolean() });
 export const conversationSchema = z.object({ memberId: z.string().min(1) });
 export const messageSchema = z.object({ content: z.string().trim().min(1).max(3000) });
 

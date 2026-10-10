@@ -6,6 +6,8 @@ import { getPostDetail, withReactionSummary } from '../services/post.service.js'
 import { GROUP_ARTWORK, GROUP_TYPE_LABELS, getGroup, inviteCandidates, listGroups } from '../services/group.service.js';
 import { countUnreadConversations, listConversations, listMessages, markConversationRead } from '../services/message.service.js';
 import { getStoryTray, listArchive } from '../services/story.service.js';
+import { getFriendshipStates, listFriends } from '../services/friendship.service.js';
+import { blockedUserIds, restrictedAuthorIds } from '../services/social.service.js';
 import { AppError } from '../utils/errors.js';
 
 const base = (req: Request, title: string) => ({ title, path: req.path, csrfToken: resToken(req), currentUser: req.user?.toObject() ?? null });
@@ -16,7 +18,8 @@ const AUTHOR_FIELDS = 'username displayName profile.avatarUrl';
 /** Header badges: unread notifications and conversations with unread messages. */
 export async function navState(req: Request, res: Response, next: NextFunction) {
   if (req.user) {
-    const [unreadNotifications, unreadMessages] = await Promise.all([Notification.countDocuments({ recipientId: req.user.id, readAt: null }), countUnreadConversations(req.user.id)]);
+    const blocked = await blockedUserIds(req.user.id);
+    const [unreadNotifications, unreadMessages] = await Promise.all([Notification.countDocuments({ recipientId: req.user.id, readAt: null, actorId: { $nin: blocked } }), countUnreadConversations(req.user.id)]);
     Object.assign(res.locals, { unreadNotifications, unreadMessages });
   }
   next();
@@ -27,34 +30,35 @@ async function myGroups(userId: string, limit = 8) {
   return memberships.map((item: any) => item.groupId).filter(Boolean);
 }
 
-async function contacts(userId: string, limit = 12) {
-  const follows = await Follow.find({ followerId: userId }).sort({ createdAt: -1 }).limit(limit).populate('followingId', AUTHOR_FIELDS).lean();
-  return follows.map((item: any) => item.followingId).filter(Boolean);
-}
-
 export function loginPage(req: Request, res: Response) { if (req.user) return res.redirect('/'); res.render('auth/login', base(req, 'Log in')); }
 export function registerPage(req: Request, res: Response) { if (req.user) return res.redirect('/'); res.render('auth/register', base(req, 'Create an account')); }
 export function resetPage(req: Request, res: Response) { res.render('auth/reset', { ...base(req, 'Reset password'), token: req.query.token || '' }); }
 
 export async function home(req: Request, res: Response) {
   const userId = req.user!.id;
-  const [result, following, groups, tray, people] = await Promise.all([getFeed(userId), contacts(userId, 40), myGroups(userId), getStoryTray(userId), User.find({ _id: { $ne: userId }, deletedAt: null }).sort({ createdAt: -1 }).limit(20).select(AUTHOR_FIELDS).lean()]);
-  const followingIds = new Set(following.map((user: any) => String(user._id)));
-  const suggestions = people.filter((person: any) => !followingIds.has(String(person._id))).slice(0, 4);
+  const blocked = await blockedUserIds(userId);
+  const [result, friends, groups, tray, people, follows] = await Promise.all([getFeed(userId), listFriends(userId, 40), myGroups(userId), getStoryTray(userId), User.find({ _id: { $nin: [userId, ...blocked] }, deletedAt: null }).sort({ createdAt: -1 }).limit(20).select(AUTHOR_FIELDS).lean(), Follow.find({ followerId: userId }).select('followingId').lean()]);
+  const followedIds = new Set(follows.map((row: any) => String(row.followingId)));
+  const friendStates = await getFriendshipStates(userId, people.map((person: any) => String(person._id)));
+  const suggestions = people.map((person: any) => ({ ...person, friendState: friendStates.get(String(person._id)) || 'none', isFollowing: followedIds.has(String(person._id)) })).filter((person: any) => person.friendState !== 'friends').slice(0, 4);
   const posts = await withReactionSummary(result.items, userId);
-  res.render('home', { ...base(req, 'Home'), posts, suggestions, contacts: following.slice(0, 12), groups, tray, cached: result.cached });
+  res.render('home', { ...base(req, 'Home'), posts, suggestions, contacts: friends.slice(0, 12), groups, tray, cached: result.cached });
 }
 
 export async function profile(req: Request, res: Response) {
   const profile = await getProfile(param(req, 'username'), req.user?.id);
-  const visibility = profile.isSelf ? {} : profile.isFollowing ? { visibility: { $in: ['public', 'followers'] } } : { visibility: 'public' };
-  const raw = await Post.find({ authorId: profile._id, groupId: null, deletedAt: null, ...visibility }).sort({ createdAt: -1 }).limit(50).populate('authorId', AUTHOR_FIELDS).lean();
+  if (profile.blockedByMe) return res.render('profile', { ...base(req, profile.displayName), profile, posts: [], photos: [], hasStory: false, friendsPreview: [], tab: 'posts', profileQuery: '' });
+  const restricted = req.user ? (await restrictedAuthorIds(req.user.id)).includes(String(profile._id)) : false;
+  const visibility = profile.isSelf ? {} : profile.isFollowing && !restricted ? { visibility: { $in: ['public', 'followers'] } } : { visibility: 'public' };
+  const profileQuery = String(req.query.q || '').trim().slice(0, 80);
+  const searchFilter = profileQuery ? { content: { $regex: profileQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } } : {};
+  const raw = await Post.find({ authorId: profile._id, groupId: null, deletedAt: null, ...visibility, ...searchFilter }).sort({ createdAt: -1 }).limit(50).populate('authorId', AUTHOR_FIELDS).lean();
   const posts = await withReactionSummary(raw, req.user?.id);
-  const photos = raw.flatMap((post: any) => (post.media || []).map((media: any) => ({ ...media, postId: post._id, mediaId: media._id }))).slice(0, 9);
+  const photos = raw.flatMap((post: any) => (post.media || []).filter((media: any) => String(media.mimeType).startsWith('image/')).map((media: any) => ({ ...media, postId: post._id, mediaId: media._id }))).slice(0, 9);
   const tray = req.user ? await getStoryTray(req.user.id, [String(profile._id)]) : [];
   const hasStory = tray.some((group) => group.author._id === String(profile._id));
-  const followingPreview = await contacts(String(profile._id), 9);
-  res.render('profile', { ...base(req, profile.displayName), profile, posts, photos, hasStory, followingPreview, tab: req.query.tab === 'about' ? 'about' : req.query.tab === 'photos' ? 'photos' : 'posts' });
+  const friendsPreview = await listFriends(String(profile._id), 9);
+  res.render('profile', { ...base(req, profile.displayName), profile, posts, photos, hasStory, friendsPreview, profileQuery, tab: profileQuery ? 'posts' : req.query.tab === 'about' ? 'about' : req.query.tab === 'photos' ? 'photos' : 'posts' });
 }
 
 export async function post(req: Request, res: Response) {
@@ -103,18 +107,28 @@ export async function conversation(req: Request, res: Response) {
 }
 
 export async function notifications(req: Request, res: Response) {
-  const items = await Notification.find({ recipientId: req.user!.id }).sort({ createdAt: -1 }).limit(50).populate('actorId', AUTHOR_FIELDS).lean();
-  res.render('notifications', { ...base(req, 'Notifications'), notifications: items.filter((item: any) => item.actorId), filter: req.query.filter === 'unread' ? 'unread' : 'all' });
+  const blocked = await blockedUserIds(req.user!.id);
+  const items = await Notification.find({ recipientId: req.user!.id, actorId: { $nin: blocked } }).sort({ createdAt: -1 }).limit(50).populate('actorId', AUTHOR_FIELDS).lean();
+  const validItems = items.filter((item: any) => item.actorId);
+  const friendStates = await getFriendshipStates(req.user!.id, validItems.map((item: any) => String(item.actorId._id)));
+  const notifications = validItems.map((item: any) => ({ ...item, friendState: friendStates.get(String(item.actorId._id)) || 'none' }));
+  res.render('notifications', { ...base(req, 'Notifications'), notifications, filter: req.query.filter === 'unread' ? 'unread' : 'all' });
 }
 
 export async function search(req: Request, res: Response) {
   const q = String(req.query.q || '').trim();
   const kind = ['user', 'post', 'group'].includes(String(req.query.kind)) ? String(req.query.kind) : 'all';
-  const result = q.length >= 2 ? await searchAll(q) : { items: [] };
-  const results = (result.items as any[]).filter((item) => kind === 'all' || item.kind === kind);
-  const following = q ? [] : await Follow.find({ followerId: req.user!.id }).select('followingId').lean();
-  const people = q ? [] : await User.find({ _id: { $nin: [req.user!.id, ...following.map((item: any) => item.followingId)] }, deletedAt: null }).sort({ createdAt: -1 }).limit(24).select(`${AUTHOR_FIELDS} profile.bio`).lean();
-  res.render('search', { ...base(req, 'Search'), q, kind, results, people });
+  const result = q.length >= 2 ? await searchAll(q, req.user!.id) : { items: [] };
+  const rawResults = (result.items as any[]).filter((item) => (kind === 'all' || item.kind === kind) && !(item.kind === 'user' && String(item.id) === req.user!.id));
+  const blocked = await blockedUserIds(req.user!.id);
+  const people = q ? [] : await User.find({ _id: { $nin: [req.user!.id, ...blocked] }, deletedAt: null }).sort({ createdAt: -1 }).limit(24).select(`${AUTHOR_FIELDS} profile.bio`).lean();
+  const follows = await Follow.find({ followerId: req.user!.id }).select('followingId').lean();
+  const followedIds = new Set(follows.map((row: any) => String(row.followingId)));
+  const userIds = q ? rawResults.filter((item) => item.kind === 'user').map((item) => String(item.id)) : people.map((person: any) => String(person._id));
+  const friendStates = await getFriendshipStates(req.user!.id, userIds);
+  const results = rawResults.map((item) => item.kind === 'user' ? { ...item, friendState: friendStates.get(String(item.id)) || 'none', isFollowing: followedIds.has(String(item.id)) } : item);
+  const peopleWithState = people.map((person: any) => ({ ...person, friendState: friendStates.get(String(person._id)) || 'none', isFollowing: followedIds.has(String(person._id)) })).filter((person: any) => person.friendState !== 'friends');
+  res.render('search', { ...base(req, 'Search'), q, kind, results, people: peopleWithState });
 }
 
 export function settings(req: Request, res: Response) { res.render('settings', base(req, 'Settings')); }

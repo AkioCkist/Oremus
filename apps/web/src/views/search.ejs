@@ -32,7 +32,7 @@
             <li class="flex items-center gap-3 rounded-lg border border-line p-3">
               <a href="/profile/<%= person.username %>"><%- include('partials/avatar', { person, size: 'size-14 text-lg' }) %></a>
               <div class="min-w-0 flex-1"><a class="block truncate font-semibold hover:underline" href="/profile/<%= person.username %>"><%= person.displayName %></a><p class="truncate text-[0.8125rem] text-muted"><%= (person.profile && person.profile.bio) || '@' + person.username %></p>
-                <button type="button" class="btn-soft btn-sm mt-2 w-full" data-follow="<%= person._id %>"><svg class="icon size-4"><use href="#i-user-plus"/></svg>Follow</button></div>
+                <div class="mt-2 space-y-2"><%- include('partials/friend-controls', { person, state: person.friendState, compact: true, full: true }) %><%- include('partials/follow-button', { person, following: person.isFollowing, compact: true, full: true }) %></div></div>
             </li>
             <% }) %>
           </ul>
@@ -46,13 +46,16 @@
         <div class="empty-state"><div class="empty-icon"><svg class="icon size-7"><use href="#i-search"/></svg></div><h2 class="mt-4 text-xl font-bold">We didn't find any results</h2><p class="mt-1 text-muted">Make sure everything is spelled correctly or try different keywords.</p></div>
       <% } else { %>
         <% results.forEach(function (r) { const icon = r.kind === 'user' ? 'i-user' : r.kind === 'group' ? 'i-group' : 'i-feed'; %>
-        <a class="card flex items-center gap-3 p-4 transition-colors hover:bg-hover" href="<%= r.url %>">
+        <article class="card flex flex-wrap items-center gap-3 p-4 transition-colors hover:bg-hover">
+          <a class="flex min-w-0 flex-1 items-center gap-3" href="<%= r.url %>">
           <% if (r.kind === 'user') { %><%- include('partials/avatar', { person: { displayName: r.title, avatarUrl: r.image_url }, size: 'size-14 text-lg' }) %>
           <% } else if (r.image_url) { %><img class="size-14 shrink-0 rounded-lg object-cover" src="<%= r.image_url %>" alt="">
           <% } else { %><span class="grid size-14 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-600"><svg class="icon size-6"><use href="#<%= icon %>"/></svg></span><% } %>
           <span class="min-w-0 flex-1"><span class="block truncate text-[1.0625rem] font-semibold"><%= r.title %></span><span class="block truncate text-[0.8125rem] text-muted"><%= r.kind === 'user' ? 'Person' : r.kind === 'group' ? 'Group' : 'Post' %><%= r.subtitle && r.subtitle !== 'Post' ? ' · ' + r.subtitle : '' %></span></span>
-          <svg class="icon text-subtle"><use href="#i-chevron-right"/></svg>
-        </a>
+          <% if (r.kind !== 'user') { %><svg class="icon text-subtle"><use href="#i-chevron-right"/></svg><% } %>
+          </a>
+          <% if (r.kind === 'user') { %><div class="flex flex-wrap gap-2"><%- include('partials/friend-controls', { person: { id: r.id, title: r.title }, state: r.friendState, compact: true, full: false }) %><%- include('partials/follow-button', { person: { id: r.id }, following: r.isFollowing, compact: true, full: false }) %></div><% } %>
+        </article>
         <% }) %>
       <% } %>
     </div>

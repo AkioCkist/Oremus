@@ -4,6 +4,7 @@ import { AppError } from '../utils/errors.js';
 import { createConversation, sendMessage } from './message.service.js';
 import { notify } from './notification.service.js';
 import { assertOwner } from './permissions.js';
+import { assertNotBlocked, blockedUserIds, feedExclusions, restrictedAuthorIds } from './social.service.js';
 
 const clean = (value: string) => sanitizeHtml(value, { allowedTags: [], allowedAttributes: {} }).trim();
 const AUTHOR_FIELDS = 'username displayName profile.avatarUrl';
@@ -50,8 +51,12 @@ async function followingSet(userId: string): Promise<Set<string>> {
 
 /** Stories from you and people you follow; `extraAuthorIds` adds public stories from anyone else (e.g. a profile you opened). */
 export async function getStoryTray(viewerId: string, extraAuthorIds: string[] = []): Promise<TrayGroup[]> {
-  const following = await followingSet(viewerId);
-  const stories = await Story.find({ ...activeFilter(), $or: [{ authorId: { $in: [viewerId, ...following] } }, { authorId: { $in: extraAuthorIds }, audience: 'public' }] })
+  const [following, excluded, restricted, blocked] = await Promise.all([followingSet(viewerId), feedExclusions(viewerId), restrictedAuthorIds(viewerId), blockedUserIds(viewerId)]);
+  const stories = await Story.find({ ...activeFilter(), authorId: { $nin: blocked }, $or: [
+    { authorId: viewerId },
+    { authorId: { $in: [...following], $nin: excluded }, $or: [{ audience: 'public' }, { authorId: { $nin: restricted }, audience: 'followers' }] },
+    { authorId: { $in: extraAuthorIds }, $or: [{ audience: 'public' }, { authorId: { $in: [...following], $nin: restricted }, audience: 'followers' }] }
+  ] })
     .sort({ createdAt: 1 }).limit(400).populate('authorId', AUTHOR_FIELDS).lean();
   const visible = stories.filter((story: any) => story.authorId && canViewStory(story, viewerId, following));
   const views = await StoryView.find({ viewerId, storyId: { $in: visible.map((story: any) => story._id) } }).select('storyId reaction').lean();
@@ -61,6 +66,8 @@ export async function getStoryTray(viewerId: string, extraAuthorIds: string[] = 
 async function getAccessibleStory(storyId: string, viewerId: string) {
   const story = await Story.findOne({ _id: storyId, ...activeFilter() });
   if (!story) throw new AppError(404, 'This story is no longer available.', 'STORY_NOT_FOUND');
+  await assertNotBlocked(String(story.authorId), viewerId);
+  if (story.audience === 'followers' && (await restrictedAuthorIds(viewerId)).includes(String(story.authorId))) throw new AppError(403, 'This story is not available to you.', 'STORY_FORBIDDEN');
   const following = String(story.authorId) === viewerId || story.audience === 'public' ? new Set<string>() : await followingSet(viewerId);
   if (!canViewStory(story, viewerId, following)) throw new AppError(403, 'This story is only shared with followers.', 'STORY_FORBIDDEN');
   return story;

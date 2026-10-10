@@ -1,4 +1,5 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
+import multer from 'multer';
 import { ZodError } from 'zod';
 import { AppError } from '../utils/errors.js';
 import { logger } from '../config/logger.js';
@@ -7,6 +8,7 @@ export const notFound: RequestHandler = (req, _res, next) => next(new AppError(4
 
 export const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
   void _next;
+  if (error instanceof multer.MulterError) error = new AppError(error.code === 'LIMIT_FILE_SIZE' ? 413 : 422, error.code === 'LIMIT_FILE_SIZE' ? 'This file is too large.' : error.message, error.code);
   const isValidation = error instanceof ZodError;
   const status = error instanceof AppError ? error.status : isValidation ? 422 : typeof error?.status === 'number' ? error.status : 500;
   const message = status >= 500

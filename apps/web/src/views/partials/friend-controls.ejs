@@ -1,0 +1,24 @@
+<%
+  const currentState = state || 'none';
+  const small = compact ? 'btn-sm' : '';
+  const width = full ? 'w-full' : '';
+%>
+<div class="flex flex-wrap gap-2 <%= width %>" data-friend-controls data-user-id="<%= person._id || person.id %>" data-user-name="<%= person.displayName || person.title %>" data-compact="<%= compact ? 'true' : 'false' %>" data-full="<%= full ? 'true' : 'false' %>">
+  <% if (currentState === 'incoming') { %>
+    <button type="button" class="btn-primary <%= small %> <%= width %>" data-friend-action="accept"><svg class="icon size-4"><use href="#i-check"/></svg>Confirm</button>
+    <button type="button" class="btn-secondary <%= small %> <%= width %>" data-friend-action="decline"><svg class="icon size-4"><use href="#i-x"/></svg>Delete request</button>
+  <% } else if (currentState === 'outgoing') { %>
+    <button type="button" class="btn-secondary <%= small %> <%= width %>" data-friend-action="cancel"><svg class="icon size-4"><use href="#i-clock"/></svg>Cancel request</button>
+  <% } else if (currentState === 'friends') { %>
+    <details class="relative <%= width %>" data-menu>
+      <summary class="btn-secondary <%= small %> <%= width %> cursor-pointer"><svg class="icon size-4"><use href="#i-users"/></svg>Friends<svg class="icon size-4"><use href="#i-chevron-down"/></svg></summary>
+      <div class="menu right-0 top-full mt-2">
+        <button type="button" class="menu-item" data-open-break="<%= person._id || person.id %>" data-user-name="<%= person.displayName || person.title %>"><svg class="icon"><use href="#i-pause"/></svg>Take a break</button>
+        <button type="button" class="menu-item" data-friend-action="unfriend"><svg class="icon"><use href="#i-user"/></svg>Unfriend</button>
+      </div>
+    </details>
+  <% } else { %>
+    <button type="button" class="btn-primary <%= small %> <%= width %>" data-friend-action="request"><svg class="icon size-4"><use href="#i-user-plus"/></svg>Add friend</button>
+  <% } %>
+  <p class="hidden basis-full text-sm text-red-600" role="alert" data-friend-error></p>
+</div>

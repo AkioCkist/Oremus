@@ -129,8 +129,10 @@ describe('post photo editing', () => {
     expect(edit.layout).toEqual([{ id: 'abc' }, { upload: 0 }]);
     expect(postEditSchema.parse({ content: 'Only text' }).layout).toBeNull();
   });
-  it('caps photos at four and rejects bad slots', () => {
-    expect(() => postEditSchema.parse({ layout: JSON.stringify(Array.from({ length: 5 }, (_, i) => ({ id: String(i) }))) })).toThrow();
-    expect(() => postEditSchema.parse({ layout: '[{"upload":9}]' })).toThrow();
+  it('allows any number of media and rejects bad slots', () => {
+    const many = Array.from({ length: 12 }, (_, i) => (i % 2 ? { id: String(i) } : { upload: i }));
+    expect(postEditSchema.parse({ layout: JSON.stringify(many) }).layout).toEqual(many);
+    expect(() => postEditSchema.parse({ layout: '[{"upload":-1}]' })).toThrow();
+    expect(() => postEditSchema.parse({ layout: '[{"other":1}]' })).toThrow();
   });
 });

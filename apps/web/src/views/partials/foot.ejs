@@ -1,4 +1,5 @@
 <div id="toast-region" class="pointer-events-none fixed bottom-20 left-4 z-[60] flex flex-col gap-2 md:bottom-6" aria-live="polite" aria-atomic="true"></div>
+<% if (currentUser) { %><%- include('break-dialog') %><% } %>
 
 <dialog id="confirm-dialog" class="w-[min(30rem,calc(100%-2rem))] rounded-xl p-0 shadow-pop" role="alertdialog" aria-labelledby="confirm-title" aria-describedby="confirm-description">
   <div class="flex items-center justify-between border-b border-line px-4 py-3"><h2 id="confirm-title" class="mx-auto pl-9 text-xl font-bold">Move to trash?</h2><button class="icon-btn" value="cancel" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button></div>
@@ -11,6 +12,7 @@
     <!-- Stage: the photo always fits between top and bottom; empty space stays black -->
     <div class="relative flex min-w-0 flex-1 select-none items-center justify-center overflow-hidden bg-black" data-viewer-stage>
       <img class="size-full object-contain transition-transform duration-150 will-change-transform" alt="" draggable="false" data-lightbox-image>
+      <video class="hidden size-full object-contain" controls playsinline preload="metadata" data-lightbox-video></video>
       <div class="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/60 to-transparent"></div>
       <div class="absolute left-3 top-3 flex items-center gap-2">
         <button type="button" class="grid size-10 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20" data-close-dialog="lightbox" aria-label="Close photo viewer"><svg class="icon"><use href="#i-x"/></svg></button>
@@ -100,7 +102,7 @@
           <textarea id="composer-content" name="content" maxlength="5000" rows="4" class="w-full resize-none border-0 bg-transparent p-0 pr-10 text-2xl leading-snug placeholder:text-subtle focus:outline-none focus:ring-0" placeholder="What's on your mind, <%= firstName(currentUser.displayName) %>?"></textarea>
           <button type="button" class="icon-btn-ghost absolute bottom-0 right-0" data-emoji-for="#composer-content" aria-label="Insert emoji" title="Emoji"><svg class="icon"><use href="#i-smile"/></svg></button>
         </div>
-        <div class="mt-2 grid hidden grid-cols-2 gap-1 overflow-hidden rounded-lg border border-line p-1" data-composer-previews></div>
+        <div class="mt-2 grid hidden max-h-[22rem] grid-cols-2 gap-1 overflow-y-auto rounded-lg border border-line p-1" data-composer-previews></div>
         <div class="relative mt-2 hidden overflow-hidden rounded-lg border border-line" data-composer-place-card>
           <div class="relative h-36 bg-field" data-map></div>
           <div class="flex items-center gap-2 px-3 py-2"><svg class="icon shrink-0 text-[#f5533d]"><use href="#i-pin"/></svg><div class="min-w-0"><p class="truncate font-semibold" data-composer-place-name></p><p class="truncate text-[0.8125rem] text-muted" data-composer-place-address></p></div></div>
@@ -112,7 +114,7 @@
         <div class="flex items-center justify-between rounded-lg border border-strong px-4 py-2">
           <span class="text-15 font-semibold">Add to your post</span>
           <div class="flex items-center gap-1">
-            <label class="icon-btn-ghost cursor-pointer text-[#45bd62]" title="Photo/video"><svg class="icon size-6"><use href="#i-image"/></svg><span class="sr-only">Add photos</span><input class="sr-only" name="images" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple data-composer-files></label>
+            <label class="icon-btn-ghost cursor-pointer text-[#45bd62]" title="Photo/video"><svg class="icon size-6"><use href="#i-image"/></svg><span class="sr-only">Add photos or videos</span><input class="sr-only" name="images" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" multiple data-composer-files></label>
             <button type="button" class="icon-btn-ghost text-[#f7b928]" title="Feeling/activity" data-composer-open="feeling"><svg class="icon size-6"><use href="#i-smile"/></svg><span class="sr-only">Feeling or activity</span></button>
             <button type="button" class="icon-btn-ghost text-[#f5533d]" title="Check in" data-composer-open="place"><svg class="icon size-6"><use href="#i-pin"/></svg><span class="sr-only">Check in</span></button>
           </div>
@@ -166,8 +168,8 @@
     <div class="p-4">
       <label class="sr-only" for="edit-post-content">Post text</label>
       <textarea class="w-full resize-none border-0 p-0 text-xl leading-snug focus:outline-none focus:ring-0" id="edit-post-content" name="content" rows="5" maxlength="5000"></textarea>
-      <div class="mt-3 grid grid-cols-2 gap-1 rounded-lg border border-line p-1 empty:hidden" data-edit-media></div>
-      <p class="mt-2 text-[0.8125rem] text-muted">Tap a photo's buttons to replace or remove it. Up to 4 photos.</p>
+      <div class="mt-3 grid max-h-[22rem] grid-cols-2 gap-1 overflow-y-auto rounded-lg border border-line p-1 empty:hidden" data-edit-media></div>
+      <p class="mt-2 text-[0.8125rem] text-muted">Use the buttons on each photo or video to replace or remove it. Photos up to 8 MB, videos up to 200 MB.</p>
       <p class="form-error mt-3 hidden" data-form-error role="alert"></p>
       <button class="btn-primary mt-3 w-full" type="submit">Save</button>
     </div>

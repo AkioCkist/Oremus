@@ -24,6 +24,7 @@ MongoDB embeds values that are read and updated with their parent: `Profile` ins
 erDiagram
   USER ||--|| PROFILE : embeds
   USER ||--o{ FOLLOW : follows
+  USER ||--o{ FRIENDSHIP : connects
   USER ||--o{ POST : authors
   POST ||--o{ POST_MEDIA : embeds
   POST ||--o{ REACTION : receives
@@ -40,20 +41,23 @@ erDiagram
   USER ||--o{ AUDIT_LOG : acts
 ```
 
-Compound unique indexes protect follow pairs, user/post reactions, memberships, and active identity fields. TTL removes expired refresh records. Posts and comments use `deletedAt` soft deletion.
+Compound unique indexes protect follow pairs, canonical friendship pairs, user/post reactions, memberships, and active identity fields. Friendships move from `pending` to `accepted`; accepting creates or promotes the private conversation. TTL removes expired refresh records. Posts and comments use `deletedAt` soft deletion.
+
+Follow remains independent of friendship. Home posts sort by followed authors first, newest follow first, then newest post within each author, before pagination. Take a break saves private `SocialPreference` settings: hide an author's home posts/stories or restrict follower-only content shared with them; public content remains accessible and friendship/chat stay intact. `Block` denies profile/content/social/chat access in both directions, removes friendship and bilateral follows, and retains message history. Unblocking does not restore those relationships. The existing-chat friendship backfill runs only once, preventing migrations from resurrecting removed relationships.
 
 ## Route map
 
 | Surface | Routes | Responsibility |
 |---|---|---|
 | Pages | `/`, `/login`, `/register`, `/reset-password` | Authentication and ranked home feed |
-| People | `/profile/:username`, `PATCH /api/profile`, `POST /api/users/:id/follow` | Profiles and follow graph |
+| People | `/profile/:username`, `PATCH /api/profile`, `POST /api/users/:id/friendship` | Profiles plus friend request/accept/cancel/decline/unfriend state |
+| Social actions | `/profile/:username?q=...`, `/api/users/:id/follow`, `/api/users/:id/break`, `/api/users/:id/block` | Profile search, independent follow, private break settings, block/unblock |
 | Posts | `/posts/:id`, `/api/posts/*` | Create/edit/delete, media, reactions, comments/replies |
 | Groups | `/groups`, `/groups/:slug`, `/api/groups/*`, `/api/group-requests/*` | Discovery, membership, moderation, group posting |
-| Messaging | `/messages/:conversationId`, `/api/conversations/*` | Conversation history and real-time messages |
+| Messaging | `/messages/:conversationId`, `/api/conversations/*` | Friends-only conversation history and real-time messages |
 | Activity | `/notifications`, `/api/notifications/*` | Notification inbox and read state |
 | Discovery | `/search`, `/api/search`, FastAPI `/v1/search` | Users, posts, groups |
-| Ranking | FastAPI `/v1/feed/rank` | Explainable ranking of authorized candidates |
+| Ranking | MongoDB home-feed aggregation; FastAPI `/v1/feed/rank` | Home follow-recency priority; optional ranking endpoint |
 | Operations | `/health`, FastAPI `/health`, `/api/dev/cache` | Readiness and cache diagnostics |
 
 ## Cache policy
@@ -76,7 +80,8 @@ Cache accesses increment `cache:stats` hit/miss counters. Broad feed invalidatio
 | Post ownership | shared permission test + service guard |
 | Six reaction types | table-driven Vitest coverage |
 | Group approval | admin/moderator service guard + upserted membership |
-| Message delivery | persisted message + conversation Socket.IO room emit |
+| Message delivery | persisted message + recipient user Socket.IO room emit |
+| Friendship-gated chat | canonical pair state + service, page, API and socket authorization checks |
 | Notification delivery | persisted notification + user Socket.IO room emit |
 | Redis behavior | explicit cache/invalidation service + diagnostic endpoint |
 | Responsive UI | desktop grid, mobile bottom navigation, semantic forms/focus states |

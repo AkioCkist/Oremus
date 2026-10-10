@@ -5,12 +5,14 @@ import { AppError } from '../utils/errors.js';
 import { invalidateSocialCaches } from './cache.service.js';
 import { notify } from './notification.service.js';
 import { assertOwner } from './permissions.js';
+import { assertNotBlocked, blockedUserIds, restrictedAuthorIds } from './social.service.js';
 
 const clean = (value: string) => sanitizeHtml(value, { allowedTags: [], allowedAttributes: {} }).trim();
 
 async function assertCanAccessPost(post: any, viewerId: string): Promise<void> {
   const authorId = String(post.authorId?._id || post.authorId);
   if (authorId === viewerId) return;
+  await assertNotBlocked(authorId, viewerId);
   if (post.groupId) {
     const [member, group]: any[] = await Promise.all([GroupMember.findOne({ groupId: post.groupId, userId: viewerId }).select('role').lean(), Group.findById(post.groupId).select('privacy').lean()]);
     if (post.groupStatus && post.groupStatus !== 'approved') {
@@ -21,7 +23,7 @@ async function assertCanAccessPost(post: any, viewerId: string): Promise<void> {
     throw new AppError(403, 'This group post is not available to you.', 'POST_FORBIDDEN');
   }
   if (post.visibility === 'public') return;
-  if (post.visibility === 'followers' && await Follow.exists({ followerId: viewerId, followingId: authorId })) return;
+  if (post.visibility === 'followers' && !(await restrictedAuthorIds(viewerId)).includes(authorId) && await Follow.exists({ followerId: viewerId, followingId: authorId })) return;
   throw new AppError(403, 'This post is not available to you.', 'POST_FORBIDDEN');
 }
 
@@ -38,7 +40,7 @@ export async function createPost(authorId: string, input: any, files: Express.Mu
   }
   const media = files.map((file) => ({ url: `/uploads/${file.filename}`, mimeType: file.mimetype, alt: '' }));
   const content = clean(input.content || '');
-  if (!content && media.length === 0 && !input.feeling && !input.place) throw new AppError(422, 'Write something, add a photo, or check in somewhere.', 'EMPTY_POST');
+  if (!content && media.length === 0 && !input.feeling && !input.place) throw new AppError(422, 'Write something, add a photo or video, or check in somewhere.', 'EMPTY_POST');
   const post = await Post.create({ authorId, groupId: input.groupId || null, content, visibility: input.visibility, media, groupStatus, feeling: input.feeling || null, place: input.place || null });
   if (input.groupId) await GroupPost.create({ groupId: input.groupId, postId: post.id, authorId });
   if (groupStatus === 'pending') await notify({ recipientId: String(groupInfo.ownerId), actorId: authorId, type: 'group_post', entityType: 'Group', entityId: input.groupId, text: `posted in ${groupInfo.name} and is waiting for approval` });
@@ -56,7 +58,7 @@ async function ownedPost(userId: string, postId: string) {
   return post;
 }
 
-/** Edits text and, when a layout is sent, rebuilds the photo list from kept ids and new uploads (in display order). */
+/** Edits text and, when a layout is sent, rebuilds the photo/video list from kept ids and new uploads (in display order). */
 export async function updatePost(userId: string, postId: string, input: { content: string; visibility?: string; layout: Array<{ id: string } | { upload: number }> | null }, files: Express.Multer.File[] = []) {
   const post = await ownedPost(userId, postId);
   await assertCanAccessPost(post, userId);
@@ -65,27 +67,27 @@ export async function updatePost(userId: string, postId: string, input: { conten
     post.media = input.layout.map((slot) => {
       if ('id' in slot) {
         const media = existing.get(slot.id);
-        if (!media) throw new AppError(422, 'One of the photos no longer exists. Reload and try again.', 'MEDIA_NOT_FOUND');
+        if (!media) throw new AppError(422, 'One of the photos or videos no longer exists. Reload and try again.', 'MEDIA_NOT_FOUND');
         return media;
       }
       const file = files[slot.upload];
-      if (!file) throw new AppError(422, 'A new photo is missing from the upload.', 'MEDIA_UPLOAD_MISSING');
+      if (!file) throw new AppError(422, 'A new photo or video is missing from the upload.', 'MEDIA_UPLOAD_MISSING');
       return uploadedMedia(file);
     }) as any;
   }
   post.content = clean(input.content || '');
   if (input.visibility) post.visibility = input.visibility;
-  if (isEmptyPost(post)) throw new AppError(422, 'A post needs text, a photo, or a check-in.', 'EMPTY_POST');
+  if (isEmptyPost(post)) throw new AppError(422, 'A post needs text, a photo or video, or a check-in.', 'EMPTY_POST');
   post.editedAt = new Date(); await post.save();
   await invalidateSocialCaches([userId]);
   return post;
 }
 
 export async function replacePostMedia(userId: string, postId: string, mediaId: string, file?: Express.Multer.File) {
-  if (!file) throw new AppError(422, 'Choose a photo to upload.', 'MEDIA_UPLOAD_MISSING');
+  if (!file) throw new AppError(422, 'Choose a photo or video to upload.', 'MEDIA_UPLOAD_MISSING');
   const post = await ownedPost(userId, postId);
   const media = post.media.id(mediaId);
-  if (!media) throw new AppError(404, 'Photo not found.', 'MEDIA_NOT_FOUND');
+  if (!media) throw new AppError(404, 'Media not found.', 'MEDIA_NOT_FOUND');
   Object.assign(media, uploadedMedia(file));
   post.editedAt = new Date(); await post.save();
   await invalidateSocialCaches([userId]);
@@ -95,7 +97,7 @@ export async function replacePostMedia(userId: string, postId: string, mediaId: 
 /** Removes one photo; a post left with nothing in it is moved to trash, as Facebook does. */
 export async function removePostMedia(userId: string, postId: string, mediaId: string) {
   const post = await ownedPost(userId, postId);
-  if (!post.media.id(mediaId)) throw new AppError(404, 'Photo not found.', 'MEDIA_NOT_FOUND');
+  if (!post.media.id(mediaId)) throw new AppError(404, 'Media not found.', 'MEDIA_NOT_FOUND');
   post.media.pull({ _id: mediaId });
   if (isEmptyPost(post)) post.deletedAt = new Date(); else post.editedAt = new Date();
   await post.save();
@@ -145,13 +147,18 @@ export async function getPostDetail(postId: string, viewerId?: string) {
     const group = (post as any).groupId ? await Group.findById((post as any).groupId).select('privacy').lean() : null;
     if ((post as any).visibility !== 'public' || (group as any)?.privacy === 'private') throw new AppError(401, 'Please sign in to view this post.', 'AUTH_REQUIRED');
   } else await assertCanAccessPost(post, viewerId);
-  const comments = await Comment.find({ postId, deletedAt: null }).sort({ createdAt: 1 }).populate('authorId', 'username displayName profile.avatarUrl').lean();
+  const blocked = viewerId ? await blockedUserIds(viewerId) : [];
+  const comments = await Comment.find({ postId, deletedAt: null, authorId: { $nin: blocked } }).sort({ createdAt: 1 }).populate('authorId', 'username displayName profile.avatarUrl').lean();
   return { post, comments };
 }
 
 
 /** Adds the viewer's reaction and the three most-used reaction types to each post (for the Facebook-style stats row). */
 export async function withReactionSummary<T extends { _id: unknown; myReaction?: string | null }>(posts: T[], viewerId?: string): Promise<Array<T & { topReactions: string[]; myReaction: string | null }>> {
+  if (viewerId) {
+    const blocked = new Set(await blockedUserIds(viewerId));
+    posts = posts.filter((post: any) => !blocked.has(String(post.authorId?._id || post.authorId)));
+  }
   if (!posts.length) return [];
   const ids = posts.map((post) => new mongoose.Types.ObjectId(String(post._id)));
   const [counts, mine] = await Promise.all([

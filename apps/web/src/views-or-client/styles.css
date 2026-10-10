@@ -83,6 +83,7 @@
   .btn-ghost { @apply btn text-muted hover:bg-hover hover:text-ink; }
   .btn-outline { @apply btn border border-strong bg-surface text-ink hover:bg-hover; }
   .btn-danger { @apply btn bg-red-600 text-white hover:bg-red-700; }
+  .profile-actions .btn-primary { @apply bg-[#0866ff] text-white hover:bg-[#075ce5]; }
   .button-primary { @apply btn-primary; }
   .button-secondary { @apply btn-secondary; }
   .icon-btn { @apply grid size-10 shrink-0 place-items-center rounded-full bg-control text-ink transition-colors hover:bg-control-hover; }
@@ -124,6 +125,7 @@
 
   /* Menus */
   .menu { @apply absolute z-40 min-w-[14rem] origin-top-right animate-pop-in rounded-xl bg-surface p-2 shadow-pop; }
+  .profile-actions .menu { @apply bottom-full top-auto mb-2 mt-0 md:bottom-auto md:top-full md:mb-0 md:mt-2; }
   .menu-item { @apply flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-15 font-medium text-ink hover:bg-hover; }
   .menu-item .menu-icon { @apply grid size-9 place-items-center rounded-full bg-control; }
 
@@ -139,6 +141,7 @@
   .comment-bubble { @apply inline-block max-w-full rounded-2xl bg-field px-3 py-2; }
   .media-grid { @apply grid gap-0.5 bg-surface; }
   .media-grid img { @apply size-full cursor-zoom-in bg-field object-cover; }
+  .media-grid video { @apply pointer-events-none size-full bg-black object-cover; }
 
   /* Stories */
   .story-card { @apply relative block aspect-[9/16] w-[7rem] shrink-0 overflow-hidden rounded-xl bg-stage shadow-card sm:w-[8.75rem]; }

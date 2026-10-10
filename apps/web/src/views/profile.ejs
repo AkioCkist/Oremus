@@ -1,5 +1,15 @@
 <%- include('partials/head') %><%- include('partials/nav') %>
 <% const isSelf = currentUser && String(profile._id) === String(currentUser._id); const info = profile.profile || {}; const tabHref = (t) => `/profile/${profile.username}${t === 'posts' ? '' : '?tab=' + t}`; -%>
+<% if (profile.blockedByMe) { %>
+<main id="main" class="mx-auto max-w-feed px-4 py-12">
+  <section class="card p-8 text-center">
+    <div class="empty-icon"><svg class="icon size-7"><use href="#i-lock"/></svg></div>
+    <h1 class="mt-4 text-balance text-2xl font-bold">You blocked <%= profile.displayName %></h1>
+    <p class="mt-2 text-pretty text-muted">You can't see each other's profiles, follow, add as a friend or send messages. Unblocking won't automatically restore your friendship or follows.</p>
+    <button type="button" class="btn-primary mt-5" data-block-user="<%= profile._id %>" data-unblock="true" data-user-name="<%= profile.displayName %>">Unblock</button>
+  </section>
+</main>
+<% } else { %>
 <main id="main" class="pb-24 md:pb-10">
   <!-- Header -->
   <section class="bg-surface shadow-card">
@@ -22,22 +32,36 @@
           </div>
           <div class="min-w-0 flex-1 text-center md:pb-3 md:text-left">
             <h1 class="text-balance font-display text-[2rem] font-extrabold leading-tight"><%= profile.displayName %></h1>
-            <p class="mt-1 font-semibold text-muted"><%= plural(profile.followers, 'follower') %> · <%= compact(profile.following) %> following</p>
-            <% if (followingPreview.length) { %>
+            <p class="mt-1 font-semibold text-muted"><span data-profile-friends><%= plural(profile.friends, 'friend') %></span> · <span data-profile-followers data-count="<%= profile.followers %>"><%= plural(profile.followers, 'follower') %></span> · <%= compact(profile.following) %> following</p>
+            <% if (friendsPreview.length) { %>
             <div class="mt-2 flex justify-center -space-x-2 md:justify-start">
-              <% followingPreview.slice(0, 8).forEach(function (p) { %><a href="/profile/<%= p.username %>" title="<%= p.displayName %>"><%- include('partials/avatar', { person: p, size: 'size-8 text-2xs ring-2 ring-surface' }) %></a><% }) %>
+              <% friendsPreview.slice(0, 8).forEach(function (p) { %><a href="/profile/<%= p.username %>" title="<%= p.displayName %>"><%- include('partials/avatar', { person: p, size: 'size-8 text-2xs ring-2 ring-surface' }) %></a><% }) %>
             </div>
             <% } %>
+            <p class="hidden basis-full text-sm text-red-600" role="alert" data-profile-action-error></p>
           </div>
-          <div class="flex flex-wrap justify-center gap-2 md:pb-3">
+          <div class="profile-actions flex flex-wrap justify-center gap-2 md:max-w-lg md:justify-end md:pb-3">
             <% if (isSelf) { %>
               <button type="button" class="btn-primary" data-open-story-composer><svg class="icon"><use href="#i-plus"/></svg>Add to story</button>
               <button type="button" class="btn-secondary" data-open-dialog="edit-profile-dialog"><svg class="icon"><use href="#i-edit"/></svg>Edit profile</button>
             <% } else if (currentUser) { %>
-              <button type="button" class="<%= profile.isFollowing ? 'btn-secondary' : 'btn-primary' %>" data-follow="<%= profile._id %>" data-follow-style><svg class="icon"><use href="#<%= profile.isFollowing ? 'i-check' : 'i-user-plus' %>"/></svg><span><%= profile.isFollowing ? 'Following' : 'Follow' %></span></button>
-              <button type="button" class="btn-secondary" data-message-user="<%= profile._id %>"><svg class="icon"><use href="#i-chat"/></svg>Message</button>
+              <%- include('partials/friend-controls', { person: profile, state: profile.friendState, compact: false, full: false }) %>
+              <button type="button" class="btn-secondary" data-follow="<%= profile._id %>" data-follow-style data-following="<%= profile.isFollowing %>"><svg class="icon"><use href="#<%= profile.isFollowing ? 'i-check' : 'i-user-plus' %>"/></svg><span><%= profile.isFollowing ? 'Following' : 'Follow' %></span></button>
+              <button type="button" class="btn-primary <%= profile.friendState === 'friends' ? '' : 'hidden' %>" data-friend-message="<%= profile._id %>" data-message-user="<%= profile._id %>"><svg class="icon"><use href="#i-chat"/></svg>Message</button>
             <% } else { %>
-              <a class="btn-primary" href="/login">Log in to follow</a>
+              <a class="btn-primary" href="/login">Log in to add friend</a>
+            <% } %>
+            <button type="button" class="btn-secondary" data-open-dialog="profile-search-dialog"><svg class="icon"><use href="#i-search"/></svg>Search</button>
+            <% if (!isSelf && currentUser) { %>
+            <details class="relative" data-menu>
+              <summary class="btn-secondary cursor-pointer" aria-label="More profile actions"><svg class="icon"><use href="#i-chevron-down"/></svg></summary>
+              <div class="menu right-0 top-full mt-2">
+                <button type="button" class="menu-item" data-open-break="<%= profile._id %>" data-user-name="<%= profile.displayName %>"><svg class="icon"><use href="#i-pause"/></svg><span data-break-label><%= profile.seeLess || profile.restrictPosts ? 'Edit break settings' : 'Take a break' %></span></button>
+                <button type="button" class="menu-item" data-copy-profile="/profile/<%= profile.username %>"><svg class="icon"><use href="#i-link"/></svg>Copy profile link</button>
+                <div class="divider"></div>
+                <button type="button" class="menu-item" data-block-user="<%= profile._id %>" data-user-name="<%= profile.displayName %>"><svg class="icon"><use href="#i-lock"/></svg>Block</button>
+              </div>
+            </details>
             <% } %>
           </div>
         </div>
@@ -79,12 +103,12 @@
         </div>
         <% } else { %><p class="mt-3 text-15 text-muted">No photos to show.</p><% } %>
       </section>
-      <% if (followingPreview.length) { %>
+      <% if (friendsPreview.length) { %>
       <section class="card p-4">
-        <h2 class="card-title text-xl">Following</h2>
-        <p class="text-15 text-muted"><%= plural(profile.following, 'person', 'people') %></p>
+        <h2 class="card-title text-xl">Friends</h2>
+        <p class="text-15 text-muted"><%= plural(profile.friends, 'friend') %></p>
         <div class="mt-3 grid grid-cols-3 gap-3">
-          <% followingPreview.forEach(function (p) { %>
+          <% friendsPreview.forEach(function (p) { %>
           <a href="/profile/<%= p.username %>" class="group">
             <span class="block aspect-square overflow-hidden rounded-lg <%= p.profile && p.profile.avatarUrl ? 'bg-field' : toneOf(p.displayName) %>"><% if (p.profile && p.profile.avatarUrl) { %><img class="size-full object-cover" src="<%= p.profile.avatarUrl %>" alt=""><% } else { %><span class="grid size-full place-items-center font-display text-2xl font-bold text-white"><%= initials(p.displayName) %></span><% } %></span>
             <span class="mt-1 block truncate text-[0.8125rem] font-semibold group-hover:underline"><%= p.displayName %></span>
@@ -100,9 +124,9 @@
     <% if (tab === 'posts') { %>
     <section class="min-w-0 space-y-4" aria-label="Posts">
       <% if (isSelf) { %><%- include('partials/composer') %><% } %>
-      <div class="card flex items-center justify-between px-4 py-3"><h2 class="card-title text-xl">Posts</h2></div>
+      <div class="card flex items-center justify-between gap-3 px-4 py-3"><h2 class="card-title text-balance text-xl"><%= profileQuery ? 'Results for “' + profileQuery + '”' : 'Posts' %></h2><% if (profileQuery) { %><a class="btn-ghost btn-sm" href="<%= tabHref('posts') %>">Clear search</a><% } %></div>
       <% if (posts.length) { posts.forEach(function (item) { %><%- include('partials/post-card', { item }) %><% }) } else { %>
-      <div class="empty-state"><div class="empty-icon"><svg class="icon size-7"><use href="#i-feed"/></svg></div><h3 class="mt-4 text-lg font-bold">No posts yet</h3><p class="mt-1 text-muted"><%= isSelf ? 'Share your first post — it will show up here.' : `When ${firstName(profile.displayName)} shares something, it will appear here.` %></p></div>
+      <div class="empty-state"><div class="empty-icon"><svg class="icon size-7"><use href="#i-feed"/></svg></div><h3 class="mt-4 text-balance text-lg font-bold"><%= profileQuery ? 'No matching posts' : 'No posts yet' %></h3><p class="mt-1 text-pretty text-muted"><%= profileQuery ? 'Try another keyword to search this profile.' : isSelf ? 'Share your first post — it will show up here.' : `When ${firstName(profile.displayName)} shares something, it will appear here.` %></p></div>
       <% } %>
     </section>
     <% } else if (tab === 'photos') { %>
@@ -117,4 +141,13 @@
     <% } %>
   </div>
 </main>
+<dialog id="profile-search-dialog" class="w-[min(30rem,calc(100%-2rem))] rounded-xl p-0 shadow-pop" aria-labelledby="profile-search-title">
+  <div class="flex items-center justify-between border-b border-line px-4 py-3"><h2 id="profile-search-title" class="text-balance text-xl font-bold">Search this profile</h2><button type="button" class="icon-btn" data-close-dialog="profile-search-dialog" aria-label="Close search"><svg class="icon"><use href="#i-x"/></svg></button></div>
+  <form action="/profile/<%= profile.username %>" method="get" class="space-y-4 p-4">
+    <label class="label" for="profile-search-query">Posts by <%= profile.displayName %></label>
+    <input id="profile-search-query" name="q" type="search" class="pill-input" placeholder="Search posts" value="<%= profileQuery %>" maxlength="80" required>
+    <div class="flex justify-end"><button type="submit" class="btn-primary">Search</button></div>
+  </form>
+</dialog>
+<% } %>
 <%- include('partials/foot') %>

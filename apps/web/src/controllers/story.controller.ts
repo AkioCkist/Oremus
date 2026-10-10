@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { storyReactionSchema, storyReplySchema, storySchema, storySettingsSchema } from '../validators/index.js';
 import * as stories from '../services/story.service.js';
+import { emitUserEvent } from '../services/notification.service.js';
 
 const id = (req: Request) => req.user!.id;
 const storyId = (req: Request) => String(req.params.storyId);
@@ -12,7 +13,7 @@ export async function react(req: Request, res: Response) { const { type } = stor
 export async function reply(req: Request, res: Response) {
   const { content } = storyReplySchema.parse(req.body);
   const result = await stories.replyToStory(storyId(req), id(req), content);
-  req.app.get('io')?.to(`conversation:${result.conversationId}`).emit('message:new', result.message);
+  for (const recipientId of result.recipients) emitUserEvent(recipientId, 'message:new', result.message);
   res.status(201).json({ ok: true, data: { conversationId: result.conversationId, message: 'Reply sent.' } });
 }
 export async function viewers(req: Request, res: Response) { res.json({ ok: true, data: await stories.listViewers(storyId(req), id(req)) }); }

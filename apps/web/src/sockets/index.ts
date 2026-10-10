@@ -6,6 +6,7 @@ import { createClient } from 'redis';
 import { env } from '../config/env.js';
 import { Conversation } from '../models/index.js';
 import { setNotifier } from '../services/notification.service.js';
+import { areFriends } from '../services/friendship.service.js';
 
 export async function createSocketServer(server: HttpServer) {
   const io = new Server(server, { cors: { origin: env.APP_ORIGIN, credentials: true } });
@@ -20,9 +21,16 @@ export async function createSocketServer(server: HttpServer) {
   });
   io.on('connection', async (socket) => {
     const userId = String(socket.data.userId); socket.join(`user:${userId}`);
-    const conversations = await Conversation.find({ memberIds: userId }).select('_id').lean();
-    conversations.forEach((item: any) => socket.join(`conversation:${item._id}`));
-    socket.on('conversation:join', async (conversationId: string) => { if (await Conversation.exists({ _id: conversationId, memberIds: userId })) socket.join(`conversation:${conversationId}`); });
+    const conversations = await Conversation.find({ memberIds: userId }).select('_id memberIds').lean();
+    for (const item of conversations) {
+      const otherId = item.memberIds.map(String).find((memberId: string) => memberId !== userId);
+      if (otherId && await areFriends(userId, otherId)) socket.join(`conversation:${item._id}`);
+    }
+    socket.on('conversation:join', async (conversationId: string) => {
+      const conversation: any = await Conversation.findOne({ _id: conversationId, memberIds: userId }).select('memberIds').lean();
+      const otherId = conversation?.memberIds.map(String).find((memberId: string) => memberId !== userId);
+      if (otherId && await areFriends(userId, otherId)) socket.join(`conversation:${conversationId}`);
+    });
   });
   setNotifier((userId, event, payload) => io.to(`user:${userId}`).emit(event, payload));
   return io;
