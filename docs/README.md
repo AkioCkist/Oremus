@@ -20,6 +20,7 @@ Then open the page for the feature you are working on.
 | [Architecture](ARCHITECTURE.md) | Services, code layers, middleware order, request lifecycle, errors, caching, rate limits, background work |
 | [Caching](CACHING.md) | Browser cache headers, Redis keys and TTLs, feed generations, invalidation and diagnostics |
 | [Performance and memory](PERFORMANCE.md) | N+1 prevention, query indexes, memory bounds and verification commands |
+| [Database setup and migrations](DATABASE.md) | One-command setup, reset, migration commands and how to add a migration |
 | [Data model](DATA_MODEL.md) | Every MongoDB collection and field, relationships, indexes, migrations and seed data |
 | [Authentication and security](AUTHENTICATION.md) | Login, JWT cookies, refresh token rotation, logout, password reset, CSRF and other protections |
 | [Posts and feed](POSTS_AND_FEED.md) | Creating and editing posts, who can see what, media layout, reactions, comments, home feed order |

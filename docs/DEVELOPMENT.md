@@ -151,9 +151,10 @@ If PowerShell blocks the activate script, call `.\.venv\Scripts\python.exe` dire
 ### Step 4: prepare data
 
 ```powershell
-npm --workspace @oremus/web run migrate
-npm run seed
+npm run db:setup
 ```
+
+This syncs indexes, runs migrations and loads sample data. More commands (status, reset) in [Database setup and migrations](DATABASE.md).
 
 ### Step 5: start FastAPI (terminal 1)
 
@@ -196,7 +197,10 @@ Run from the repository root:
 | Lint | `npm run lint` |
 | Web tests | `npm test` |
 | FastAPI tests | `python -m pytest -q apps/api/tests` |
-| MongoDB indexes + migrations | `npm --workspace @oremus/web run migrate` |
+| Database in one step (migrate + seed) | `npm run db:setup` |
+| MongoDB indexes + migrations | `npm run db:migrate` |
+| Migration status | `npm run db:status` |
+| Wipe local database | `npm run db:reset -- --yes` |
 | Sample data | `npm run seed` |
 | Check Docker Compose file | `docker compose config --quiet` |
 | Container status | `docker compose ps` |

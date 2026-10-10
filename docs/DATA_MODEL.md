@@ -205,7 +205,6 @@ See [Search and places](SEARCH_AND_PLACES.md#search-box-recent-searches-and-sugg
 
 ## Migrations and seed data
 
-- `npm --workspace @oremus/web run migrate` runs [`scripts/migrate.ts`](../apps/web/src/scripts/migrate.ts). It syncs indexes and runs a one-time backfill that turns old two-person chats into friendships. A `migrations` collection remembers that the backfill already ran.
+- `npm run db:migrate` runs [`scripts/migrate.ts`](../apps/web/src/scripts/migrate.ts). It syncs the indexes of every model and runs pending data migrations from [`src/migrations/`](../apps/web/src/migrations/); the `migrations` collection records which ones already ran. See [Database setup and migrations](DATABASE.md).
 - `npm run seed` runs [`scripts/seed.ts`](../apps/web/src/scripts/seed.ts). It upserts sample users, posts, a group, conversations and stories. It is safe to run many times. The sample login is `maya@example.com` / `CircleSpace123`.
 
-> Note: `migrate.ts` does not list `Story`, `StoryView` and `GroupInvite` yet. Their indexes are created automatically in development (`autoIndex`), but in production (`autoIndex: false`) they should be added to the migration list.

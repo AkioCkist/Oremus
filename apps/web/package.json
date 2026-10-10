@@ -16,7 +16,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run src/tests",
     "seed": "tsx src/scripts/seed.ts",
-    "migrate": "tsx src/scripts/migrate.ts"
+    "migrate": "tsx src/scripts/migrate.ts",
+    "migrate:status": "tsx src/scripts/migrate.ts --status",
+    "db:setup": "npm run migrate && npm run seed",
+    "db:reset": "tsx src/scripts/db-reset.ts"
   },
   "dependencies": {
     "@socket.io/redis-adapter": "^8.3.0",

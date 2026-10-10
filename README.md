@@ -70,8 +70,7 @@ MongoDB and Redis must be running (for example `docker compose up -d mongo redis
 Copy-Item .env.example .env
 npm install
 python -m pip install -r apps/api/requirements.txt
-npm --workspace @oremus/web run migrate
-npm run seed
+npm run db:setup
 npm run dev
 ```
 
@@ -101,7 +100,7 @@ python -m pytest -q apps/api/tests
 docker compose config --quiet
 ```
 
-`npm --workspace @oremus/web run migrate` syncs MongoDB indexes and runs one-time data migrations. It is safe to run many times.
+`npm run db:setup` prepares a database in one step (indexes, migrations, sample data). `npm run db:migrate` syncs MongoDB indexes and runs pending data migrations; it is safe to run many times. See [Database setup and migrations](docs/DATABASE.md).
 
 ## Project structure
 

@@ -9,8 +9,11 @@
     "lint": "npm --workspace @oremus/web run lint",
     "typecheck": "npm --workspace @oremus/web run typecheck",
     "test": "npm --workspace @oremus/web run test",
-    "seed": "npm --workspace @oremus/web run seed"
+    "seed": "npm --workspace @oremus/web run seed",
+    "db:migrate": "npm --workspace @oremus/web run migrate",
+    "db:status": "npm --workspace @oremus/web run migrate:status",
+    "db:setup": "npm --workspace @oremus/web run db:setup",
+    "db:reset": "npm --workspace @oremus/web run db:reset --"
   },
   "engines": { "node": ">=22" }
 }
-

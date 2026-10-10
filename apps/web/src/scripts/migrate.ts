@@ -1,31 +1,47 @@
-import { connectInfrastructure, disconnectInfrastructure } from '../config/database.js';
 import mongoose from 'mongoose';
-import { User, Follow, Friendship, Block, SocialPreference, Post, Reaction, Comment, Group, GroupMember, GroupJoinRequest, GroupInvite, GroupPost, Conversation, Message, Notification, Story, StoryView, RefreshToken, AuditLog, SearchHistory, SearchTerm } from '../models/index.js';
+import { connectInfrastructure, disconnectInfrastructure } from '../config/database.js';
+import { migrations } from '../migrations/index.js';
+import '../models/index.js';
 
+type MigrationRecord = { _id: string; description?: string; completedAt: Date; durationMs?: number; result?: string };
+
+/**
+ * `migrate`          sync indexes for every model, then run pending data migrations in order.
+ * `migrate --status` list applied / pending migrations without changing anything.
+ * Safe to run any number of times.
+ */
 async function migrate() {
+  const statusOnly = process.argv.includes('--status');
   await connectInfrastructure();
-  const models = [User, Follow, Friendship, Block, SocialPreference, Post, Reaction, Comment, Group, GroupMember, GroupJoinRequest, GroupInvite, GroupPost, Conversation, Message, Notification, Story, StoryView, RefreshToken, AuditLog, SearchHistory, SearchTerm];
-  for (const model of models) await model.syncIndexes();
-  // Backfill only the first upgrade. Re-running migration must never restore an
-  // unfriended or blocked pair simply because its message history was retained.
-  const migrations = mongoose.connection.db!.collection<{ _id: string; completedAt: Date }>('migrations');
-  const migrationId = 'friendship-existing-chats-v1';
-  const migrated = await migrations.findOne({ _id: migrationId });
-  const alreadyInstalled = await Friendship.exists({}) || await Block.exists({});
-  const conversations = !migrated && !alreadyInstalled ? await Conversation.find({ 'memberIds.1': { $exists: true }, 'memberIds.2': { $exists: false } }).select('memberIds createdAt lastMessageAt').lean() : [];
-  let friendshipsBackfilled = 0;
-  for (const conversation of conversations) {
-    const [userAId, userBId] = conversation.memberIds.map(String).sort();
-    const result = await Friendship.updateOne(
-      { userAId, userBId },
-      { $setOnInsert: { requesterId: userAId, status: 'accepted', acceptedAt: conversation.createdAt || conversation.lastMessageAt || new Date() } },
-      { upsert: true }
-    );
-    friendshipsBackfilled += result.upsertedCount;
+  const records = mongoose.connection.db!.collection<MigrationRecord>('migrations');
+  const applied = new Map((await records.find().toArray()).map((record) => [record._id, record]));
+  const pending = migrations.filter((migration) => !applied.has(migration.id));
+
+  if (statusOnly) {
+    for (const migration of migrations) {
+      const record = applied.get(migration.id);
+      console.log(`${record ? 'applied' : 'pending'}  ${migration.id}${record ? `  (${record.completedAt.toISOString()})` : ''}`);
+    }
+    console.log(`${migrations.length - pending.length} applied, ${pending.length} pending.`);
+    return;
   }
-  await migrations.updateOne({ _id: migrationId }, { $setOnInsert: { completedAt: new Date() } }, { upsert: true });
-  console.log(`Synchronized indexes for ${models.length} collections; backfilled ${friendshipsBackfilled} existing chat friendships.`);
-  await disconnectInfrastructure();
+
+  // Every registered model, so new collections can't be forgotten (production runs with autoIndex off).
+  const modelNames = mongoose.modelNames();
+  for (const name of modelNames) await mongoose.model(name).syncIndexes();
+  console.log(`Synchronized indexes for ${modelNames.length} collections.`);
+
+  for (const migration of pending) {
+    const started = Date.now();
+    console.log(`Running ${migration.id}: ${migration.description}`);
+    const result = (await migration.up()) || '';
+    const durationMs = Date.now() - started;
+    await records.updateOne({ _id: migration.id }, { $setOnInsert: { description: migration.description, completedAt: new Date(), durationMs, result } }, { upsert: true });
+    console.log(`  done in ${durationMs} ms${result ? ` — ${result}` : ''}`);
+  }
+  console.log(pending.length ? `Applied ${pending.length} migration(s).` : 'No pending migrations.');
 }
 
-migrate().catch(async (error) => { console.error(error); await disconnectInfrastructure(); process.exit(1); });
+migrate()
+  .then(() => disconnectInfrastructure())
+  .catch(async (error) => { console.error(error); await disconnectInfrastructure(); process.exit(1); });
