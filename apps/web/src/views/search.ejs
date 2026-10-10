@@ -5,12 +5,7 @@
     <div class="p-4">
       <p class="text-[0.8125rem] text-muted">Search results</p>
       <h1 class="font-display text-2xl font-extrabold"><%= q ? `“${q}”` : 'Search' %></h1>
-      <form action="/search" method="get" role="search" class="relative mt-3">
-        <input type="hidden" name="kind" value="<%= kind %>">
-        <label for="search-page-input" class="sr-only">Search Oremus</label>
-        <svg class="icon pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"><use href="#i-search"/></svg>
-        <input id="search-page-input" name="q" type="search" minlength="2" class="pill-input pl-9" placeholder="Search people, posts, groups" value="<%= q %>" autocomplete="off">
-      </form>
+      <%- include('partials/search-box', { boxId: 'search-page-input', formClass: 'mt-3', panelClass: 'w-full', placeholder: 'Search people, posts, groups', value: q, keepKind: kind }) %>
       <div class="divider mt-4"></div>
       <h2 class="pb-1 pt-2 text-[1.0625rem] font-bold">Filters</h2>
       <nav class="flex gap-1 overflow-x-auto lg:flex-col" aria-label="Result type">

@@ -27,7 +27,13 @@ All endpoints of the web app and the search service.
 | Method | Path | Body | Notes |
 |---|---|---|---|
 | PATCH | `/api/profile` | multipart: `displayName, username, bio, location, website, privacy, avatar?, cover?` | Returns `redirect` |
-| PATCH | `/api/profile/details` | any of `displayName, username, bio, location, website, privacy` | Partial update |
+| PATCH | `/api/profile/details` | any of `displayName, username, bio, location, website, privacy, hometown, relationship, birthDay, birthMonth, birthYear, gender, pronouns, languages, hobbies, phone, publicEmail, otherNames, about, quotes`, `audience.<field>`, `intro.<item>` | Partial update. `languages` and `hobbies` accept comma-separated text. See [Profiles](PROFILES.md#saving-details) |
+| POST | `/api/profile/work` | `company, position?, city?, description?, startDate?, endDate?, current?` | Add a workplace (max 10) |
+| PATCH, DELETE | `/api/profile/work/:itemId` | same as POST (PATCH only) | Edit or remove a workplace |
+| POST | `/api/profile/education` | `school, level (college or high_school), concentration?, degree?, startYear?, endYear?, graduated?` | Add a school (max 10) |
+| PATCH, DELETE | `/api/profile/education/:itemId` | same as POST (PATCH only) | Edit or remove a school |
+| POST | `/api/profile/links` | `platform, url` | Add a website or social link (max 10) |
+| PATCH, DELETE | `/api/profile/links/:itemId` | same as POST (PATCH only) | Edit or remove a link |
 | POST | `/api/profile/photo` | multipart: `kind (avatar or cover), photo?` or `url` or `remove` | Upload, reuse a library photo, or remove |
 | GET | `/api/profile/photos` | — | Photo library |
 | DELETE | `/api/profile/photos` | `url` | Remove a photo from your posts and history |
@@ -42,13 +48,15 @@ All endpoints of the web app and the search service.
 | Method | Path | Body | Notes |
 |---|---|---|---|
 | POST | `/api/posts` | multipart: `content, visibility, groupId?, feeling? (JSON), place? (JSON), images[]` | 20 per hour. Photos and videos, no count limit |
-| GET | `/api/posts/:postId` | — | → `{ post, comments }` |
-| PATCH | `/api/posts/:postId` | multipart: `content, visibility?, layout? (JSON), images[]` | See [editing](POSTS_AND_FEED.md#editing-a-post-and-its-media) |
+| GET | `/api/posts/:postId` | — | → `{ post, comments, canModerate }` |
+| PATCH | `/api/posts/:postId` | multipart: `content, visibility?, feeling? (JSON or "" to remove), place? (JSON or "" to remove), layout? (JSON), images[]` | See [editing](POSTS_AND_FEED.md#editing-a-post-and-its-media) |
 | PUT | `/api/posts/:postId/media/:mediaId` | multipart: `photo` (photo or video) | Replace one media item |
 | DELETE | `/api/posts/:postId/media/:mediaId` | — | → `{ postDeleted }` |
 | DELETE | `/api/posts/:postId` | — | Move to trash |
 | POST | `/api/posts/:postId/reactions` | `type: like, love, haha, wow, sad, angry` | Toggle → `{ active, count }` |
 | POST | `/api/posts/:postId/comments` | `content, parentId?` | 60 per hour |
+| PATCH | `/api/comments/:commentId` | `content` | Author only. 60 per hour |
+| DELETE | `/api/comments/:commentId` | — | Author, post author, or group admin/moderator. Also deletes replies → `{ removed, commentCount, postId }` |
 
 ## Groups
 
@@ -89,6 +97,11 @@ All endpoints of the web app and the search service.
 | GET | `/api/notifications` | Latest 50 |
 | POST | `/api/notifications/read` | Mark all as read |
 | GET | `/api/search?q=` | Users, posts, groups |
+| GET | `/api/search/suggest?q=` | Typeahead → `{ query, completions: [{ text, recent }], users, groups }`. 240 per minute |
+| GET | `/api/search/recent` | Your recent searches → `{ items }` |
+| POST | `/api/search/recent` | Remember a search: `{ kind: "query", query }` or `{ kind: "user" or "group", id }`. 120 per minute. `404` if the profile or group cannot be seen |
+| DELETE | `/api/search/recent/:entryId` | Remove one recent search |
+| DELETE | `/api/search/recent` | Clear all recent searches |
 | GET | `/api/places?q=&lat=&lon=` | Place search for check-ins |
 | GET | `/api/places/nearby?lat=&lon=` | Places near a point |
 | GET | `/api/dev/cache` | Cache hit/miss statistics |

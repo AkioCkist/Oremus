@@ -1,0 +1,13 @@
+<%# Search field with Facebook-style dropdown: recent searches when empty, live suggestions + inline completion while typing. -%>
+<% const boxId = locals.boxId || 'site-search'; -%>
+<form action="/search" method="get" role="search" class="relative <%= locals.formClass || '' %>" data-search-box>
+  <% if (locals.keepKind && locals.keepKind !== 'all') { %><input type="hidden" name="kind" value="<%= locals.keepKind %>"><% } %>
+  <label for="<%= boxId %>" class="sr-only">Search Oremus</label>
+  <svg class="icon pointer-events-none absolute left-3 top-1/2 z-[1] size-4 -translate-y-1/2 text-muted"><use href="#i-search"/></svg>
+  <%# Inline completion: the typed text is invisible, the suggested rest shows faintly after it. Tab or → accepts. -%>
+  <span class="pointer-events-none absolute inset-y-0 left-9 right-4 z-[1] flex items-center overflow-hidden whitespace-pre text-15" aria-hidden="true" data-search-ghost><span class="invisible" data-ghost-typed></span><span class="text-subtle" data-ghost-rest></span></span>
+  <input id="<%= boxId %>" name="q" type="search" placeholder="<%= locals.placeholder || 'Search Oremus' %>" autocomplete="off" spellcheck="false" maxlength="80"
+    class="pill-input pl-9 <%= locals.inputClass || '' %>" value="<%= locals.value || '' %>"
+    role="combobox" aria-autocomplete="both" aria-expanded="false" aria-controls="<%= boxId %>-list" aria-haspopup="listbox">
+  <div id="<%= boxId %>-list" class="absolute left-0 top-full z-50 mt-1.5 hidden max-h-[min(32rem,75dvh)] overflow-y-auto rounded-xl bg-surface p-2 shadow-pop <%= locals.panelClass || 'w-[22.5rem] max-w-[calc(100vw-1.5rem)]' %>" role="listbox" aria-label="Search suggestions" data-search-panel></div>
+</form>

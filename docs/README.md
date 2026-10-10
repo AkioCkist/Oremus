@@ -23,10 +23,11 @@ Then open the page for the feature you are working on.
 | [Posts and feed](POSTS_AND_FEED.md) | Creating and editing posts, who can see what, media layout, reactions, comments, home feed order |
 | [Media](MEDIA.md) | Upload limits, photo compression, the background video worker, tuning |
 | [People and relationships](SOCIAL_GRAPH.md) | Follow, friendship, take a break, block, profiles |
+| [Profiles](PROFILES.md) | Intro card, About sections, who can see each detail, the Media tab |
 | [Groups](GROUPS.md) | Group settings, roles, joining, invites, post approval |
 | [Messaging and notifications](MESSAGING_AND_NOTIFICATIONS.md) | Socket.IO events, friends-only chat, notification types |
 | [Stories](STORIES.md) | 24-hour stories, audience rules, the tray, views, reactions and replies |
-| [Search and places](SEARCH_AND_PLACES.md) | FastAPI search, the ranking formula, place search for check-ins |
+| [Search and places](SEARCH_AND_PLACES.md) | FastAPI search, recent searches and typeahead suggestions, the ranking formula, place search for check-ins |
 | [Frontend](FRONTEND.md) | Pages, EJS partials, the client script, Tailwind and theming |
 | [API reference](API_REFERENCE.md) | Every endpoint with its body and error codes |
 | [Deployment and operations](DEPLOYMENT.md) | Containers, environment variables, health checks, production checklist, scaling |
@@ -43,6 +44,7 @@ flowchart TB
   Arch --> Front["Frontend"]
   Data --> Posts["Posts and feed"]
   Data --> Social["People and relationships"]
+  Social --> Profiles["Profiles"]
   Data --> Groups["Groups"]
   Data --> Stories["Stories"]
   Posts --> Media["Media"]

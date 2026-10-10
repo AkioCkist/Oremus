@@ -19,7 +19,7 @@ Oremus is a full-stack social network built with Express, MongoDB, Redis, FastAP
 | Start here | [Overview](docs/OVERVIEW.md) · [Development guide](docs/DEVELOPMENT.md) · [Architecture](docs/ARCHITECTURE.md) |
 | Data | [Data model](docs/DATA_MODEL.md) |
 | Security | [Authentication and security](docs/AUTHENTICATION.md) |
-| Features | [Posts and feed](docs/POSTS_AND_FEED.md) · [Media uploads and compression](docs/MEDIA.md) · [People and relationships](docs/SOCIAL_GRAPH.md) · [Groups](docs/GROUPS.md) · [Messaging and notifications](docs/MESSAGING_AND_NOTIFICATIONS.md) · [Stories](docs/STORIES.md) · [Search and places](docs/SEARCH_AND_PLACES.md) |
+| Features | [Posts and feed](docs/POSTS_AND_FEED.md) · [Media uploads and compression](docs/MEDIA.md) · [People and relationships](docs/SOCIAL_GRAPH.md) · [Profiles](docs/PROFILES.md) · [Groups](docs/GROUPS.md) · [Messaging and notifications](docs/MESSAGING_AND_NOTIFICATIONS.md) · [Stories](docs/STORIES.md) · [Search and places](docs/SEARCH_AND_PLACES.md) |
 | User interface | [Frontend](docs/FRONTEND.md) |
 | Reference | [API reference](docs/API_REFERENCE.md) |
 | Operations | [Deployment and operations](docs/DEPLOYMENT.md) |

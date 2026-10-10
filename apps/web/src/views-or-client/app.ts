@@ -1,5 +1,6 @@
 import { ACTIVITIES, FEELINGS, describeFeeling } from '../shared/feelings.js';
 import { EMOJI_CATEGORIES } from './emoji-data.js';
+import './search-box.js';
 
 declare const io: undefined | (() => { on: (event: string, callback: (payload: any) => void) => void; emit: (event: string, payload: unknown) => void });
 
@@ -419,7 +420,9 @@ document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && 
 type ComposerFeeling = { type: 'feeling'; key: string } | { type: 'activity'; key: string; text: string };
 type ComposerPlace = { id: string; name: string; address: string; lat: number; lon: number };
 
-if (composer) {
+/** Wires the feeling/activity and check-in views inside a post dialog (Create post or Edit post). */
+function initPostExtras(root: HTMLDialogElement) {
+  const composer = root;
   const composerState: { feeling: ComposerFeeling | null; place: ComposerPlace | null } = { feeling: null, place: null };
   const feelingInput = $<HTMLInputElement>('[data-composer-feeling-input]', composer)!;
   const placeInput = $<HTMLInputElement>('[data-composer-place-input]', composer)!;
@@ -568,7 +571,17 @@ if (composer) {
       void loadPlaces(`/api/places/nearby?lat=${near.lat}&lon=${near.lon}`, 'No places found near you.');
     }, () => { placeStatus.textContent = 'Location permission was denied. Search for a place instead.'; }, { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 });
   });
+
+  return {
+    state: composerState,
+    set(feeling: ComposerFeeling | null, place: ComposerPlace | null) {
+      composerState.feeling = feeling; composerState.place = place;
+      placeSearch.value = ''; placeResults.replaceChildren(); placeStatus.textContent = '';
+      showView('main'); paintComposerMeta();
+    }
+  };
 }
+if (composer) initPostExtras(composer);
 
 /* ---------- Story composer ---------- */
 
@@ -990,11 +1003,28 @@ function paintEditSlots() {
     add: async () => { editSlots.push(...(await pickMediaFiles(true)).map(fileSlot)); paintEditSlots(); }
   });
 }
+const editDialog = $<HTMLDialogElement>('#edit-post-dialog');
+const editExtras = editDialog ? initPostExtras(editDialog) : null;
+const VISIBILITY_ICONS: Record<string, string> = { public: 'i-globe', followers: 'i-users', private: 'i-lock' };
+const editVisibility = editPostForm ? $<HTMLSelectElement>('[data-edit-visibility]', editPostForm) : null;
+const paintEditVisibility = () => $('[data-edit-visibility-icon]', editPostForm!)?.setAttribute('href', `#${VISIBILITY_ICONS[editVisibility!.value] || 'i-globe'}`);
+editVisibility?.addEventListener('change', paintEditVisibility);
+$('[data-edit-add-media]', editPostForm || document)?.addEventListener('click', async () => { editSlots.push(...(await pickMediaFiles(true)).map(fileSlot)); paintEditSlots(); });
+
+type EditablePost = { visibility?: string; feeling?: ComposerFeeling | null; place?: ComposerPlace | null; group?: string };
 function openEditPost(postId: string, card: Element | null) {
   if (!editPostForm) return;
   editPostForm.dataset.postId = postId;
   $<HTMLTextAreaElement>('#edit-post-content', editPostForm)!.value = $('[data-post-content]', card || document)?.textContent?.trim() || '';
   try { editSlots = JSON.parse((card as HTMLElement | null)?.dataset.postMedia || '[]').map((media: { id: string; url: string; mimeType?: string }) => ({ id: media.id, src: media.url, video: String(media.mimeType).startsWith('video/') })); } catch { editSlots = []; }
+  let post: EditablePost = {};
+  try { post = JSON.parse((card as HTMLElement | null)?.dataset.postEdit || '{}'); } catch { post = {}; }
+  // Group posts follow the group's privacy, so they have no audience of their own.
+  editPostForm.dataset.inGroup = post.group ? 'true' : '';
+  $('[data-edit-visibility-wrap]', editPostForm)!.classList.toggle('hidden', !!post.group);
+  $('[data-edit-group-label]', editPostForm)!.textContent = post.group ? ` ▸ ${post.group}` : '';
+  if (editVisibility) { editVisibility.value = post.visibility || 'public'; paintEditVisibility(); }
+  editExtras?.set(post.feeling || null, post.place || null);
   $('[data-form-error]', editPostForm)!.classList.add('hidden');
   paintEditSlots(); openDialog('edit-post-dialog'); $<HTMLTextAreaElement>('#edit-post-content', editPostForm)!.focus();
 }
@@ -1004,6 +1034,10 @@ editPostForm?.addEventListener('submit', async (event) => {
   const error = $('[data-form-error]', editPostForm)!;
   const body = new FormData();
   body.append('content', $<HTMLTextAreaElement>('#edit-post-content', editPostForm)!.value);
+  if (!editPostForm.dataset.inGroup && editVisibility) body.append('visibility', editVisibility.value);
+  // Always sent so removing a feeling or check-in also saves ("" = remove).
+  body.append('feeling', editExtras?.state.feeling ? JSON.stringify(editExtras.state.feeling) : '');
+  body.append('place', editExtras?.state.place ? JSON.stringify(editExtras.state.place) : '');
   let upload = 0;
   const layout = editSlots.map((slot) => {
     if (slot.id) return { id: slot.id };
@@ -1089,6 +1123,7 @@ if (photoViewer) {
   let post: any = null;
   let comments: any[] = [];
   let replyTo: { id: string; name: string } | null = null;
+  let canModerate = false;
   let zoom = 1, panX = 0, panY = 0;
   let loadToken = 0;
 
@@ -1170,13 +1205,16 @@ if (photoViewer) {
   const commentNode = (comment: any, isReply: boolean) => {
     const author = comment.authorId || {};
     const item = document.createElement('li'); item.className = `flex gap-2 ${isReply ? 'ml-10' : ''}`;
+    item.dataset.commentId = String(comment._id); item.dataset.commentPost = String(post?._id || '');
     const link = Object.assign(document.createElement('a'), { href: `/profile/${author.username}`, className: 'shrink-0' });
     link.appendChild(avatarEl({ displayName: author.displayName, avatarUrl: author.profile?.avatarUrl || author.avatarUrl }, isReply ? 'size-7 text-2xs' : 'size-8 text-xs'));
-    const body = document.createElement('div'); body.className = 'min-w-0';
+    const body = document.createElement('div'); body.className = 'min-w-0 flex-1';
     const bubble = document.createElement('div'); bubble.className = 'comment-bubble';
-    bubble.append(Object.assign(document.createElement('a'), { href: `/profile/${author.username}`, className: 'block text-[0.8125rem] font-semibold hover:underline', textContent: author.displayName }),
-      Object.assign(document.createElement('p'), { className: 'whitespace-pre-wrap break-words text-15 leading-snug', textContent: comment.content }));
-    const meta = document.createElement('div'); meta.className = 'mt-0.5 flex gap-3 px-3 text-xs font-semibold text-muted';
+    const text = Object.assign(document.createElement('p'), { className: 'whitespace-pre-wrap break-words text-15 leading-snug', textContent: comment.content }); text.dataset.commentText = '';
+    bubble.append(Object.assign(document.createElement('a'), { href: `/profile/${author.username}`, className: 'block text-[0.8125rem] font-semibold hover:underline', textContent: author.displayName }), text);
+    const own = !!me.id && String(author._id || '') === me.id;
+    const menu = commentMenu(String(comment._id), own, own || canModerate);
+    const meta = document.createElement('div'); meta.className = 'mt-0.5 flex gap-3 px-3 text-xs font-semibold text-muted'; meta.dataset.commentMeta = '';
     meta.append(Object.assign(document.createElement('span'), { className: 'font-normal', textContent: timeAgo(comment.createdAt) }));
     const reply = Object.assign(document.createElement('button'), { type: 'button', className: 'hover:underline', textContent: 'Reply' });
     reply.addEventListener('click', () => {
@@ -1184,9 +1222,20 @@ if (photoViewer) {
       const banner = $('[data-viewer-replying]', photoViewer)!; banner.classList.remove('hidden'); banner.classList.add('flex');
       $('span', banner)!.textContent = `Replying to ${author.displayName}`; commentInput.focus();
     });
-    meta.appendChild(reply);
-    body.append(bubble, meta); item.append(link, body); return item;
+    meta.append(reply, editedLabel(comment.editedAt));
+    body.append(commentRow(bubble, menu), meta); item.append(link, body); return item;
   };
+  // Keep the viewer's copy in sync when a comment is edited or deleted from any rendering.
+  document.addEventListener('oremus:comment-edited', (event) => {
+    const { id, content, editedAt } = (event as CustomEvent).detail;
+    comments = comments.map((comment) => String(comment._id) === id ? { ...comment, content, editedAt } : comment);
+  });
+  document.addEventListener('oremus:comment-removed', (event) => {
+    const { removed, postId, commentCount } = (event as CustomEvent).detail;
+    if (!post || String(post._id) !== postId) return;
+    comments = comments.filter((comment) => !removed.includes(String(comment._id)));
+    post.commentCount = commentCount; paintComments(); paintReactions();
+  });
   const paintComments = () => {
     const roots = comments.filter((comment) => !comment.parentId);
     const nodes: HTMLElement[] = [];
@@ -1245,7 +1294,7 @@ if (photoViewer) {
     commentInput.disabled = true;
     try {
       const result = await postJson(`/api/posts/${post._id}/comments`, { content, ...(replyTo ? { parentId: replyTo.id } : {}) });
-      comments.push({ ...result.comment, authorId: { username: me.username, displayName: me.name, profile: { avatarUrl: me.avatar } } });
+      comments.push({ ...result.comment, authorId: { _id: me.id, username: me.username, displayName: me.name, profile: { avatarUrl: me.avatar } } });
       post.commentCount = (post.commentCount || 0) + 1;
       commentInput.value = ''; clearReply(); paintComments(); paintReactions();
       const scroller = $('[data-viewer-scroll]', photoViewer)!; scroller.scrollTop = scroller.scrollHeight;
@@ -1258,7 +1307,7 @@ if (photoViewer) {
 
   openPhotoViewer = (url: string, postId?: string) => {
     const token = ++loadToken;
-    photos = [url]; post = null; comments = [];
+    photos = [url]; post = null; comments = []; canModerate = false;
     panel.classList.add('hidden'); panel.classList.remove('flex');
     togglePanelButtons[0]?.classList.add('hidden');
     showPhoto(0);
@@ -1266,7 +1315,7 @@ if (photoViewer) {
     if (!postId || !me.id) return;
     request(`/api/posts/${postId}`).then((data) => {
       if (token !== loadToken) return;
-      post = data.post; comments = data.comments || [];
+      post = data.post; comments = data.comments || []; canModerate = !!data.canModerate;
       const urls = (post.media || []).map((media: any) => media.url);
       if (urls.length) { photos = urls; showPhoto(Math.max(0, urls.indexOf(url))); }
       panel.classList.remove('hidden'); panel.classList.add('flex', 'max-lg:hidden');
@@ -1529,6 +1578,12 @@ document.addEventListener('click', async (event) => {
     if (data.closeDialog) { if (target.matches('[data-close-dialog]') && (event.target === target || target.tagName === 'BUTTON' || target.closest('button'))) document.querySelector<HTMLDialogElement>(`#${data.closeDialog}`)?.close(); return; }
     if (data.toggle) { const node = document.getElementById(data.toggle); node?.classList.toggle('hidden'); $<HTMLInputElement>('input:not([type=hidden]), textarea', node || document)?.focus(); return; }
     if (data.pickPhotoKind) { void openPhotoPicker(data.pickPhotoKind === 'cover' ? 'cover' : 'avatar'); return; }
+    if (data.commentEdit || data.commentDelete) {
+      target.closest<HTMLDetailsElement>('details')?.removeAttribute('open');
+      if (data.commentEdit) { const root = target.closest<HTMLElement>('[data-comment-id]'); if (root) startCommentEdit(root); }
+      else await deleteCommentById(data.commentDelete!);
+      return;
+    }
     if (data.profileItemDelete) {
       if (!(await confirmAction('Remove from profile?', 'This detail will be removed from your About info.', 'Remove'))) return;
       await request(data.profileItemDelete, { method: 'DELETE' }); window.location.reload(); return;
@@ -1665,6 +1720,99 @@ $$('[data-reaction-toggle]').forEach((button) => {
   button.addEventListener('touchend', () => window.clearTimeout(timer));
 });
 
+/* ---------- Comment edit & delete ---------- */
+
+// Every rendering of a comment (post page, feed card, photo viewer) carries data-comment-id, a
+// [data-comment-bubble] holding [data-comment-text], a [data-comment-meta] row and a [data-comment-edited] label.
+function commentMenu(id: string, canEdit: boolean, canDelete: boolean): HTMLElement | null {
+  if (!canDelete) return null;
+  const details = document.createElement('details'); details.className = 'group/menu relative shrink-0'; details.dataset.menu = ''; details.dataset.commentMenu = '';
+  const summary = document.createElement('summary');
+  summary.className = 'icon-btn-ghost size-8 cursor-pointer list-none text-muted transition-opacity group-open/menu:opacity-100 group-hover/comment:opacity-100 focus-visible:opacity-100 sm:opacity-0';
+  summary.setAttribute('aria-label', 'Comment options'); summary.appendChild(svgUse('i-more', 'icon size-[1.125rem]'));
+  const menu = document.createElement('div'); menu.className = 'menu left-0 top-full mt-1 min-w-[11rem]';
+  const item = (label: string, icon: string, attr: 'commentEdit' | 'commentDelete') => {
+    const button = Object.assign(document.createElement('button'), { type: 'button', className: 'menu-item' }); button.dataset[attr] = id;
+    const badge = document.createElement('span'); badge.className = 'menu-icon'; badge.appendChild(svgUse(icon, 'icon'));
+    button.append(badge, label); return button;
+  };
+  if (canEdit) menu.appendChild(item('Edit', 'i-edit', 'commentEdit'));
+  menu.appendChild(item('Delete', 'i-trash', 'commentDelete'));
+  details.append(summary, menu); return details;
+}
+/** Wraps a bubble in the hover row that holds its "…" menu. */
+function commentRow(bubble: HTMLElement, menu: HTMLElement | null) {
+  const row = document.createElement('div'); row.className = 'group/comment flex items-center gap-1';
+  bubble.classList.add('min-w-0'); bubble.dataset.commentBubble = '';
+  row.appendChild(bubble); if (menu) row.appendChild(menu); return row;
+}
+function editedLabel(editedAt?: string | null) {
+  const label = Object.assign(document.createElement('span'), { className: `font-normal ${editedAt ? '' : 'hidden'}`, textContent: 'Edited' });
+  label.dataset.commentEdited = ''; return label;
+}
+
+function startCommentEdit(root: HTMLElement) {
+  const id = root.dataset.commentId!;
+  const existing = $<HTMLTextAreaElement>('[data-comment-editor] textarea', root);
+  if (existing) { existing.focus(); return; }
+  const row = $('[data-comment-bubble]', root)!.parentElement!;
+  const meta = $('[data-comment-meta]', root);
+  const text = $('[data-comment-text]', root)!;
+  const form = document.createElement('form'); form.dataset.commentEditor = ''; form.className = 'min-w-0';
+  const field = document.createElement('textarea');
+  field.className = 'w-full resize-none rounded-2xl bg-field px-3 py-2 text-15 leading-snug text-ink focus:outline-none focus:ring-2 focus:ring-brand-100';
+  field.maxLength = 1500; field.value = text.textContent || ''; field.setAttribute('aria-label', 'Edit comment');
+  const fit = () => { field.style.height = 'auto'; field.style.height = `${field.scrollHeight}px`; };
+  const hint = document.createElement('p'); hint.className = 'mt-0.5 px-3 text-xs text-muted';
+  const cancel = Object.assign(document.createElement('button'), { type: 'button', className: 'font-semibold text-brand-600 hover:underline', textContent: 'cancel' });
+  const save = Object.assign(document.createElement('button'), { type: 'submit', className: 'ml-2 font-semibold text-brand-600 hover:underline', textContent: 'Save' });
+  hint.append('Press Esc to ', cancel, '.', save);
+  form.append(field, hint);
+  const close = () => { form.remove(); row.classList.remove('hidden'); meta?.classList.remove('hidden'); };
+  cancel.addEventListener('click', close);
+  field.addEventListener('input', fit);
+  field.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); }
+    else if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); form.requestSubmit(); }
+  });
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const content = field.value.trim();
+    if (!content) { field.focus(); return; }
+    if (content === (text.textContent || '').trim()) { close(); return; }
+    field.disabled = true;
+    try {
+      const result = await postJson(`/api/comments/${id}`, { content }, 'PATCH');
+      $$(`[data-comment-id="${id}"]`).forEach((copy) => {
+        const copyText = $('[data-comment-text]', copy); if (copyText) copyText.textContent = result.comment.content;
+        $('[data-comment-edited]', copy)?.classList.remove('hidden');
+      });
+      document.dispatchEvent(new CustomEvent('oremus:comment-edited', { detail: { id, content: result.comment.content, editedAt: result.comment.editedAt } }));
+      close();
+    } catch (caught) { showToast(caught instanceof Error ? caught.message : 'Could not save the comment.', 'error'); field.disabled = false; field.focus(); }
+  });
+  row.classList.add('hidden'); meta?.classList.add('hidden');
+  row.insertAdjacentElement('afterend', form);
+  fit(); field.focus(); field.setSelectionRange(field.value.length, field.value.length);
+}
+
+async function deleteCommentById(id: string) {
+  if (!(await confirmAction('Delete comment?', 'Are you sure you want to delete this comment? Replies to it will be deleted too.', 'Delete'))) return;
+  try {
+    const result = await request(`/api/comments/${id}`, { method: 'DELETE' });
+    (result.removed as string[]).forEach((removedId) => $$(`[data-comment-id="${removedId}"]`).forEach((node) => (node.closest('li') || node).remove()));
+    const count = Number(result.commentCount) || 0;
+    $$(`[data-post-id="${result.postId}"]`).forEach((card) => {
+      const counter = $('[data-comment-count]', card); if (counter) counter.textContent = String(count);
+      const label = $('[data-comment-count-label]', card);
+      if (label) { label.classList.toggle('invisible', count === 0); label.lastChild!.textContent = count === 1 ? ' comment' : ' comments'; }
+    });
+    const total = $('[data-comments-total]'); if (total) total.textContent = `${count} ${count === 1 ? 'comment' : 'comments'}`;
+    document.dispatchEvent(new CustomEvent('oremus:comment-removed', { detail: result }));
+    showToast('Comment deleted.');
+  } catch (caught) { showToast(caught instanceof Error ? caught.message : 'Could not delete the comment.', 'error'); }
+}
+
 /* ---------- Inline comments ---------- */
 
 $$<HTMLFormElement>('[data-comment-form]').forEach((form) => {
@@ -1673,15 +1821,16 @@ $$<HTMLFormElement>('[data-comment-form]').forEach((form) => {
     const input = $<HTMLInputElement>('input[name="content"]', form)!; const content = input.value.trim(); if (!content) return;
     input.disabled = true;
     try {
-      await postJson(form.action, { content });
-      const card = form.closest('[data-post-id]')!;
+      const { comment } = await postJson(form.action, { content });
+      const card = form.closest<HTMLElement>('[data-post-id]')!;
       const item = document.createElement('li'); item.className = 'flex animate-fade-in gap-2';
+      item.dataset.commentId = String(comment._id); item.dataset.commentPost = card.dataset.postId || '';
       const bubble = document.createElement('div'); bubble.className = 'comment-bubble';
       const name = document.createElement('a'); name.className = 'block text-[0.8125rem] font-semibold hover:underline'; name.href = `/profile/${me.username}`; name.textContent = me.name;
-      const text = document.createElement('p'); text.className = 'whitespace-pre-wrap break-words text-15 leading-snug'; text.textContent = content;
+      const text = document.createElement('p'); text.className = 'whitespace-pre-wrap break-words text-15 leading-snug'; text.textContent = comment.content; text.dataset.commentText = '';
       bubble.append(name, text);
-      const body = document.createElement('div'); body.className = 'min-w-0'; body.append(bubble);
-      const when = document.createElement('p'); when.className = 'px-3 text-xs text-muted'; when.textContent = 'Just now'; body.append(when);
+      const body = document.createElement('div'); body.className = 'min-w-0 flex-1'; body.append(commentRow(bubble, commentMenu(String(comment._id), true, true)));
+      const when = document.createElement('p'); when.className = 'flex gap-3 px-3 text-xs text-muted'; when.dataset.commentMeta = ''; when.append('Just now', editedLabel()); body.append(when);
       item.append(avatarEl({ displayName: me.name, avatarUrl: me.avatar }, 'size-8 text-xs'), body);
       $('[data-comment-list]', card)?.appendChild(item);
       const counter = $('[data-comment-count]', card);

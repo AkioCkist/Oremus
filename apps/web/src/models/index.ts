@@ -310,6 +310,26 @@ export const Follow: Model<any> = models.Follow || model('Follow', followSchema)
 export const Friendship: Model<any> = models.Friendship || model('Friendship', friendshipSchema);
 export const Block: Model<any> = models.Block || model('Block', blockSchema);
 export const SocialPreference: Model<any> = models.SocialPreference || model('SocialPreference', socialPreferenceSchema);
+// Facebook-style "Recent searches": one row per keyword / profile / group the user searched or opened.
+export const SEARCH_HISTORY_KINDS = ['query', 'user', 'group'] as const;
+const searchHistorySchema = new Schema({
+  userId: { type: objectId, ref: 'User', required: true },
+  kind: { type: String, enum: SEARCH_HISTORY_KINDS, required: true },
+  // "q:<normalized query>" or "<kind>:<id>" so repeating a search just bumps it to the top.
+  key: { type: String, required: true, maxlength: 120 },
+  query: { type: String, maxlength: 80, default: '' },
+  refId: { type: objectId, default: null }
+}, options);
+searchHistorySchema.index({ userId: 1, key: 1 }, { unique: true });
+searchHistorySchema.index({ userId: 1, updatedAt: -1 });
+
+// How often each keyword is searched across Oremus; feeds typeahead completions.
+const searchTermSchema = new Schema({
+  term: { type: String, required: true, unique: true, maxlength: 80 },
+  count: { type: Number, default: 0 }
+}, options);
+searchTermSchema.index({ count: -1 });
+
 export const Post: Model<any> = models.Post || model('Post', postSchema);
 export const Reaction: Model<any> = models.Reaction || model('Reaction', reactionSchema);
 export const Comment: Model<any> = models.Comment || model('Comment', commentSchema);
@@ -325,3 +345,5 @@ export const Story: Model<any> = models.Story || model('Story', storySchema);
 export const StoryView: Model<any> = models.StoryView || model('StoryView', storyViewSchema);
 export const RefreshToken: Model<any> = models.RefreshToken || model('RefreshToken', refreshTokenSchema);
 export const AuditLog: Model<any> = models.AuditLog || model('AuditLog', auditLogSchema);
+export const SearchHistory: Model<any> = models.SearchHistory || model('SearchHistory', searchHistorySchema);
+export const SearchTerm: Model<any> = models.SearchTerm || model('SearchTerm', searchTermSchema);

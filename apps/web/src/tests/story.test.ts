@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildStoryTray, canViewStory } from '../services/story.service.js';
-import { groupJoinSchema, groupSchema, postEditSchema, postSchema, profileDetailsSchema, profileListItemSchemas, profilePhotoSchema, storyReactionSchema, storyReplySchema, storySchema } from '../validators/index.js';
+import { groupJoinSchema, groupSchema, postEditSchema, postSchema, profileDetailsSchema, profileListItemSchemas, profilePhotoSchema, searchRecordSchema, storyReactionSchema, storyReplySchema, storySchema } from '../validators/index.js';
 import { extractLinks, initials, timeAgo, toneOf } from '../utils/view-helpers.js';
 import { describeFeeling } from '../shared/feelings.js';
 
@@ -142,10 +142,40 @@ describe('post photo editing', () => {
     expect(edit.layout).toEqual([{ id: 'abc' }, { upload: 0 }]);
     expect(postEditSchema.parse({ content: 'Only text' }).layout).toBeNull();
   });
+  it('edits audience, feeling and check-in; missing means unchanged, empty means removed', () => {
+    const untouched = postEditSchema.parse({ content: 'Hi' });
+    expect(untouched.feeling).toBeUndefined();
+    expect(untouched.place).toBeUndefined();
+    const edit = postEditSchema.parse({ content: 'Hi', visibility: 'private', feeling: '', place: JSON.stringify({ name: 'Cầu Rồng', lat: 16.06, lon: 108.22 }) });
+    expect(edit).toMatchObject({ visibility: 'private', feeling: null, place: { name: 'Cầu Rồng', address: '', id: '' } });
+    expect(() => postEditSchema.parse({ content: 'Hi', visibility: 'friends' })).toThrow();
+    expect(() => postEditSchema.parse({ content: 'Hi', feeling: '{"type":"feeling","key":"nope"}' })).toThrow();
+  });
   it('allows any number of media and rejects bad slots', () => {
     const many = Array.from({ length: 12 }, (_, i) => (i % 2 ? { id: String(i) } : { upload: i }));
     expect(postEditSchema.parse({ layout: JSON.stringify(many) }).layout).toEqual(many);
     expect(() => postEditSchema.parse({ layout: '[{"upload":-1}]' })).toThrow();
     expect(() => postEditSchema.parse({ layout: '[{"other":1}]' })).toThrow();
+  });
+});
+
+describe('search history input', () => {
+  it('normalizes keywords and validates what can be remembered', async () => {
+    const { normalizeQuery } = await import('../services/search.service.js');
+    expect(normalizeQuery('  nguyễn   tuấn  ')).toBe('nguyễn tuấn');
+    expect(normalizeQuery('x'.repeat(200))).toHaveLength(80);
+    expect(searchRecordSchema.parse({ kind: 'query', query: ' oremus ' })).toEqual({ kind: 'query', query: 'oremus' });
+    expect(searchRecordSchema.parse({ kind: 'user', id: '6aca5eeb7f6377b32c0c6c49' })).toEqual({ kind: 'user', id: '6aca5eeb7f6377b32c0c6c49' });
+    expect(() => searchRecordSchema.parse({ kind: 'user', id: '../admin' })).toThrow();
+    expect(() => searchRecordSchema.parse({ kind: 'post', id: '6aca5eeb7f6377b32c0c6c49' })).toThrow();
+  });
+});
+
+describe('comment editing', () => {
+  it('requires non-empty text within the limit', async () => {
+    const { commentEditSchema } = await import('../validators/index.js');
+    expect(commentEditSchema.parse({ content: '  fixed typo ' })).toEqual({ content: 'fixed typo' });
+    expect(() => commentEditSchema.parse({ content: '   ' })).toThrow();
+    expect(() => commentEditSchema.parse({ content: 'x'.repeat(1501) })).toThrow();
   });
 });

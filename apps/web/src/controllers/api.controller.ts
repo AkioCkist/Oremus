@@ -1,11 +1,12 @@
 import type { Request, Response } from 'express';
 import { Follow, Notification } from '../models/index.js';
-import { profileSchema, profileDetailsSchema, profileListItemSchemas, type ProfileList, profilePhotoSchema, postSchema, postEditSchema, reactionSchema, commentSchema, groupSchema, decisionSchema, friendActionSchema, breakSchema, blockActionSchema, conversationSchema, messageSchema, groupJoinSchema, groupInviteSchema, placeNearbySchema, placeSearchSchema, photoDeleteSchema } from '../validators/index.js';
+import { profileSchema, profileDetailsSchema, profileListItemSchemas, type ProfileList, searchRecordSchema, profilePhotoSchema, postSchema, postEditSchema, reactionSchema, commentSchema, commentEditSchema, groupSchema, decisionSchema, friendActionSchema, breakSchema, blockActionSchema, conversationSchema, messageSchema, groupJoinSchema, groupInviteSchema, placeNearbySchema, placeSearchSchema, photoDeleteSchema } from '../validators/index.js';
 import { AppError } from '../utils/errors.js';
 import * as users from '../services/user.service.js';
 import * as posts from '../services/post.service.js';
 import * as groups from '../services/group.service.js';
 import * as messages from '../services/message.service.js';
+import * as searches from '../services/search.service.js';
 import { changeFriendship as changeFriendshipState, getFriendshipState } from '../services/friendship.service.js';
 import { blockedUserIds, getSocialState, setBlock, setBreak } from '../services/social.service.js';
 import { emitUserEvent } from '../services/notification.service.js';
@@ -31,12 +32,18 @@ export async function breakState(req: Request, res: Response) { res.json({ ok: t
 export async function takeBreak(req: Request, res: Response) { res.json({ ok: true, data: await setBreak(id(req), param(req, 'userId'), breakSchema.parse(req.body)) }); }
 export async function blockUser(req: Request, res: Response) { const { blocked } = blockActionSchema.parse(req.body); res.json({ ok: true, data: await setBlock(id(req), param(req, 'userId'), blocked) }); }
 export async function createPost(req: Request, res: Response) { const post = await posts.createPost(id(req), postSchema.parse(req.body), req.files as Express.Multer.File[]); res.status(201).json({ ok: true, data: { post } }); }
-export async function postDetail(req: Request, res: Response) { const detail = await posts.getPostDetail(param(req, 'postId'), id(req)); const [post] = await posts.withReactionSummary([detail.post as any], id(req)); res.json({ ok: true, data: { post, comments: detail.comments } }); }
+export async function postDetail(req: Request, res: Response) { const detail = await posts.getPostDetail(param(req, 'postId'), id(req)); const [post] = await posts.withReactionSummary([detail.post as any], id(req)); res.json({ ok: true, data: { post, comments: detail.comments, canModerate: detail.canModerate } }); }
 export async function updatePost(req: Request, res: Response) { res.json({ ok: true, data: { post: await posts.updatePost(id(req), param(req, 'postId'), postEditSchema.parse(req.body), req.files as Express.Multer.File[]), message: 'Post updated.' } }); }
 export async function replacePostMedia(req: Request, res: Response) { res.json({ ok: true, data: { ...(await posts.replacePostMedia(id(req), param(req, 'postId'), param(req, 'mediaId'), req.file)), message: 'Media replaced.' } }); }
 export async function removePostMedia(req: Request, res: Response) { const result = await posts.removePostMedia(id(req), param(req, 'postId'), param(req, 'mediaId')); res.json({ ok: true, data: { ...result, message: result.postDeleted ? 'Removed from post. The empty post was moved to trash.' : 'Removed from post.' } }); }
 export async function deletePost(req: Request, res: Response) { const postId = param(req, 'postId'); await posts.deletePost(id(req), postId); await audit('post.delete', id(req), 'Post', postId, {}, req.ip); res.json({ ok: true, data: { deleted: true } }); }
 export async function react(req: Request, res: Response) { const { type } = reactionSchema.parse(req.body); res.json({ ok: true, data: await posts.react(id(req), param(req, 'postId'), type) }); }
+export async function editComment(req: Request, res: Response) { const comment = await posts.editComment(id(req), param(req, 'commentId'), commentEditSchema.parse(req.body).content); res.json({ ok: true, data: { comment, message: 'Comment updated.' } }); }
+export async function deleteComment(req: Request, res: Response) {
+  const result = await posts.deleteComment(id(req), param(req, 'commentId'));
+  if (result.byModerator) await audit('comment.delete', id(req), 'Comment', param(req, 'commentId'), { postId: result.postId, removed: result.removed.length }, req.ip);
+  res.json({ ok: true, data: { ...result, message: 'Comment deleted.' } });
+}
 export async function comment(req: Request, res: Response) { const item = await posts.addComment(id(req), param(req, 'postId'), commentSchema.parse(req.body)); res.status(201).json({ ok: true, data: { comment: item } }); }
 // Group forms are multipart (optional cover file) with the structured fields in a JSON `payload`.
 function groupPayload(req: Request) {
@@ -55,6 +62,14 @@ export async function sendMessage(req: Request, res: Response) { const { content
 export async function notifications(req: Request, res: Response) { const blocked = await blockedUserIds(id(req)); const items = await Notification.find({ recipientId: id(req), actorId: { $nin: blocked } }).sort({ createdAt: -1 }).limit(50).populate('actorId', 'username displayName profile.avatarUrl').lean(); res.json({ ok: true, data: { items } }); }
 export async function readNotifications(req: Request, res: Response) { await Notification.updateMany({ recipientId: id(req), readAt: null }, { readAt: new Date() }); res.json({ ok: true, data: { updated: true } }); }
 export async function search(req: Request, res: Response) { const q = String(req.query.q || '').trim(); res.json({ ok: true, data: q.length >= 2 ? await searchAll(q, id(req)) : { query: q, items: [] } }); }
+export async function searchSuggest(req: Request, res: Response) { res.json({ ok: true, data: await searches.suggest(id(req), String(req.query.q || '')) }); }
+export async function recentSearches(req: Request, res: Response) { res.json({ ok: true, data: { items: await searches.listRecent(id(req)) } }); }
+export async function recordSearch(req: Request, res: Response) {
+  const input = searchRecordSchema.parse(req.body);
+  if (input.kind === 'query') await searches.recordQuery(id(req), input.query); else await searches.recordEntity(id(req), input.kind, input.id);
+  res.json({ ok: true, data: { saved: true } });
+}
+export async function removeRecentSearch(req: Request, res: Response) { await searches.removeRecent(id(req), req.params.entryId as string | undefined); res.json({ ok: true, data: { removed: true } }); }
 export async function diagnostics(_req: Request, res: Response) { res.json({ ok: true, data: await cacheStats() }); }
 
 export async function photoLibrary(req: Request, res: Response) { res.json({ ok: true, data: await users.getPhotoLibrary(id(req)) }); }

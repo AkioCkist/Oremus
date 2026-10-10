@@ -75,7 +75,29 @@ sequenceDiagram
 
 ## Editing a post and its media
 
-The edit dialog sends a `layout` array describing the final order of media:
+**Edit post** opens a dialog laid out like **Create post**. The owner can change:
+
+| What | How |
+|---|---|
+| Text | Text box with an emoji button |
+| Audience | Public / Followers / Only me selector under the name. Not shown for group posts: they follow the group's privacy, and the server ignores `visibility` for them. |
+| Feeling or activity | **Add to your post → 😊**; the same picker as Create post, including **Remove feeling/activity** |
+| Check-in | **Add to your post → 📍**; place search or "Use my current location". The × on the map card removes it. |
+| Photos and videos | Replace or remove from each tile, or add more with **Add to your post → 🖼** |
+
+The current values come from the card's `data-post-edit` attribute (only rendered for the post's owner). The feeling and check-in views are the shared partial [`post-extra-views.ejs`](../apps/web/src/views/partials/post-extra-views.ejs), wired by `initPostExtras()` in `app.ts` for both dialogs.
+
+`feeling` and `place` in the edit request work like this:
+
+| Field value | Result |
+|---|---|
+| Not sent | Left as it is (older clients and API callers keep working) |
+| `""` or `"null"` | Removed |
+| JSON string | Replaced (validated like on create) |
+
+The edit dialog always sends both, so removing a feeling or check-in is saved.
+
+The edit dialog also sends a `layout` array describing the final order of media:
 
 ```json
 [{ "id": "665f..." }, { "upload": 0 }, { "id": "6660..." }, { "upload": 1 }]
@@ -140,6 +162,27 @@ flowchart LR
 - `parentId` makes it a reply. The parent must belong to the same post.
 - Comments from blocked users are hidden.
 - The author of the post gets a notification.
+
+### Editing and deleting comments
+
+Hovering a comment shows a **…** button (always visible on phones) with **Edit** and **Delete**, like Facebook. It works the same on the post page, in a feed card and in the photo/video viewer.
+
+| Who | Edit | Delete |
+|---|---|---|
+| The comment's author | Yes | Yes |
+| The post's author | No | Yes, any comment on their post |
+| Group admins and moderators (group posts) | No | Yes, any comment on the post |
+| Anyone else | No | No |
+
+- **Edit** turns the bubble into a text box. **Enter** saves, **Shift+Enter** adds a new line, **Esc** cancels. Saved comments show an **Edited** label (hover it for the time).
+- **Delete** asks for confirmation. Deleting a top-level comment also deletes its replies. The post's comment count is recounted and every copy of the comment on the page is removed.
+- Deletes are soft (`deletedAt`). When someone deletes another person's comment as a moderator, it is written to the AuditLog as `comment.delete`.
+- `GET /api/posts/:postId` returns `canModerate` so the viewer knows whether to offer **Delete** on other people's comments.
+
+| Action | Endpoint |
+|---|---|
+| Edit | `PATCH /api/comments/:commentId { content }` (1–1500 chars, 60 per hour) |
+| Delete | `DELETE /api/comments/:commentId` → `{ removed: [ids], commentCount, postId }` |
 
 ## The home feed
 

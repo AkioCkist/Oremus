@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { Follow, Group, GroupMember, Notification, Post, User } from '../models/index.js';
 import { getFeed, searchAll } from '../services/feed.service.js';
 import { getProfile } from '../services/user.service.js';
+import { recordQuery } from '../services/search.service.js';
 import { getPostDetail, withReactionSummary } from '../services/post.service.js';
 import { GROUP_ARTWORK, GROUP_TYPE_LABELS, getGroup, inviteCandidates, listGroups } from '../services/group.service.js';
 import { countUnreadConversations, listConversations, listMessages, markConversationRead } from '../services/message.service.js';
@@ -86,7 +87,7 @@ export async function profile(req: Request, res: Response) {
 export async function post(req: Request, res: Response) {
   const detail = await getPostDetail(param(req, 'postId'), req.user?.id);
   const [withSummary] = await withReactionSummary([detail.post as any], req.user?.id);
-  res.render('post', { ...base(req, `${(detail.post as any).authorId?.displayName || 'Post'}`), post: withSummary, comments: detail.comments });
+  res.render('post', { ...base(req, `${(detail.post as any).authorId?.displayName || 'Post'}`), post: withSummary, comments: detail.comments, canModerate: detail.canModerate });
 }
 
 export async function groups(req: Request, res: Response) {
@@ -141,6 +142,8 @@ export async function search(req: Request, res: Response) {
   const q = String(req.query.q || '').trim();
   const kind = ['user', 'post', 'group'].includes(String(req.query.kind)) ? String(req.query.kind) : 'all';
   const result = q.length >= 2 ? await searchAll(q, req.user!.id) : { items: [] };
+  // A keyword search lands here (header, search page, typeahead), so this is where it's remembered.
+  if (q.length >= 2) await recordQuery(req.user!.id, q).catch((error) => req.log?.warn({ error }, 'Could not save recent search'));
   const rawResults = (result.items as any[]).filter((item) => (kind === 'all' || item.kind === kind) && !(item.kind === 'user' && String(item.id) === req.user!.id));
   const blocked = await blockedUserIds(req.user!.id);
   const people = q ? [] : await User.find({ _id: { $nin: [req.user!.id, ...blocked] }, deletedAt: null }).sort({ createdAt: -1 }).limit(24).select(`${AUTHOR_FIELDS} profile.bio`).lean();

@@ -70,6 +70,10 @@ export const profileListItemSchemas = {
   links: z.object({ platform: z.enum(SOCIAL_PLATFORMS).default('website'), url: z.string().trim().url('Enter a full link starting with https://').max(200).refine((value) => ['http:', 'https:'].includes(new URL(value).protocol), 'Links must use HTTP or HTTPS') })
 } as const;
 export type ProfileList = keyof typeof profileListItemSchemas;
+export const searchRecordSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('query'), query: z.string().trim().min(2).max(80) }),
+  z.object({ kind: z.enum(['user', 'group']), id: z.string().regex(/^[a-f0-9]{24}$/i, 'Invalid id.') })
+]);
 export const profilePhotoSchema = z.object({ kind: z.enum(['avatar', 'cover']), url: z.string().max(500).optional(), remove: z.preprocess((value) => value === true || value === 'true', z.boolean()).default(false) });
 // Multipart posts send structured fields as JSON strings.
 const jsonField = <T extends z.ZodTypeAny>(schema: T) => z.preprocess((value) => {
@@ -84,12 +88,20 @@ export const postFeelingSchema = z.discriminatedUnion('type', [
 export const postPlaceSchema = z.object({ id: z.string().max(60).default(''), name: z.string().trim().min(1).max(120), address: z.string().trim().max(200).default(''), lat: z.number().min(-90).max(90), lon: z.number().min(-180).max(180) });
 export const postSchema = z.object({ content: z.string().trim().max(5000).default(''), visibility: z.enum(['public', 'followers', 'private']).default('public'), groupId: z.string().optional(), feeling: jsonField(postFeelingSchema), place: jsonField(postPlaceSchema) });
 const mediaSlot = z.union([z.object({ id: z.string().min(1) }), z.object({ upload: z.number().int().min(0) })]);
-export const postEditSchema = z.object({ content: z.string().trim().max(5000).default(''), visibility: z.enum(['public', 'followers', 'private']).optional(), layout: jsonField(z.array(mediaSlot)) });
+// Like jsonField, but a missing field stays undefined ("leave as is") while "" or "null" means "remove".
+const optionalJsonField = <T extends z.ZodTypeAny>(schema: T) => z.preprocess((value) => {
+  if (value === undefined) return undefined;
+  if (value === '' || value === 'null' || value === null) return null;
+  if (typeof value !== 'string') return value;
+  try { return JSON.parse(value); } catch { return value; }
+}, schema.nullable().optional());
+export const postEditSchema = z.object({ content: z.string().trim().max(5000).default(''), visibility: z.enum(['public', 'followers', 'private']).optional(), layout: jsonField(z.array(mediaSlot)), feeling: optionalJsonField(postFeelingSchema), place: optionalJsonField(postPlaceSchema) });
 export const photoDeleteSchema = z.object({ url: z.string().min(1).max(500) });
 export const placeSearchSchema = z.object({ q: z.string().trim().min(2).max(100), lat: z.coerce.number().min(-90).max(90).optional(), lon: z.coerce.number().min(-180).max(180).optional() });
 export const placeNearbySchema = z.object({ lat: z.coerce.number().min(-90).max(90), lon: z.coerce.number().min(-180).max(180) });
 export const reactionSchema = z.object({ type: z.enum(REACTION_TYPES) });
 export const commentSchema = z.object({ content: z.string().trim().min(1).max(1500), parentId: z.string().optional() });
+export const commentEditSchema = z.object({ content: z.string().trim().min(1, 'Write something before saving.').max(1500) });
 const groupRule = z.object({ title: z.string().trim().min(1).max(80), details: z.string().trim().max(500).default('') });
 const groupSettings = z.object({ whoCanPost: z.enum(['anyone', 'admins']).default('anyone'), postApproval: z.boolean().default(false), whoCanApprove: z.enum(['admins', 'anyone']).default('admins') });
 export const groupSchema = z.object({

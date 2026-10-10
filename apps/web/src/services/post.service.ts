@@ -61,7 +61,7 @@ async function ownedPost(userId: string, postId: string) {
 }
 
 /** Edits text and, when a layout is sent, rebuilds the photo/video list from kept ids and new uploads (in display order). */
-export async function updatePost(userId: string, postId: string, input: { content: string; visibility?: string; layout: Array<{ id: string } | { upload: number }> | null }, files: Express.Multer.File[] = []) {
+export async function updatePost(userId: string, postId: string, input: { content: string; visibility?: string; layout: Array<{ id: string } | { upload: number }> | null; feeling?: unknown; place?: unknown }, files: Express.Multer.File[] = []) {
   const post = await ownedPost(userId, postId);
   await assertCanAccessPost(post, userId);
   if (input.layout) {
@@ -78,7 +78,10 @@ export async function updatePost(userId: string, postId: string, input: { conten
     }) as any;
   }
   post.content = clean(input.content || '');
-  if (input.visibility) post.visibility = input.visibility;
+  // Group posts follow the group's privacy; their own audience never changes.
+  if (input.visibility && !post.groupId) post.visibility = input.visibility;
+  if (input.feeling !== undefined) post.feeling = input.feeling as any;
+  if (input.place !== undefined) post.place = input.place as any;
   if (isEmptyPost(post)) throw new AppError(422, 'A post needs text, a photo or video, or a check-in.', 'EMPTY_POST');
   post.editedAt = new Date(); await post.save();
   await enqueuePostVideos(post, files.map((file) => `/uploads/${file.filename}`));
@@ -144,6 +147,48 @@ export async function addComment(userId: string, postId: string, input: any) {
   return comment;
 }
 
+/** Post author and group admins/moderators may remove anyone's comment on the post. */
+async function canModeratePost(post: any, userId?: string) {
+  if (!userId) return false;
+  if (String(post.authorId?._id || post.authorId) === userId) return true;
+  if (!post.groupId) return false;
+  const member: any = await GroupMember.findOne({ groupId: post.groupId?._id || post.groupId, userId }).select('role').lean();
+  return ['admin', 'moderator'].includes(member?.role);
+}
+
+async function loadComment(commentId: string) {
+  if (!mongoose.isValidObjectId(commentId)) throw new AppError(404, 'Comment not found.', 'COMMENT_NOT_FOUND');
+  const comment = await Comment.findOne({ _id: commentId, deletedAt: null });
+  const post = comment && await Post.findOne({ _id: comment.postId, deletedAt: null });
+  if (!comment || !post) throw new AppError(404, 'Comment not found.', 'COMMENT_NOT_FOUND');
+  return { comment, post };
+}
+
+/** Only the author can change the text of a comment. */
+export async function editComment(userId: string, commentId: string, content: string) {
+  const { comment, post } = await loadComment(commentId);
+  assertOwner(comment.authorId, userId, 'You can only edit your own comments.');
+  await assertCanAccessPost(post, userId);
+  comment.content = clean(content);
+  if (!comment.content) throw new AppError(422, 'Write something before saving.', 'EMPTY_COMMENT');
+  comment.editedAt = new Date(); await comment.save();
+  await invalidateSocialCaches([userId, String(post.authorId)]);
+  return comment;
+}
+
+/** Soft-deletes a comment and, for a top-level comment, its replies (as Facebook does). */
+export async function deleteComment(userId: string, commentId: string) {
+  const { comment, post } = await loadComment(commentId);
+  const isAuthor = String(comment.authorId) === userId;
+  if (!isAuthor && !(await canModeratePost(post, userId))) throw new AppError(403, 'You can only delete your own comments or comments on your posts.', 'NOT_OWNER');
+  const now = new Date();
+  const ids = [comment._id, ...(comment.parentId ? [] : (await Comment.find({ parentId: comment._id, deletedAt: null }).select('_id').lean()).map((reply: any) => reply._id))];
+  await Comment.updateMany({ _id: { $in: ids } }, { $set: { deletedAt: now } });
+  post.commentCount = await Comment.countDocuments({ postId: post._id, deletedAt: null }); await post.save();
+  await invalidateSocialCaches([userId, String(post.authorId)]);
+  return { removed: ids.map(String), commentCount: post.commentCount, byModerator: !isAuthor, postId: String(post._id) };
+}
+
 export async function getPostDetail(postId: string, viewerId?: string) {
   const post = await Post.findOne({ _id: postId, deletedAt: null }).populate('authorId', 'username displayName profile.avatarUrl').lean();
   if (!post) throw new AppError(404, 'Post not found.', 'POST_NOT_FOUND');
@@ -153,7 +198,7 @@ export async function getPostDetail(postId: string, viewerId?: string) {
   } else await assertCanAccessPost(post, viewerId);
   const blocked = viewerId ? await blockedUserIds(viewerId) : [];
   const comments = await Comment.find({ postId, deletedAt: null, authorId: { $nin: blocked } }).sort({ createdAt: 1 }).populate('authorId', 'username displayName profile.avatarUrl').lean();
-  return { post, comments };
+  return { post, comments, canModerate: await canModeratePost(post, viewerId) };
 }
 
 

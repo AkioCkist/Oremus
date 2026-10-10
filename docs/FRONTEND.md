@@ -37,7 +37,7 @@ Built files get a `?v=<hash>` suffix (`assetVersion()` in `app.ts`), so browsers
 |---|---|---|
 | `/` | `home.ejs` — story tray, composer, feed, shortcuts, contacts | Yes |
 | `/login`, `/register`, `/reset-password` | `auth/*.ejs` | No |
-| `/profile/:username` | `profile.ejs` — tabs: posts, about, friends, photos | No |
+| `/profile/:username` | `profile.ejs` — tabs: posts, about (`?tab=about&section=`), media (`?tab=media&type=&sort=`) | No |
 | `/posts/:postId` | `post.ejs` — single post with all comments | No (public posts) |
 | `/groups` | `groups/index.ejs` — directory | No |
 | `/groups/:slug`, `/g/:groupId` | `groups/detail.ejs` | No (visible groups) |
@@ -76,7 +76,12 @@ Reusable partials:
 | `avatar.ejs` | Avatar image or coloured initials |
 | `follow-button.ejs`, `friend-controls.ejs` | Relationship buttons |
 | `break-dialog.ejs` | Take a break / block dialog |
-| `profile-dialogs.ejs` | Edit details, photo picker and cropper |
+| `profile-dialogs.ejs` | Edit profile, Edit details (Intro switches), photo picker and cropper |
+| `post-extra-views.ejs`, `post-place-card.ejs` | Feeling/activity picker, check-in search and map card shared by the Create post and Edit post dialogs |
+| `profile-intro.ejs` | Intro card on the profile Posts tab |
+| `profile-about.ejs` | About tab: section nav, detail rows, inline editors, audience selectors |
+| `media-tile.ejs` | Square photo or video tile with play button and owner menu |
+| `search-box.ejs` | Search field with the recent/suggestions dropdown (header and `/search`) |
 | `icons.ejs` | Inline SVG sprite: icons (`#i-*`) and reaction emoji (`#r-*`) |
 
 ## Client script (`app.ts`)
@@ -100,6 +105,9 @@ The script is organised in sections. Each section looks for its elements by `dat
 | Inline comments | Post a comment without reloading |
 | Messenger | Send messages, append incoming ones, Socket.IO listeners |
 | Story viewer | Progress bars, auto-advance, pause, reactions, replies, viewers list |
+| Profile About | `<select data-autosubmit>` saves an audience as soon as it changes; `data-profile-item-delete` removes a workplace, school or link; "I currently work here" hides the end date |
+
+The search dropdown lives in its own module, [`search-box.ts`](../apps/web/src/views-or-client/search-box.ts), imported by `app.ts`. It sets up every `<form data-search-box>` on the page. See [Search and places](SEARCH_AND_PLACES.md#search-box-recent-searches-and-suggestions).
 
 ### Talking to the server
 
@@ -142,3 +150,4 @@ flowchart LR
 - Icon-only buttons have `aria-label`s.
 - Keyboard users get a visible focus ring (`:focus-visible`). Borderless writing areas use `.field-bare` because the dialog around them already shows focus.
 - Reactions, menus and the viewer can be used with the keyboard (arrow keys in the viewer).
+- The search field is an ARIA combobox: arrow keys move through suggestions, Tab accepts the inline completion, Esc closes.

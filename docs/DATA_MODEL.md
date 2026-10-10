@@ -28,6 +28,7 @@ erDiagram
   STORY ||--o{ STORY_VIEW : "is viewed in"
   USER ||--o{ REFRESH_TOKEN : owns
   USER ||--o{ AUDIT_LOG : acts
+  USER ||--o{ SEARCH_HISTORY : "searched for"
 ```
 
 ## Embed or separate collection?
@@ -66,7 +67,31 @@ Counters such as `Post.reactionCount`, `Post.commentCount`, `Group.memberCount` 
 
 Text index on `displayName` and `username`.
 
-**Profile (embedded):** `bio`, `location`, `website`, `avatarUrl`, `coverUrl`, `privacy` (`public` or `followers`), `avatarHistory`, `coverHistory` (previous photos for the picker), `storyAudience` (`public` or `followers`).
+**Profile (embedded):**
+
+| Field | Type | Notes |
+|---|---|---|
+| `bio` | string | Max 240 |
+| `location`, `hometown` | string | Current city and hometown, max 80 |
+| `website` | string | http(s) URL |
+| `avatarUrl`, `coverUrl` | string | Current photos |
+| `avatarHistory`, `coverHistory` | string[] | Previous photos for the picker, newest first, max 12 |
+| `privacy` | `public` or `followers` | Who can see any details at all |
+| `storyAudience` | `public` or `followers` | Default story audience |
+| `work` | WorkEntry[] | Max 10: `company`, `position`, `city`, `description`, `startDate`, `endDate`, `current` |
+| `education` | EducationEntry[] | Max 10: `school`, `level` (`college` or `high_school`), `concentration`, `degree`, `startYear`, `endYear`, `graduated` |
+| `links` | LinkEntry[] | Max 10: `platform` (`website`, `facebook`, `instagram`, `x`, `threads`, `tiktok`, `youtube`, `linkedin`, `github`, `discord`, `other`), `url` |
+| `relationship` | string | e.g. `single`, `married`, `complicated`, or empty |
+| `birthDay`, `birthMonth`, `birthYear` | number | Each optional |
+| `gender` | string | `male`, `female`, `nonbinary`, `other` or empty |
+| `pronouns` | string | `he/him`, `she/her`, `they/them` or empty |
+| `languages`, `hobbies` | string[] | Max 10 and 20 |
+| `phone`, `publicEmail` | string | Contact shown on the profile (not the login email) |
+| `otherNames`, `about`, `quotes` | string | Max 60, 1000 and 500 |
+| `introHidden` | string[] | Intro items turned off: `work`, `education`, `location`, `hometown`, `relationship`, `birthday`, `joined`, `followers`, `links`, `hobbies` |
+| `audience` | object | One of `public`, `friends`, `only_me` for each of `work`, `education`, `location`, `hometown`, `birthday`, `birthYear`, `relationship`, `gender`, `pronouns`, `languages`, `contact`, `links`. `birthYear` and `contact` default to `only_me`, the rest to `public`. |
+
+Work, education and link entries have their own `_id` so they can be edited and removed one by one. See [Profiles](PROFILES.md) for how these fields are shown and protected.
 
 ### Follow
 
@@ -166,6 +191,13 @@ Types: `reaction`, `comment`, `follow`, `friend_request`, `friend_accept`, `grou
 ### RefreshToken
 
 `userId`, `tokenHash` (SHA-256, never the raw token), `family` (all tokens from one login), `expiresAt` (MongoDB TTL index deletes expired rows), `revokedAt`, `replacedByHash`, `userAgent`, `ip`.
+
+### SearchHistory and SearchTerm
+
+- `SearchHistory(userId, kind, key, query, refId)` — one row per keyword, profile or group a user searched for. `kind` is `query`, `user` or `group`. `key` is `q:<lowercase keyword>` or `<kind>:<id>`; it is unique per user, so repeating a search only updates `updatedAt`. At most 30 rows per user are kept. Indexes: `{ userId, key }` (unique) and `{ userId, updatedAt }`.
+- `SearchTerm(term, count)` — how many times each lowercase keyword was searched across Oremus. Feeds keyword completions. Indexes: `term` (unique) and `count`.
+
+See [Search and places](SEARCH_AND_PLACES.md#search-box-recent-searches-and-suggestions).
 
 ### AuditLog
 

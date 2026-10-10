@@ -4,15 +4,15 @@
   <a class="btn-ghost ml-2 sm:ml-0" href="/"><svg class="icon"><use href="#i-arrow-left"/></svg>Back to feed</a>
   <%- include('partials/post-card', { item: post, hideViewAll: true }) %>
   <section id="comments" class="card p-4" aria-labelledby="comments-title">
-    <div class="flex items-center justify-between"><h2 id="comments-title" class="card-title">Comments</h2><span class="text-sm text-muted"><%= plural(comments.length, 'comment') %></span></div>
+    <div class="flex items-center justify-between"><h2 id="comments-title" class="card-title">Comments</h2><span class="text-sm text-muted" data-comments-total><%= plural(comments.length, 'comment') %></span></div>
     <% if (comments.length) { %>
     <ul class="mt-4 space-y-3">
       <% roots.forEach(function (comment) { %>
       <li>
-        <%- include('partials/comment', { comment, postId: post._id, isReply: false }) %>
+        <%- include('partials/comment', { comment, postId: post._id, isReply: false, canModerate }) %>
         <% const replies = repliesOf(comment._id); if (replies.length) { %>
         <ul class="ml-12 mt-2 space-y-2 border-l-2 border-line pl-3">
-          <% replies.forEach(function (reply) { %><li><%- include('partials/comment', { comment: reply, postId: post._id, isReply: true }) %></li><% }) %>
+          <% replies.forEach(function (reply) { %><li><%- include('partials/comment', { comment: reply, postId: post._id, isReply: true, canModerate }) %></li><% }) %>
         </ul>
         <% } %>
       </li>

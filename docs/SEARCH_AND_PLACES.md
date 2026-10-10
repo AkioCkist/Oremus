@@ -40,6 +40,87 @@ If the API is down, `/v1/search` returns `503` and the search page shows an erro
 
 There is also a profile search: `/profile/:username?q=...` searches inside one person's posts.
 
+## Search box: recent searches and suggestions
+
+The search field in the header (and on the `/search` page) opens a Facebook-style dropdown.
+
+- [`views/partials/search-box.ejs`](../apps/web/src/views/partials/search-box.ejs) — the markup
+- [`views-or-client/search-box.ts`](../apps/web/src/views-or-client/search-box.ts) — the dropdown, keyboard and inline completion
+- [`services/search.service.ts`](../apps/web/src/services/search.service.ts) — history, suggestions and ranking
+
+Unlike the results page, suggestions are read straight from MongoDB by the web app. They do not go through the FastAPI service, so they stay fast and can use the viewer's friends and groups.
+
+### What the dropdown shows
+
+| Input | Dropdown |
+|---|---|
+| Empty | **Recent**: keywords (clock icon), profiles and groups you searched for, newest first. Each row has a × to remove it, and **Clear all** removes everything. |
+| Text typed | Keyword completions, then up to 5 people, then up to 3 groups, then **Search for "…"** |
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant B as search-box.ts
+  participant W as web (search.service)
+  participant DB as MongoDB
+  U->>B: focus the empty field
+  B->>W: GET /api/search/recent
+  W->>DB: SearchHistory (latest 30) + fresh names and photos
+  W-->>B: recent entries
+  U->>B: types "mar"
+  Note over B: waits 120 ms, cancels older requests,<br/>caches answers per query
+  B->>W: GET /api/search/suggest?q=mar
+  W->>DB: your past keywords, popular keywords,<br/>people and groups
+  W-->>B: completions, users, groups
+  B->>U: dropdown + faint inline completion "mar|athon training"
+```
+
+### Inline completion
+
+While you type, the best completion appears faintly after your text inside the field, for example `mar` + `athon training`. Press **Tab** or **→** (with the cursor at the end) to accept it, so you do not have to type the whole word.
+
+The completion is the first suggestion that starts with what you typed. The typed part of each suggestion is shown in normal weight and the rest in bold, like Facebook.
+
+### Keyboard
+
+| Key | Action |
+|---|---|
+| ↑ / ↓ | Move through the rows (and back to the field) |
+| Enter | Open the selected row, or search for the typed text |
+| Tab / → | Accept the inline completion |
+| Esc | Close the dropdown |
+
+The field is an ARIA combobox (`aria-expanded`, `aria-activedescendant`, `role="option"` rows), so screen readers announce the selected row.
+
+### How suggestions are ranked
+
+| Kind | Source | Order |
+|---|---|---|
+| Keywords (max 5) | 1. Your own past searches that start with the text. 2. Keywords everyone searched most (`SearchTerm.count`). 3. People and group names that start with the text. | In that order; duplicates removed |
+| People (max 5) | Display name has a word starting with the text, or username starts with it | Friends first, then names that start with the text, then A–Z |
+| Groups (max 3) | Name has a word starting with the text | Groups you joined first, then names that start with the text, then A–Z |
+
+Rules that always apply:
+
+- You never see yourself or people you blocked (or who blocked you).
+- Hidden groups appear only to their members.
+- Matching ignores upper and lower case but **not** Vietnamese accents: "nguyen" does not find "Nguyễn".
+
+### What is remembered
+
+| Action | Saved as |
+|---|---|
+| A keyword search reaches `/search?q=` (from the header, the search page or a suggestion) | `query` entry, and +1 on that keyword's global count |
+| You open a profile or group from the dropdown | `user` or `group` entry |
+
+- Searching the same thing again moves it back to the top instead of adding a copy.
+- Each person keeps at most 30 entries; older ones are deleted.
+- Names and photos are looked up fresh every time, so renamed profiles show the new name.
+- Entries for deleted or blocked people, and for hidden groups you left, are skipped.
+- Only you can see your recent searches.
+
+Rate limits: 240 suggestion requests and 120 history writes per minute per user.
+
 ## Feed ranking endpoint
 
 The API also offers `POST /v1/feed/rank`, a transparent scoring formula:

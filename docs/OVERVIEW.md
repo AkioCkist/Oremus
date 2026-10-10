@@ -9,12 +9,13 @@ This page is the starting point. It explains what the product does, which techno
 | Area | Features |
 |---|---|
 | Account | Register, log in (with "remember me"), log out, reset password |
-| Profile | Avatar and cover (pick from library or upload and crop), bio, location, website, privacy, photo library |
+| Profile | Avatar and cover (pick from library or upload and crop), Facebook-style Intro and About (work, education, places, contact, basic info, relationship, hobbies), per-detail audience, Media tab with photo/video filter and sort |
 | Posts | Text, unlimited photos and videos, feeling/activity, check-in with a map, visibility (public / followers / only me), edit, move to trash |
 | Engagement | Six reactions (like, love, haha, wow, sad, angry), threaded comments, share link |
 | Feed | Home feed that puts people you follow first, then newest posts |
 | People | Follow (one-way), friendship (two-way, request/accept), "take a break", block |
 | Groups | Public/private and visible/hidden groups, rules, membership questions, join requests, invites, post approval, admin/moderator roles |
+| Search | Results for people, posts and groups; header dropdown with recent searches, typeahead suggestions and inline completion |
 | Messaging | One-to-one chat between friends, delivered live with Socket.IO |
 | Stories | Photo or text stories that disappear after 24 hours, viewers list, reactions, replies that go to chat, archive |
 | Notifications | Live inbox for reactions, comments, follows, friend requests, group events, messages and story reactions |

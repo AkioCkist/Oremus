@@ -1,15 +1,29 @@
-<%# One comment bubble. Locals: comment, postId, isReply. Replies to a reply attach to the root thread. -%>
-<% const who = comment.authorId || {}; const threadId = comment.parentId || comment._id; -%>
-<div class="flex gap-2">
+<%# One comment bubble. Locals: comment, postId, isReply, canModerate. Replies to a reply attach to the root thread. -%>
+<% const who = comment.authorId || {}; const threadId = comment.parentId || comment._id;
+   const own = currentUser && String(who._id) === String(currentUser._id);
+   const canDelete = own || (currentUser && locals.canModerate); -%>
+<div class="flex gap-2" data-comment-id="<%= comment._id %>" data-comment-post="<%= postId %>">
   <a href="/profile/<%= who.username %>" class="shrink-0"><%- include('avatar', { person: who, size: isReply ? 'size-7 text-2xs' : 'size-8 text-xs' }) %></a>
   <div class="min-w-0 flex-1">
-    <div class="comment-bubble">
-      <a class="block text-[0.8125rem] font-semibold hover:underline" href="/profile/<%= who.username %>"><%= who.displayName %></a>
-      <p class="whitespace-pre-wrap break-words text-15 leading-snug"><%= comment.content %></p>
+    <div class="group/comment flex items-center gap-1">
+      <div class="comment-bubble min-w-0" data-comment-bubble>
+        <a class="block text-[0.8125rem] font-semibold hover:underline" href="/profile/<%= who.username %>"><%= who.displayName %></a>
+        <p class="whitespace-pre-wrap break-words text-15 leading-snug" data-comment-text><%= comment.content %></p>
+      </div>
+      <% if (canDelete) { %>
+      <details class="group/menu relative shrink-0" data-menu data-comment-menu>
+        <summary class="icon-btn-ghost size-8 cursor-pointer list-none text-muted transition-opacity group-open/menu:opacity-100 group-hover/comment:opacity-100 focus-visible:opacity-100 sm:opacity-0" aria-label="Comment options"><svg class="icon size-[1.125rem]"><use href="#i-more"/></svg></summary>
+        <div class="menu left-0 top-full mt-1 min-w-[11rem]">
+          <% if (own) { %><button type="button" class="menu-item" data-comment-edit="<%= comment._id %>"><span class="menu-icon"><svg class="icon"><use href="#i-edit"/></svg></span>Edit</button><% } %>
+          <button type="button" class="menu-item" data-comment-delete="<%= comment._id %>"><span class="menu-icon"><svg class="icon"><use href="#i-trash"/></svg></span>Delete</button>
+        </div>
+      </details>
+      <% } %>
     </div>
-    <div class="mt-0.5 flex gap-3 px-3 text-xs font-semibold text-muted">
+    <div class="mt-0.5 flex gap-3 px-3 text-xs font-semibold text-muted" data-comment-meta>
       <time datetime="<%= new Date(comment.createdAt).toISOString() %>" title="<%= longTime(comment.createdAt) %>" class="font-normal"><%= timeAgo(comment.createdAt) %></time>
       <% if (currentUser) { %><button type="button" class="hover:underline" data-toggle="reply-<%= comment._id %>">Reply</button><% } %>
+      <span class="font-normal <%= comment.editedAt ? '' : 'hidden' %>" data-comment-edited <% if (comment.editedAt) { %>title="Edited <%= longTime(comment.editedAt) %>"<% } %>>Edited</span>
     </div>
     <% if (currentUser) { %>
     <form id="reply-<%= comment._id %>" class="mt-2 hidden items-center gap-2 [&:not(.hidden)]:flex" data-api-form data-reset data-reload action="/api/posts/<%= postId %>/comments" method="post">

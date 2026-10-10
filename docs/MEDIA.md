@@ -80,18 +80,20 @@ sequenceDiagram
   participant DB as MongoDB
   participant FS as uploads/
   W->>DB: save post, video status = processing (original URL)
-  W->>R: LPUSH media:video:jobs {postId, mediaId, url}
-  M->>R: BLMOVE jobs → media:video:active (waits up to 5 s)
+  W->>R: LPUSH media:{scope}:video:jobs {postId, mediaId, url}
+  M->>R: BLMOVE jobs → media:{scope}:video:active (waits up to 5 s)
   M->>FS: ffmpeg original → new .mp4 + .jpg poster
   M->>DB: update media only if it still has the original URL
   alt media still there
-    M->>R: ZADD media:trash original (delete in 15 min)
+    M->>R: ZADD media:{scope}:trash original (delete in 15 min)
     M->>R: invalidate caches
   else media was removed or replaced meanwhile
     M->>FS: delete the new files
   end
-  M->>R: LREM media:video:active job
+  M->>R: LREM media:{scope}:video:active job
 ```
+
+`{scope}` is the first 10 hex characters of the SHA-1 of `MONGODB_URI`. See [Queue scope](#queue-scope) below.
 
 Important behaviour:
 
@@ -99,8 +101,10 @@ Important behaviour:
 - **Safe swaps.** The worker updates the post only if the media entry still points to the original file. If the author edited the post in the meantime, the result is discarded.
 - **Old links keep working.** The original file is deleted 15 minutes after the swap, so pages that were already open can still play it.
 - **Failures are safe.** If ffmpeg fails, the media is marked `failed` and the original keeps playing.
-- **Crash recovery.** Jobs being processed are kept in `media:video:active`. When the worker starts, it moves them back to the queue.
-- **One worker only.** Run a single worker instance; the crash recovery assumes no other worker is running.
+- **Crash recovery.** Jobs being processed are kept in the `active` list. When the worker starts, it moves them back to the queue.
+- **Lost jobs are found again.** When it starts, and then every 5 minutes, the worker looks for videos still marked `processing` that no queued or active job covers, and queues them again. Posts changed in the last 2 minutes are skipped because their job may still be on its way.
+- **Missing files fail.** If the original file is gone, the video is marked `failed` instead of staying `processing` forever.
+- **One worker per stack.** Run a single worker for each database; the crash recovery assumes no other worker uses the same queue.
 - **Timeout.** A single ffmpeg run is killed after 20 minutes.
 
 ### Video states
@@ -110,6 +114,8 @@ stateDiagram-v2
   [*] --> processing: uploaded
   processing --> ready: transcode ok (new URL + poster)
   processing --> failed: ffmpeg error (original kept)
+  processing --> failed: original file missing
+  processing --> processing: job lost → re-queued by the 5-minute sweep
   ready --> [*]
   failed --> [*]
 ```
@@ -123,6 +129,29 @@ stateDiagram-v2
 
 Without the worker, videos still upload and play; they are compressed once a worker runs.
 
+### Queue scope
+
+All Redis keys of the video queue include a scope taken from `MONGODB_URI`:
+
+```text
+media:{scope}:video:jobs
+media:{scope}:video:active
+media:{scope}:trash
+```
+
+Why: Docker publishes Redis on `localhost:6379`. A worker started on your own machine (`dev:worker`, which uses `mongodb://localhost…`) and the Docker `media` service (which uses `mongodb://mongo…`) can therefore share one Redis. Without the scope, the local worker could take a Docker job, fail to find the file in its own `uploads/` folder, and drop it. The video would then stay **Processing…** forever.
+
+With the scope, the web app and worker of one stack always share a key, and a different stack never sees it.
+
+### Troubleshooting: a video stays "Processing…"
+
+1. Check the worker is running: `docker compose logs media` should show `Media worker is ready`.
+2. Wait up to 5 minutes. The sweep re-queues stuck videos and logs `Re-queued stuck videos`.
+3. Restart the worker (`docker compose restart media`) to run the sweep at once.
+4. If the log says `Video source is gone; marking it failed`, the original file is missing from `uploads/`. The video now shows **Failed** to its owner and must be uploaded again.
+
+Workers built before the queue scope was added still use the old key `media:video:jobs`. Rebuild both `web` and `media` together so they use the same keys.
+
 ## Tuning
 
 The settings are constants at the top of the files:
@@ -133,6 +162,7 @@ The settings are constants at the top of the files:
 | Video max size and quality | `media/video.ts` | `VIDEO_MAX_EDGE`, `VIDEO_CRF`, and the ffmpeg arguments |
 | Upload size limits | `middleware/upload.ts` | `IMAGE_MAX_BYTES`, `VIDEO_MAX_BYTES` |
 | Grace period before deleting originals | `media-worker.ts` | `ORIGINAL_GRACE_MS` |
+| When a video counts as stuck, and how often to check | `media-worker.ts` | `STUCK_AFTER_MS`, `REQUEUE_EVERY_MS` |
 
 ## Limits
 

@@ -1,0 +1,36 @@
+<%# Feeling/activity and check-in sub-views shared by the Create post and Edit post dialogs (scripted by initPostExtras in app.ts). -%>
+    <!-- Feeling / activity view -->
+    <div class="hidden" data-composer-view="feeling">
+      <div class="relative border-b border-line px-4 py-3 text-center">
+        <button type="button" class="icon-btn absolute left-3 top-2" data-composer-back aria-label="Back to post"><svg class="icon"><use href="#i-arrow-left"/></svg></button>
+        <h2 class="text-xl font-bold" data-feeling-title>How are you feeling?</h2>
+      </div>
+      <div class="flex border-b border-line px-2" role="tablist">
+        <button type="button" role="tab" class="tab h-12 tab-active" data-feeling-tab="feeling" aria-selected="true">Feelings</button>
+        <button type="button" role="tab" class="tab h-12" data-feeling-tab="activity" aria-selected="false">Activities</button>
+      </div>
+      <div class="p-3">
+        <div class="relative" data-feeling-search-wrap><svg class="icon pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"><use href="#i-search"/></svg><input type="search" class="pill-input pl-9" placeholder="Search" data-feeling-search aria-label="Search feelings"></div>
+        <div class="mt-3 hidden" data-activity-detail>
+          <div class="flex items-center gap-2 rounded-lg bg-field p-2"><span class="grid size-9 place-items-center rounded-full bg-surface text-xl" data-activity-emoji></span><span class="font-semibold" data-activity-verb></span></div>
+          <input class="input mt-2 w-full" maxlength="80" data-activity-text>
+          <div class="mt-2 flex justify-end gap-2"><button type="button" class="btn-secondary" data-activity-cancel>Back</button><button type="button" class="btn-primary" data-activity-done>Done</button></div>
+        </div>
+        <div class="mt-3 grid max-h-[50dvh] grid-cols-2 gap-1 overflow-y-auto" data-feeling-grid></div>
+      </div>
+    </div>
+
+    <!-- Check-in view -->
+    <div class="hidden" data-composer-view="place">
+      <div class="relative border-b border-line px-4 py-3 text-center">
+        <button type="button" class="icon-btn absolute left-3 top-2" data-composer-back aria-label="Back to post"><svg class="icon"><use href="#i-arrow-left"/></svg></button>
+        <h2 class="text-xl font-bold">Search for location</h2>
+      </div>
+      <div class="p-3">
+        <div class="relative"><svg class="icon pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"><use href="#i-search"/></svg><input type="search" class="pill-input pl-9" placeholder="Where are you?" autocomplete="off" data-place-search aria-label="Search for a place"></div>
+        <button type="button" class="mt-2 flex w-full items-center gap-3 rounded-lg p-2 text-left hover:bg-hover" data-place-locate><span class="icon-btn shrink-0 bg-brand-50 text-brand-600"><svg class="icon"><use href="#i-pin"/></svg></span><span><span class="block font-semibold">Use my current location</span><span class="block text-[0.8125rem] text-muted">Show places near you</span></span></button>
+        <p class="px-2 py-2 text-[0.8125rem] text-muted" data-place-status role="status"></p>
+        <ul class="max-h-[48dvh] space-y-0.5 overflow-y-auto" data-place-results></ul>
+        <p class="px-2 pt-2 text-2xs text-subtle">Places from © OpenStreetMap contributors</p>
+      </div>
+    </div>

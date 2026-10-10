@@ -32,6 +32,8 @@ apiRoutes.delete('/posts/:postId/media/:mediaId', asyncHandler(controller.remove
 apiRoutes.delete('/posts/:postId', asyncHandler(controller.deletePost));
 apiRoutes.post('/posts/:postId/reactions', asyncHandler(controller.react));
 apiRoutes.post('/posts/:postId/comments', rateLimit('comment', 60, 3600), asyncHandler(controller.comment));
+apiRoutes.patch('/comments/:commentId', rateLimit('comment-edit', 60, 3600), asyncHandler(controller.editComment));
+apiRoutes.delete('/comments/:commentId', asyncHandler(controller.deleteComment));
 apiRoutes.post('/groups', rateLimit('group', 5, 3600), upload.single('cover'), compressUploadedImages, asyncHandler(controller.createGroup));
 apiRoutes.patch('/groups/:groupId', upload.single('cover'), compressUploadedImages, asyncHandler(controller.updateGroup));
 apiRoutes.post('/groups/:groupId/leave', asyncHandler(controller.leaveGroup));
@@ -54,5 +56,10 @@ apiRoutes.get('/places/nearby', rateLimit('places', 60, 60), asyncHandler(contro
 apiRoutes.get('/notifications', asyncHandler(controller.notifications));
 apiRoutes.post('/notifications/read', asyncHandler(controller.readNotifications));
 apiRoutes.get('/search', asyncHandler(controller.search));
+apiRoutes.get('/search/suggest', rateLimit('search-suggest', 240, 60), asyncHandler(controller.searchSuggest));
+apiRoutes.get('/search/recent', asyncHandler(controller.recentSearches));
+apiRoutes.post('/search/recent', rateLimit('search-record', 120, 60), asyncHandler(controller.recordSearch));
+apiRoutes.delete('/search/recent', asyncHandler(controller.removeRecentSearch));
+apiRoutes.delete('/search/recent/:entryId', asyncHandler(controller.removeRecentSearch));
 apiRoutes.get('/dev/cache', asyncHandler(controller.diagnostics));
 

@@ -104,9 +104,10 @@ While a block exists (in either direction):
 
 ## Profiles
 
-`/profile/:username` shows the profile with tabs for posts, about, friends and photos.
+`/profile/:username` shows the profile with tabs for posts, about and media. The full guide — Intro card, About sections, per-detail audience and the Media tab — is in [Profiles](PROFILES.md).
 
-- `profile.privacy = followers` hides bio, location, website and cover from people who do not follow you.
+- `profile.privacy = followers` hides all details and the cover from people who do not follow you.
+- Each detail also has its own audience (`public`, `friends` or `only_me`). "Friends" uses the friendship described above.
 - Profile counts (followers, following, friends) are cached in Redis for 2 minutes.
 - The photo library (`GET /api/profile/photos`) lists your post images and previous avatars/covers so you can reuse them.
 - Settings at `/settings` change profile details, photos, story audience and theme.
