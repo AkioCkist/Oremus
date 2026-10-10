@@ -1,10 +1,16 @@
+import { createHash } from 'node:crypto';
 import { redis } from '../config/database.js';
+import { env } from '../config/env.js';
+
+// Keys are scoped to the database the jobs belong to: a host-run dev worker and the Docker
+// worker can share one Redis, and must never take each other's jobs (their uploads differ).
+const scope = createHash('sha1').update(env.MONGODB_URI).digest('hex').slice(0, 10);
 
 /** Redis keys shared by the web app (producer) and the media worker (consumer). */
-export const VIDEO_JOBS = 'media:video:jobs';
-export const VIDEO_ACTIVE = 'media:video:active';
+export const VIDEO_JOBS = `media:${scope}:video:jobs`;
+export const VIDEO_ACTIVE = `media:${scope}:video:active`;
 /** Sorted set of upload filenames to delete, scored by the time they become safe to remove. */
-export const MEDIA_TRASH = 'media:trash';
+export const MEDIA_TRASH = `media:${scope}:trash`;
 
 export type VideoJob = { postId: string; mediaId: string; url: string };
 

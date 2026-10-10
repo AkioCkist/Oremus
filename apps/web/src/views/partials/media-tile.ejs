@@ -1,0 +1,14 @@
+<%# Square profile media tile (photo or video) that opens the viewer; owners also get the options menu. -%>
+<% const label = item.isVideo ? 'video' : 'photo'; -%>
+<div class="group/photo relative aspect-square overflow-hidden bg-field <%= locals.rounded ? 'rounded-lg' : '' %>">
+  <button type="button" class="block size-full" data-lightbox="<%= item.url %>" data-post="<%= item.postId %>" aria-label="Open <%= label %>">
+    <% if (item.isVideo) { %>
+      <% if (item.poster) { %><img class="size-full object-cover transition-transform hover:scale-105" src="<%= item.poster %>" alt="" loading="lazy"><% } else { %><video class="pointer-events-none size-full object-cover" src="<%= item.url %>#t=0.1" muted playsinline preload="metadata" tabindex="-1" aria-hidden="true"></video><% } %>
+      <span class="pointer-events-none absolute inset-0 grid place-items-center"><span class="grid size-11 place-items-center rounded-full bg-black/55 text-white ring-2 ring-white/80"><svg class="icon size-5 translate-x-0.5 fill-current"><use href="#i-play"/></svg></span></span>
+      <% if (item.status === 'processing') { %><span class="pointer-events-none absolute bottom-1.5 left-1.5 rounded-full bg-black/65 px-2 py-0.5 text-2xs font-semibold text-white">Processing…</span><% } else if (item.status === 'failed') { %><span class="pointer-events-none absolute bottom-1.5 left-1.5 rounded-full bg-red-600 px-2 py-0.5 text-2xs font-semibold text-white">Failed</span><% } %>
+    <% } else { %>
+      <img class="size-full object-cover transition-transform hover:scale-105" src="<%= item.url %>" alt="<%= item.alt || '' %>" loading="lazy">
+    <% } %>
+  </button>
+  <% if (isSelf) { %><button type="button" class="absolute right-1.5 top-1.5 grid size-8 place-items-center rounded-full bg-surface/90 text-ink shadow-float transition-opacity hover:bg-surface sm:opacity-0 sm:group-hover/photo:opacity-100 sm:focus-visible:opacity-100" data-photo-menu="post" data-post="<%= item.postId %>" data-media="<%= item.mediaId %>" data-url="<%= item.url %>" aria-label="<%= item.isVideo ? 'Video' : 'Photo' %> options"><svg class="icon size-[1.125rem]"><use href="#i-more"/></svg></button><% } %>
+</div>

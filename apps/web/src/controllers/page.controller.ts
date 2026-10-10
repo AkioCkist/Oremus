@@ -46,22 +46,41 @@ export async function home(req: Request, res: Response) {
 }
 
 const ABOUT_SECTIONS = ['overview', 'work', 'places', 'contact', 'relationship', 'details', 'hobbies'];
+const MEDIA_TYPES = ['all', 'photos', 'videos'];
+const MEDIA_SORTS: Record<string, Record<string, 1 | -1>> = {
+  newest: { createdAt: -1 }, oldest: { createdAt: 1 }, reactions: { reactionCount: -1, createdAt: -1 }, comments: { commentCount: -1, createdAt: -1 }
+};
+
+/** One tile per photo/video across posts; videos that failed to transcode are only shown to their owner. */
+const flattenMedia = (posts: any[], isOwner: boolean) => posts.flatMap((post) => (post.media || [])
+  .map((media: any) => ({ ...media, postId: post._id, mediaId: media._id, createdAt: post.createdAt, isVideo: String(media.mimeType).startsWith('video/') }))
+  .filter((media: any) => (media.isVideo || String(media.mimeType).startsWith('image/')) && (isOwner || media.status !== 'failed')));
 
 export async function profile(req: Request, res: Response) {
   const profile = await getProfile(param(req, 'username'), req.user?.id);
-  if (profile.blockedByMe) return res.render('profile', { ...base(req, profile.displayName), profile, posts: [], photos: [], hasStory: false, friendsPreview: [], tab: 'posts', profileQuery: '', aboutSection: 'overview' });
+  if (profile.blockedByMe) return res.render('profile', { ...base(req, profile.displayName), profile, posts: [], photos: [], mediaCounts: { all: 0, photos: 0, videos: 0 }, mediaFilter: { type: 'all', sort: 'newest' }, hasStory: false, friendsPreview: [], tab: 'posts', profileQuery: '', aboutSection: 'overview' });
   const restricted = req.user ? (await restrictedAuthorIds(req.user.id)).includes(String(profile._id)) : false;
   const visibility = profile.isSelf ? {} : profile.isFollowing && !restricted ? { visibility: { $in: ['public', 'followers'] } } : { visibility: 'public' };
   const profileQuery = String(req.query.q || '').trim().slice(0, 80);
   const searchFilter = profileQuery ? { content: { $regex: profileQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } } : {};
   const raw = await Post.find({ authorId: profile._id, groupId: null, deletedAt: null, ...visibility, ...searchFilter }).sort({ createdAt: -1 }).limit(50).populate('authorId', AUTHOR_FIELDS).lean();
   const posts = await withReactionSummary(raw, req.user?.id);
-  const photos = raw.flatMap((post: any) => (post.media || []).filter((media: any) => String(media.mimeType).startsWith('image/')).map((media: any) => ({ ...media, postId: post._id, mediaId: media._id }))).slice(0, 9);
+  const tab = profileQuery ? 'posts' : req.query.tab === 'about' ? 'about' : ['media', 'photos', 'videos'].includes(String(req.query.tab)) ? 'media' : 'posts';
+  const mediaFilter = {
+    type: MEDIA_TYPES.includes(String(req.query.type)) ? String(req.query.type) : req.query.tab === 'photos' ? 'photos' : req.query.tab === 'videos' ? 'videos' : 'all',
+    sort: String(req.query.sort) in MEDIA_SORTS ? String(req.query.sort) : 'newest'
+  };
+  const mediaSource = tab === 'media'
+    ? await Post.find({ authorId: profile._id, groupId: null, deletedAt: null, ...visibility, 'media.0': { $exists: true } }).sort(MEDIA_SORTS[mediaFilter.sort]!).limit(200).select('media createdAt reactionCount commentCount').lean()
+    : raw;
+  const allMedia = flattenMedia(mediaSource, profile.isSelf);
+  const mediaCounts = { all: allMedia.length, photos: allMedia.filter((item) => !item.isVideo).length, videos: allMedia.filter((item) => item.isVideo).length };
+  const photos = tab === 'media' ? allMedia.filter((item) => mediaFilter.type === 'all' || item.isVideo === (mediaFilter.type === 'videos')) : allMedia.slice(0, 9);
   const tray = req.user ? await getStoryTray(req.user.id, [String(profile._id)]) : [];
   const hasStory = tray.some((group) => group.author._id === String(profile._id));
   const friendsPreview = await listFriends(String(profile._id), 9);
   const aboutSection = ABOUT_SECTIONS.includes(String(req.query.section)) ? String(req.query.section) : 'overview';
-  res.render('profile', { ...base(req, profile.displayName), profile, posts, photos, hasStory, friendsPreview, profileQuery, aboutSection, tab: profileQuery ? 'posts' : req.query.tab === 'about' ? 'about' : req.query.tab === 'photos' ? 'photos' : 'posts' });
+  res.render('profile', { ...base(req, profile.displayName), profile, posts, photos, mediaCounts, mediaFilter, hasStory, friendsPreview, profileQuery, aboutSection, tab });
 }
 
 export async function post(req: Request, res: Response) {
