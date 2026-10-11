@@ -43,6 +43,7 @@ apiRoutes.post('/groups/:groupId/join', asyncHandler(controller.requestJoin));
 apiRoutes.post('/group-requests/:requestId/decision', asyncHandler(controller.decideJoin));
 apiRoutes.post('/conversations', asyncHandler(controller.createConversation));
 apiRoutes.post('/conversations/:conversationId/messages', rateLimit('message', 120, 60), asyncHandler(controller.sendMessage));
+apiRoutes.post('/conversations/:conversationId/read', asyncHandler(controller.readConversation));
 apiRoutes.get('/stories', asyncHandler(story.tray));
 apiRoutes.post('/stories', rateLimit('story', 30, 3600), storyUpload.single('media'), enforcePostMediaSize, compressUploadedImages, asyncHandler(story.create));
 apiRoutes.patch('/stories/settings', asyncHandler(story.settings));

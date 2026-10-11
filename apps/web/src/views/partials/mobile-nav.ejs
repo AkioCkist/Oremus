@@ -3,7 +3,7 @@
   <a class="mobile-link <%= on('/') ? 'mobile-link-active' : '' %>" href="/"><svg class="icon size-6"><use href="#i-home"/></svg>Home</a>
   <a class="mobile-link <%= on('/stories') ? 'mobile-link-active' : '' %>" href="/stories"><svg class="icon size-6"><use href="#i-stories"/></svg>Stories</a>
   <a class="mobile-link <%= on('/groups') ? 'mobile-link-active' : '' %>" href="/groups"><svg class="icon size-6"><use href="#i-group"/></svg>Groups</a>
-  <a class="mobile-link <%= on('/messages') ? 'mobile-link-active' : '' %>" href="/messages"><svg class="icon size-6"><use href="#i-chat"/></svg>Chats<% if (locals.unreadMessages) { %><span class="badge right-[calc(50%-1.25rem)] top-0"><%= unreadMessages %></span><% } %></a>
-  <a class="mobile-link <%= on('/notifications') ? 'mobile-link-active' : '' %>" href="/notifications"><svg class="icon size-6"><use href="#i-bell"/></svg>Alerts<% if (locals.unreadNotifications) { %><span class="badge right-[calc(50%-1.25rem)] top-0"><%= unreadNotifications %></span><% } %></a>
+  <a class="mobile-link <%= on('/messages') ? 'mobile-link-active' : '' %>" href="/messages" data-badge-link="messages" data-badge-class="right-[calc(50%-1.25rem)] top-0"><svg class="icon size-6"><use href="#i-chat"/></svg>Chats<% if (locals.unreadMessages) { %><span class="badge right-[calc(50%-1.25rem)] top-0" data-badge><%= unreadMessages > 9 ? '9+' : unreadMessages %></span><% } %></a>
+  <a class="mobile-link <%= on('/notifications') ? 'mobile-link-active' : '' %>" href="/notifications" data-badge-link="notifications" data-badge-class="right-[calc(50%-1.25rem)] top-0"><svg class="icon size-6"><use href="#i-bell"/></svg>Alerts<% if (locals.unreadNotifications) { %><span class="badge right-[calc(50%-1.25rem)] top-0" data-badge><%= unreadNotifications > 9 ? '9+' : unreadNotifications %></span><% } %></a>
 </nav>
 <% } %>

@@ -161,6 +161,9 @@ export async function notifications(req: Request, res: Response) {
   const validItems = items.filter((item: any) => item.actorId);
   const friendStates = await getFriendshipStates(req.user!.id, validItems.map((item: any) => String(item.actorId._id)));
   const notifications = validItems.map((item: any) => ({ ...item, friendState: friendStates.get(String(item.actorId._id)) || 'none' }));
+  // Opening the page marks everything read; this render still highlights what was new so the user can spot it.
+  await Notification.updateMany({ recipientId: req.user!.id, readAt: null }, { readAt: new Date() });
+  res.locals.unreadNotifications = 0;
   res.render('notifications', { ...base(req, 'Notifications'), notifications, filter: req.query.filter === 'unread' ? 'unread' : 'all' });
 }
 

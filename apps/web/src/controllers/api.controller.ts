@@ -58,7 +58,15 @@ export async function inviteToGroup(req: Request, res: Response) { const { userI
 export async function decideGroupPost(req: Request, res: Response) { const { decision } = decisionSchema.parse(req.body); res.json({ ok: true, data: await groups.decidePost(id(req), param(req, 'postId'), decision) }); }
 export async function decideJoin(req: Request, res: Response) { const { decision } = decisionSchema.parse(req.body); res.json({ ok: true, data: { request: await groups.decideJoin(id(req), param(req, 'requestId'), decision) } }); }
 export async function createConversation(req: Request, res: Response) { const { memberId } = conversationSchema.parse(req.body); const conversation = await messages.createConversation(id(req), memberId); res.status(201).json({ ok: true, data: { conversation, redirect: `/messages/${conversation.id}` } }); }
-export async function sendMessage(req: Request, res: Response) { const { content } = messageSchema.parse(req.body); const conversationId = param(req, 'conversationId'); const result = await messages.sendMessage(id(req), conversationId, content); for (const recipientId of result.recipients) emitUserEvent(recipientId, 'message:new', result.message); res.status(201).json({ ok: true, data: result }); }
+export async function sendMessage(req: Request, res: Response) {
+  const { content } = messageSchema.parse(req.body); const conversationId = param(req, 'conversationId');
+  const result = await messages.sendMessage(id(req), conversationId, content);
+  const payload = result.message.toObject();
+  // Each recipient gets its own unread-conversation count so header badges and the tab title stay exact.
+  await Promise.all(result.recipients.map(async (recipientId) => emitUserEvent(recipientId, 'message:new', { ...payload, unreadMessages: await messages.countUnreadConversations(recipientId) })));
+  res.status(201).json({ ok: true, data: result });
+}
+export async function readConversation(req: Request, res: Response) { res.json({ ok: true, data: { unreadMessages: await messages.readConversation(id(req), param(req, 'conversationId')) } }); }
 export async function notifications(req: Request, res: Response) { const blocked = await blockedUserIds(id(req)); const items = await Notification.find({ recipientId: id(req), actorId: { $nin: blocked } }).sort({ createdAt: -1 }).limit(50).populate('actorId', 'username displayName profile.avatarUrl').lean(); res.json({ ok: true, data: { items } }); }
 export async function readNotifications(req: Request, res: Response) { await Notification.updateMany({ recipientId: id(req), readAt: null }, { readAt: new Date() }); res.json({ ok: true, data: { updated: true } }); }
 export async function search(req: Request, res: Response) { const q = String(req.query.q || '').trim(); res.json({ ok: true, data: q.length >= 2 ? await searchAll(q, id(req)) : { query: q, items: [] } }); }

@@ -45,6 +45,13 @@ export async function markConversationRead(userId: string, conversationId: strin
   await Message.updateMany({ conversationId, readBy: { $ne: userId } }, { $addToSet: { readBy: userId } });
 }
 
+/** Marks a conversation read from the client (live chat) and returns the fresh unread-conversation count. */
+export async function readConversation(userId: string, conversationId: string): Promise<number> {
+  await conversationForFriend(userId, conversationId);
+  await markConversationRead(userId, conversationId);
+  return countUnreadConversations(userId);
+}
+
 export async function countUnreadConversations(userId: string): Promise<number> {
   const friendIds = new Set(await listFriendIds(userId));
   if (!friendIds.size) return 0;
@@ -62,6 +69,7 @@ export async function listMessages(userId: string, conversationId: string) {
 export async function sendMessage(userId: string, conversationId: string, content: string) {
   const conversation = await conversationForFriend(userId, conversationId);
   const message = await Message.create({ conversationId, senderId: userId, content, readBy: [userId] });
+  await message.populate('senderId', 'username displayName profile.avatarUrl');
   conversation.lastMessageAt = new Date(); await conversation.save();
   const recipients: string[] = conversation.memberIds.map((memberId: unknown) => String(memberId)).filter((memberId: string) => memberId !== userId);
   await Promise.all(recipients.map((recipientId: string) => notify({ recipientId, actorId: userId, type: 'message', entityType: 'Conversation', entityId: conversationId, text: 'sent you a message' })));

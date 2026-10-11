@@ -1794,7 +1794,7 @@ document.addEventListener('click', async (event) => {
     if (data.groupDecision && data.request) { await postJson(`/api/group-requests/${data.request}/decision`, { decision: data.groupDecision }); target.closest('li')?.remove(); showToast(data.groupDecision === 'approve' ? 'Member approved.' : 'Request declined.'); return; }
     if (data.readNotifications !== undefined) {
       await request('/api/notifications/read', { method: 'POST' });
-      $$('[data-unread-dot], [data-notification-badge]').forEach((node) => node.remove());
+      $$('[data-unread-dot]').forEach((node) => node.remove()); setUnread('notifications', 0);
       $$('[data-unread-time]').forEach((node) => { node.classList.remove('font-semibold', 'text-brand-600'); node.classList.add('text-muted'); });
       showToast('All notifications marked as read.'); return;
     }
@@ -1984,22 +1984,147 @@ $<HTMLInputElement>('[data-group-filter]')?.addEventListener('input', (event) =>
 
 const messageList = $('#message-list');
 if (messageList) messageList.scrollTop = messageList.scrollHeight;
+const activeConversation = $('[data-conversation]')?.dataset.conversation || '';
+
+type ChatPerson = { _id?: string; displayName: string; username?: string; profile?: { avatarUrl?: string } };
+const senderOf = (message: any): ChatPerson | null => (message.senderId && typeof message.senderId === 'object' ? message.senderId : null);
+const senderIdOf = (message: any) => String(message.senderId?._id ?? message.senderId);
+const firstNameOf = (name: string) => (name || '').trim().split(/\s+/)[0] || name;
 
 function appendMessage(message: any) {
   if (!messageList) return;
-  const senderId = String(message.senderId?._id ?? message.senderId);
-  const mine = senderId === me.id;
+  const mine = senderIdOf(message) === me.id;
+  const nearBottom = mine || messageList.scrollHeight - messageList.scrollTop - messageList.clientHeight < 160;
   const row = document.createElement('div'); row.className = `mb-2 flex animate-fade-in items-end gap-2 ${mine ? 'justify-end' : 'justify-start'}`;
-  if (!mine) { const spacer = document.createElement('span'); spacer.className = 'w-7 shrink-0'; row.appendChild(spacer); }
+  if (!mine) {
+    const slot = document.createElement('span'); slot.className = 'w-7 shrink-0';
+    const sender = senderOf(message); if (sender) slot.appendChild(avatarEl({ displayName: sender.displayName, avatarUrl: sender.profile?.avatarUrl }, 'size-7 text-2xs'));
+    row.appendChild(slot);
+  }
   const bubble = document.createElement('p'); bubble.className = `bubble ${mine ? 'bubble-me' : 'bubble-them'}`; bubble.textContent = message.content;
-  row.appendChild(bubble); messageList.appendChild(row); messageList.scrollTop = messageList.scrollHeight;
+  bubble.title = new Date(message.createdAt || Date.now()).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  row.appendChild(bubble); messageList.appendChild(row);
+  if (nearBottom) messageList.scrollTop = messageList.scrollHeight;
 }
+
+/** Keeps the conversation list in sync: newest chat on top, fresh preview, unread styling. */
+function updateChatRow(message: any, unread: boolean) {
+  const list = $('[data-chat-list]'); if (!list) return;
+  const conversationId = String(message.conversationId);
+  const mine = senderIdOf(message) === me.id;
+  const sender = senderOf(message);
+  let row = $<HTMLElement>(`[data-chat-id="${CSS.escape(conversationId)}"]`, list);
+  if (!row) {
+    if (mine || !sender) return; // a chat we start ourselves is always rendered by the server first
+    row = document.createElement('li'); row.dataset.chatId = conversationId; row.dataset.chatName = sender.displayName.toLowerCase(); row.dataset.chatFirstName = firstNameOf(sender.displayName);
+    const link = document.createElement('a'); link.className = 'chat-row'; link.href = `/messages/${conversationId}`;
+    const body = document.createElement('span'); body.className = 'min-w-0 flex-1';
+    const title = document.createElement('span'); title.className = 'block truncate text-15 font-medium'; title.dataset.chatTitle = ''; title.textContent = sender.displayName;
+    const snippet = document.createElement('span'); snippet.className = 'flex gap-1 text-[0.8125rem] text-muted'; snippet.dataset.chatSnippet = '';
+    const preview = document.createElement('span'); preview.className = 'truncate'; preview.dataset.chatPreview = '';
+    const sep = document.createElement('span'); sep.setAttribute('aria-hidden', 'true'); sep.dataset.chatSep = ''; sep.textContent = '·';
+    const time = document.createElement('span'); time.className = 'shrink-0 font-normal text-muted'; time.dataset.chatTime = '';
+    const dot = document.createElement('span'); dot.className = 'hidden size-3 shrink-0 rounded-full bg-brand-600'; dot.setAttribute('aria-label', 'Unread'); dot.dataset.chatDot = '';
+    snippet.append(preview, sep, time); body.append(title, snippet);
+    link.append(avatarEl({ displayName: sender.displayName, avatarUrl: sender.profile?.avatarUrl }, 'size-14 text-lg'), body, dot); row.appendChild(link);
+  }
+  const who = mine ? 'You' : row.dataset.chatFirstName || firstNameOf(sender?.displayName || '');
+  $('[data-chat-preview]', row)!.textContent = `${who}: ${message.content}`;
+  $('[data-chat-sep]', row)?.classList.remove('hidden');
+  $('[data-chat-time]', row)!.textContent = timeAgo(message.createdAt || new Date());
+  setChatRowUnread(row, unread);
+  list.prepend(row);
+}
+
+function setChatRowUnread(row: HTMLElement, unread: boolean) {
+  const title = $('[data-chat-title]', row), snippet = $('[data-chat-snippet]', row);
+  title?.classList.toggle('font-bold', unread); title?.classList.toggle('font-medium', !unread);
+  snippet?.classList.toggle('font-bold', unread); snippet?.classList.toggle('text-brand-600', unread); snippet?.classList.toggle('text-muted', !unread);
+  $('[data-chat-dot]', row)?.classList.toggle('hidden', !unread);
+}
+
+/* Unread counters: header badges (desktop + mobile) and the "(3) Chats · Oremus" tab title. */
+const unreadCounts = {
+  notifications: Number(document.body.dataset.unreadNotifications) || 0,
+  messages: Number(document.body.dataset.unreadMessages) || 0
+};
+const baseTitle = document.title.replace(/^\(\d+\+?\)\s*/, '');
+let titleAlert = '', titleFlashTimer = 0, titleFlashOn = false;
+
+function renderTitle() {
+  const total = unreadCounts.notifications + unreadCounts.messages;
+  const counted = total ? `(${total > 99 ? '99+' : total}) ${baseTitle}` : baseTitle;
+  document.title = titleAlert && titleFlashOn ? titleAlert : counted;
+}
+
+/** Messenger-style blinking tab title while the tab is in the background. */
+function flashTitle(text: string) {
+  if (!document.hidden) return;
+  titleAlert = text; titleFlashOn = true; renderTitle();
+  window.clearInterval(titleFlashTimer);
+  titleFlashTimer = window.setInterval(() => { titleFlashOn = !titleFlashOn; renderTitle(); }, 1500);
+}
+
+function stopTitleFlash() { window.clearInterval(titleFlashTimer); titleAlert = ''; titleFlashOn = false; renderTitle(); }
+
+function setUnread(kind: 'notifications' | 'messages', count: number) {
+  const value = unreadCounts[kind] = Math.max(0, count);
+  $$<HTMLElement>(`[data-badge-link="${kind}"]`).forEach((link) => {
+    let badge = $('[data-badge]', link);
+    if (!value) badge?.remove();
+    else {
+      if (!badge) { badge = document.createElement('span'); badge.className = `badge ${link.dataset.badgeClass || ''}`.trim(); badge.dataset.badge = ''; link.appendChild(badge); }
+      badge.textContent = value > 9 ? '9+' : String(value);
+    }
+    if (link.dataset.badgeLabel) link.setAttribute('aria-label', value ? `${link.dataset.badgeLabel}, ${value} unread` : link.dataset.badgeLabel);
+  });
+  renderTitle();
+}
+renderTitle();
+
+/* Notification sounds are synthesized, so there is no audio file to ship. Browsers only allow audio after a user gesture. */
+let audioContext: AudioContext | null = null, lastSoundAt = 0;
+const unlockAudio = () => {
+  try { audioContext ??= new AudioContext(); if (audioContext.state === 'suspended') void audioContext.resume(); } catch { /* audio unsupported */ }
+};
+['pointerdown', 'keydown', 'touchstart'].forEach((type) => window.addEventListener(type, unlockAudio, { once: true, passive: true }));
+
+function playSound(kind: 'message' | 'notification') {
+  const ctx = audioContext; if (!ctx || ctx.state !== 'running') return;
+  const now = performance.now(); if (now - lastSoundAt < 600) return; lastSoundAt = now;
+  const notes: Array<[number, number]> = kind === 'message' ? [[784, 0], [1175, 0.09]] : [[660, 0]];
+  for (const [frequency, offset] of notes) {
+    const osc = ctx.createOscillator(), gain = ctx.createGain(), at = ctx.currentTime + offset;
+    osc.type = 'sine'; osc.frequency.value = frequency;
+    gain.gain.setValueAtTime(0.0001, at); gain.gain.exponentialRampToValueAtTime(0.22, at + 0.015); gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.28);
+    osc.connect(gain).connect(ctx.destination); osc.start(at); osc.stop(at + 0.3);
+  }
+}
+
+/* The open chat is marked read right away while the tab is visible, otherwise once the user comes back to it. */
+let pendingRead = false, readInFlight: Promise<void> | null = null;
+function markActiveRead() {
+  if (!activeConversation) return;
+  if (document.hidden) { pendingRead = true; return; }
+  pendingRead = false;
+  readInFlight ??= postJson(`/api/conversations/${activeConversation}/read`, {})
+    .then((result) => setUnread('messages', result.unreadMessages))
+    .catch(() => undefined)
+    .finally(() => { readInFlight = null; });
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  stopTitleFlash();
+  if (pendingRead) markActiveRead();
+});
+window.addEventListener('focus', () => { if (titleAlert) stopTitleFlash(); });
 
 const messageForm = $<HTMLFormElement>('[data-message-form]');
 messageForm?.addEventListener('submit', async (event) => {
   event.preventDefault(); const input = $<HTMLInputElement>('[name="content"]', messageForm); if (!input?.value.trim()) return;
   const content = input.value; input.value = '';
-  try { const result = await postJson(messageForm.action, { content }); appendMessage(result.message); }
+  try { const result = await postJson(messageForm.action, { content }); appendMessage(result.message); updateChatRow(result.message, false); }
   catch (caught) { input.value = content; showToast(caught instanceof Error ? caught.message : 'Message failed.', 'error'); }
 });
 
@@ -2018,17 +2143,31 @@ if (typeof io === 'function' && me.id) {
     }
   });
   socket.on('notification:new', (notification: any) => {
-    if (notification?.type === 'message' && String(notification.entityId) === activeConversation) return;
+    const isMessage = notification?.type === 'message';
+    if (isMessage && String(notification.entityId) === activeConversation) return;
+    // Already looking at the notifications page: keep it read instead of bumping the badge.
+    if (window.location.pathname === '/notifications') void request('/api/notifications/read', { method: 'POST' }).catch(() => undefined);
+    else setUnread('notifications', unreadCounts.notifications + 1);
+    if (isMessage) return; // message:new shows its own toast and plays its own sound
     showToast('You have a new notification.');
-    const link = $('[data-notification-link]'); if (!link) return;
-    let badge = $('[data-notification-badge]', link);
-    if (!badge) { badge = document.createElement('span'); badge.className = 'badge'; badge.dataset.notificationBadge = ''; badge.textContent = '0'; link.appendChild(badge); }
-    const count = Number.parseInt(badge.textContent || '0', 10) + 1; badge.textContent = count > 9 ? '9+' : String(count);
+    playSound('notification');
+    flashTitle('New notification');
   });
   socket.on('message:new', (message: any) => {
-    if (String(message.conversationId) !== activeConversation) return;
-    if (String(message.senderId?._id ?? message.senderId) === me.id) return; // already rendered from the POST response
-    appendMessage(message);
+    if (senderIdOf(message) === me.id) return; // already rendered from the POST response
+    const name = senderOf(message)?.displayName || 'Someone';
+    const inActiveChat = String(message.conversationId) === activeConversation;
+    if (inActiveChat) {
+      appendMessage(message); updateChatRow(message, false);
+      if (document.hidden && typeof message.unreadMessages === 'number') setUnread('messages', message.unreadMessages);
+      markActiveRead();
+    } else {
+      updateChatRow(message, true);
+      if (typeof message.unreadMessages === 'number') setUnread('messages', message.unreadMessages);
+      showToast(`${firstNameOf(name)}: ${String(message.content).slice(0, 80)}`);
+    }
+    if (!inActiveChat || document.hidden) playSound('message');
+    flashTitle(`${name} messaged you`);
   });
 }
 

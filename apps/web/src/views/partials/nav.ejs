@@ -24,13 +24,13 @@
 
     <!-- Right actions -->
     <div class="ml-auto flex items-center justify-end gap-2 xl:w-[20rem]">
-      <a href="/messages" class="icon-btn relative <%= path.startsWith('/messages') ? '!bg-brand-50 !text-brand-600' : '' %>" aria-label="Messages<%= unreadM ? `, ${unreadM} unread` : '' %>">
+      <a href="/messages" class="icon-btn relative <%= path.startsWith('/messages') ? '!bg-brand-50 !text-brand-600' : '' %>" aria-label="Messages<%= unreadM ? `, ${unreadM} unread` : '' %>" data-badge-link="messages" data-badge-label="Messages">
         <svg class="icon"><use href="#i-chat"/></svg>
-        <% if (unreadM) { %><span class="badge"><%= unreadM > 9 ? '9+' : unreadM %></span><% } %>
+        <% if (unreadM) { %><span class="badge" data-badge><%= unreadM > 9 ? '9+' : unreadM %></span><% } %>
       </a>
-      <a href="/notifications" class="icon-btn relative <%= path === '/notifications' ? '!bg-brand-50 !text-brand-600' : '' %>" aria-label="Notifications<%= unreadN ? `, ${unreadN} unread` : '' %>" data-notification-link>
+      <a href="/notifications" class="icon-btn relative <%= path === '/notifications' ? '!bg-brand-50 !text-brand-600' : '' %>" aria-label="Notifications<%= unreadN ? `, ${unreadN} unread` : '' %>" data-badge-link="notifications" data-badge-label="Notifications">
         <svg class="icon"><use href="#i-bell"/></svg>
-        <% if (unreadN) { %><span class="badge" data-notification-badge><%= unreadN > 9 ? '9+' : unreadN %></span><% } %>
+        <% if (unreadN) { %><span class="badge" data-badge><%= unreadN > 9 ? '9+' : unreadN %></span><% } %>
       </a>
       <details class="relative" data-menu>
         <summary class="flex cursor-pointer list-none items-center gap-2 rounded-full p-0.5 hover:bg-hover lg:pr-3" aria-label="Account menu">
