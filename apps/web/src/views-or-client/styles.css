@@ -114,12 +114,27 @@
   .tone-7 { background: linear-gradient(135deg, #8fa3b8, #5a6e84); }
 
   /* Header */
-  .top-tab { @apply relative grid h-14 w-full max-w-[7.5rem] place-items-center text-muted; }
+  .header-primary { @apply max-w-[50rem]; }
+  .header-action { @apply size-11; }
+  .header-action > .icon { @apply size-6; }
+  .top-tab { @apply relative grid h-14 w-full max-w-[10rem] place-items-center text-muted; }
   .top-tab > span { @apply grid h-12 w-full place-items-center rounded-lg transition-colors; }
   .top-tab:hover > span { @apply bg-hover; }
   .top-tab-active { @apply text-brand-600; }
   .top-tab-active::after { content: ''; @apply absolute inset-x-1 bottom-0 h-[3px] rounded-t bg-brand-600; }
   .top-tab-active:hover > span { @apply bg-transparent; }
+
+  /* Keep the primary navigation on the viewport axis even when the two header sides
+     have different visual widths (brand/search on the left, account actions on the right). */
+  @media (min-width: 1280px) {
+    .header-primary {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      width: min(50rem, calc(100% - 56rem));
+      transform: translateX(-50%);
+    }
+  }
 
   /* Side navigation */
   .side-link { @apply flex min-h-[2.75rem] items-center gap-3 rounded-lg px-2 py-1.5 text-15 font-medium text-ink transition-colors hover:bg-rail-hover; }

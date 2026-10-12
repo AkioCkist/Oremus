@@ -1,40 +1,40 @@
 <% const unreadN = locals.unreadNotifications || 0, unreadM = locals.unreadMessages || 0; -%>
 <header class="sticky top-0 z-40 h-14 border-b border-line bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
-  <div class="flex h-full items-center gap-2 px-3 sm:px-4">
+  <div class="flex h-full items-center gap-2 px-3 sm:px-4 xl:gap-3">
     <!-- Brand + search -->
-    <div class="flex min-w-0 items-center gap-2 xl:w-[20rem]">
+    <div class="flex min-w-0 items-center gap-2 xl:w-[28rem] xl:gap-3">
       <a href="/" class="flex shrink-0 items-center gap-2" aria-label="Oremus home">
-        <img src="/assets/brand/logo.svg" alt="" class="size-10">
+        <img src="/assets/brand/logo.svg" alt="" class="size-11">
         <span class="hidden font-display text-[1.375rem] font-extrabold tracking-tight text-brand-600 sm:inline lg:hidden xl:inline">Oremus</span>
       </a>
       <% if (currentUser) { %>
-      <%- include('search-box', { boxId: 'site-search', formClass: 'hidden md:block', inputClass: 'w-[15rem]', value: typeof q !== 'undefined' ? q : '' }) %>
+      <%- include('search-box', { boxId: 'site-search', formClass: 'hidden md:block', inputClass: 'w-[15rem] xl:w-[17.5rem]', iconClass: 'size-5', value: typeof q !== 'undefined' ? q : '' }) %>
       <a href="/search" class="icon-btn md:hidden" aria-label="Search"><svg class="icon"><use href="#i-search"/></svg></a>
       <% } %>
     </div>
 
     <% if (currentUser) { %>
     <!-- Centre tabs -->
-    <nav aria-label="Primary" class="mx-auto hidden h-full max-w-[42rem] flex-1 items-stretch justify-center gap-1 md:flex">
-      <a class="top-tab <%= path === '/' ? 'top-tab-active' : '' %>" href="/" aria-label="Home" <%= path === '/' ? 'aria-current=page' : '' %>><span><svg class="icon size-6"><use href="#i-home"/></svg></span></a>
-      <a class="top-tab <%= path.startsWith('/stories') ? 'top-tab-active' : '' %>" href="/stories" aria-label="Stories" <%= path.startsWith('/stories') ? 'aria-current=page' : '' %>><span><svg class="icon size-6"><use href="#i-stories"/></svg></span></a>
-      <a class="top-tab <%= path.startsWith('/groups') ? 'top-tab-active' : '' %>" href="/groups" aria-label="Groups" <%= path.startsWith('/groups') ? 'aria-current=page' : '' %>><span><svg class="icon size-6"><use href="#i-group"/></svg></span></a>
-      <a class="top-tab <%= path.startsWith('/profile/' + currentUser.username) ? 'top-tab-active' : '' %>" href="/profile/<%= currentUser.username %>" aria-label="Your profile"><span><svg class="icon size-6"><use href="#i-user"/></svg></span></a>
+    <nav aria-label="Primary" class="header-primary mx-auto hidden h-full flex-1 items-stretch justify-center gap-2 md:flex">
+      <a class="top-tab <%= path === '/' ? 'top-tab-active' : '' %>" href="/" aria-label="Home" <%= path === '/' ? 'aria-current=page' : '' %>><span><svg class="icon size-7"><use href="#i-home"/></svg></span></a>
+      <a class="top-tab <%= path.startsWith('/stories') ? 'top-tab-active' : '' %>" href="/stories" aria-label="Stories" <%= path.startsWith('/stories') ? 'aria-current=page' : '' %>><span><svg class="icon size-7"><use href="#i-stories"/></svg></span></a>
+      <a class="top-tab <%= path.startsWith('/groups') ? 'top-tab-active' : '' %>" href="/groups" aria-label="Groups" <%= path.startsWith('/groups') ? 'aria-current=page' : '' %>><span><svg class="icon size-7"><use href="#i-group"/></svg></span></a>
+      <a class="top-tab <%= path.startsWith('/profile/' + currentUser.username) ? 'top-tab-active' : '' %>" href="/profile/<%= currentUser.username %>" aria-label="Your profile"><span><svg class="icon size-7"><use href="#i-user"/></svg></span></a>
     </nav>
 
     <!-- Right actions -->
-    <div class="ml-auto flex items-center justify-end gap-2 xl:w-[20rem]">
-      <a href="/messages" class="icon-btn relative <%= path.startsWith('/messages') ? '!bg-brand-50 !text-brand-600' : '' %>" aria-label="Messages<%= unreadM ? `, ${unreadM} unread` : '' %>" data-badge-link="messages" data-badge-label="Messages">
+    <div class="ml-auto flex items-center justify-end gap-2 xl:w-[28rem] xl:gap-3">
+      <a href="/messages" class="icon-btn header-action relative <%= path.startsWith('/messages') ? '!bg-brand-50 !text-brand-600' : '' %>" aria-label="Messages<%= unreadM ? `, ${unreadM} unread` : '' %>" data-badge-link="messages" data-badge-label="Messages">
         <svg class="icon"><use href="#i-chat"/></svg>
         <% if (unreadM) { %><span class="badge" data-badge><%= unreadM > 9 ? '9+' : unreadM %></span><% } %>
       </a>
-      <a href="/notifications" class="icon-btn relative <%= path === '/notifications' ? '!bg-brand-50 !text-brand-600' : '' %>" aria-label="Notifications<%= unreadN ? `, ${unreadN} unread` : '' %>" data-badge-link="notifications" data-badge-label="Notifications">
+      <a href="/notifications" class="icon-btn header-action relative <%= path === '/notifications' ? '!bg-brand-50 !text-brand-600' : '' %>" aria-label="Notifications<%= unreadN ? `, ${unreadN} unread` : '' %>" data-badge-link="notifications" data-badge-label="Notifications">
         <svg class="icon"><use href="#i-bell"/></svg>
         <% if (unreadN) { %><span class="badge" data-badge><%= unreadN > 9 ? '9+' : unreadN %></span><% } %>
       </a>
       <details class="relative" data-menu>
         <summary class="flex cursor-pointer list-none items-center gap-2 rounded-full p-0.5 hover:bg-hover lg:pr-3" aria-label="Account menu">
-          <%- include('avatar', { person: currentUser, size: 'size-10 text-sm' }) %>
+          <%- include('avatar', { person: currentUser, size: 'size-11 text-sm' }) %>
           <span class="hidden max-w-[8rem] truncate text-15 font-semibold lg:inline"><%= firstName(currentUser.displayName) %></span>
         </summary>
         <div class="menu right-0 top-12 w-[22rem] max-w-[calc(100vw-1.5rem)]">
