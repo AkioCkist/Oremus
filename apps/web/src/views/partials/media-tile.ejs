@@ -1,6 +1,6 @@
 <%# Square profile media tile (photo or video) that opens the viewer; owners also get the options menu. -%>
 <% const label = item.isVideo ? 'video' : 'photo'; -%>
-<div class="group/photo relative aspect-square overflow-hidden bg-field <%= locals.rounded ? 'rounded-lg' : '' %>">
+<div data-key="<%= item.mediaId %>" class="group/photo relative aspect-square overflow-hidden bg-field <%= locals.rounded ? 'rounded-lg' : '' %>">
   <button type="button" class="block size-full" data-lightbox="<%= item.url %>" data-post="<%= item.postId %>" aria-label="Open <%= label %>">
     <% if (item.isVideo) { %>
       <% if (item.poster) { %><img class="size-full object-cover transition-transform hover:scale-105" src="<%= item.poster %>" alt="" loading="lazy"><% } else { %><video class="pointer-events-none size-full object-cover" src="<%= item.url %>#t=0.1" muted playsinline preload="metadata" tabindex="-1" aria-hidden="true"></video><% } %>

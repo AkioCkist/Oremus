@@ -1,4 +1,5 @@
 import { Conversation, Message, User } from '../models/index.js';
+import { afterCursor, cursorSort, timeChunk } from '../utils/paginate.js';
 import { AppError } from '../utils/errors.js';
 import { notify } from './notification.service.js';
 import { areFriends, listFriendIds } from './friendship.service.js';
@@ -23,10 +24,24 @@ export async function createConversation(userId: string, memberId: string) {
   return existing || Conversation.create({ memberIds: [userId, memberId] });
 }
 
-export async function listConversations(userId: string, limit = 60) {
+export const CONVERSATION_PAGE_SIZE = 20;
+export const MESSAGE_PAGE_SIZE = 30;
+
+export async function listConversations(userId: string, limit = CONVERSATION_PAGE_SIZE) {
+  return (await conversationChunk(userId, null, limit)).items;
+}
+
+/** Chats ordered by latest activity, `limit` at a time. */
+export async function conversationChunk(userId: string, cursor: unknown, limit = CONVERSATION_PAGE_SIZE) {
   const friendIds = new Set(await listFriendIds(userId));
-  if (!friendIds.size) return [];
-  const conversations = await Conversation.find(conversationMemberFilter(userId, friendIds)).sort({ lastMessageAt: -1 }).limit(limit).populate('memberIds', 'username displayName profile.avatarUrl').lean();
+  if (!friendIds.size) return { items: [], next: null };
+  const rows = await Conversation.find({ ...conversationMemberFilter(userId, friendIds), ...afterCursor(cursor, 'lastMessageAt') })
+    .sort(cursorSort('lastMessageAt')).limit(limit + 1).populate('memberIds', 'username displayName profile.avatarUrl').lean();
+  const { items: conversations, next } = timeChunk(rows as any[], limit, 'lastMessageAt');
+  return { items: await withLastMessages(userId, conversations), next };
+}
+
+async function withLastMessages(userId: string, conversations: any[]) {
   if (!conversations.length) return [];
   const latest = await Message.aggregate([
     { $match: { conversationId: { $in: conversations.map((item: any) => item._id) }, deletedAt: null } },
@@ -61,19 +76,26 @@ export async function countUnreadConversations(userId: string): Promise<number> 
   return unread.length;
 }
 
-export async function listMessages(userId: string, conversationId: string) {
+/**
+ * The newest `MESSAGE_PAGE_SIZE` messages before the cursor, returned oldest-first for display.
+ * `next` points further back in time (scrolling up loads older messages).
+ */
+export async function listMessages(userId: string, conversationId: string, cursor: unknown = null) {
   await conversationForFriend(userId, conversationId);
-  return Message.find({ conversationId, deletedAt: null }).sort({ createdAt: 1 }).limit(100).populate('senderId', 'username displayName profile.avatarUrl').lean();
+  const rows = await Message.find({ conversationId, deletedAt: null, ...afterCursor(cursor) }).sort(cursorSort()).limit(MESSAGE_PAGE_SIZE + 1)
+    .populate('senderId', 'username displayName profile.avatarUrl').lean();
+  const { items, next } = timeChunk(rows as any[], MESSAGE_PAGE_SIZE);
+  return { items: items.reverse(), next };
 }
 
 /** Compact conversation payload used by the floating mini-chat. Opening it marks the thread read. */
 export async function getConversationPreview(userId: string, conversationId: string) {
   const conversation: any = await conversationForFriend(userId, conversationId);
   await conversation.populate('memberIds', 'username displayName profile.avatarUrl');
-  const recent = await Message.find({ conversationId, deletedAt: null }).sort({ createdAt: -1 }).limit(50).populate('senderId', 'username displayName profile.avatarUrl').lean();
+  const recent = await listMessages(userId, conversationId);
   await markConversationRead(userId, conversationId);
   const partner = conversation.memberIds.find((member: any) => String(member._id) !== String(userId)) || conversation.memberIds[0];
-  return { conversation: { _id: conversation._id, partner }, messages: recent.reverse(), unreadMessages: await countUnreadConversations(userId) };
+  return { conversation: { _id: conversation._id, partner }, messages: recent.items, next: recent.next, unreadMessages: await countUnreadConversations(userId) };
 }
 
 export async function sendMessage(userId: string, conversationId: string, content: string) {

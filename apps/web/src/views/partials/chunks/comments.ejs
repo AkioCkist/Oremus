@@ -1,0 +1,12 @@
+<%# Comment threads: top-level comments with their replies. Used by post.ejs and GET /api/lists/comments. %>
+<% const roots = items.filter(function (c) { return !c.parentId; }); const repliesOf = function (id) { return items.filter(function (c) { return String(c.parentId) === String(id); }); }; -%>
+<% roots.forEach(function (comment) { %>
+<li data-key="<%= comment._id %>">
+  <%- include('../comment', { comment, postId: post._id, isReply: false, canModerate }) %>
+  <% const replies = repliesOf(comment._id); if (replies.length) { %>
+  <ul class="ml-12 mt-2 space-y-2 border-l-2 border-line pl-3">
+    <% replies.forEach(function (reply) { %><li><%- include('../comment', { comment: reply, postId: post._id, isReply: true, canModerate }) %></li><% }) %>
+  </ul>
+  <% } %>
+</li>
+<% }) %>

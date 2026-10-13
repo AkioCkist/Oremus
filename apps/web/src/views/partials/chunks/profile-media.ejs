@@ -1,0 +1,2 @@
+<%# Media tab tiles. Used by profile.ejs and GET /api/lists/profile-media. %>
+<% items.forEach(function (item) { %><%- include('../media-tile', { item, isSelf, rounded: true }) %><% }) %>

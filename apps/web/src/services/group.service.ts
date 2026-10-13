@@ -1,4 +1,5 @@
 import { Follow, Group, GroupInvite, GroupJoinRequest, GroupMember, Post, User } from '../models/index.js';
+import { offsetChunk, parseOffsetCursor } from '../utils/paginate.js';
 import { slugify } from '../utils/slug.js';
 import { AppError } from '../utils/errors.js';
 import { cacheGet, cacheSet, invalidateCacheKeys, invalidateSocialCaches } from './cache.service.js';
@@ -44,12 +45,17 @@ async function addMember(groupId: unknown, userId: string, role: 'admin' | 'mode
   await invalidateCacheKeys([`group:${groupId}`]);
 }
 
-export async function listGroups(userId?: string) {
+export const GROUP_PAGE_SIZE = 12;
+
+/** Group directory, biggest first. Ordered by member count, so it pages by offset. */
+export async function listGroups(userId?: string, cursor: unknown = null) {
+  const offset = parseOffsetCursor(cursor);
   const memberships = userId ? await GroupMember.find({ userId }).select('groupId').lean() : [];
   const memberIds = memberships.map((item: any) => item.groupId);
   const memberSet = new Set(memberIds.map(String));
-  const groups = await Group.find({ $or: [{ visibility: { $ne: 'hidden' } }, { _id: { $in: memberIds } }] }).sort({ memberCount: -1, createdAt: -1 }).limit(50).lean();
-  return groups.map((group: any) => ({ ...group, isMember: memberSet.has(String(group._id)) }));
+  const rows = await Group.find({ $or: [{ visibility: { $ne: 'hidden' } }, { _id: { $in: memberIds } }] }).sort({ memberCount: -1, createdAt: -1, _id: -1 }).skip(offset).limit(GROUP_PAGE_SIZE + 1).lean();
+  const chunk = offsetChunk(rows, GROUP_PAGE_SIZE, offset);
+  return { items: chunk.items.map((group: any) => ({ ...group, isMember: memberSet.has(String(group._id)) })), next: chunk.next };
 }
 
 export async function createGroup(ownerId: string, input: GroupInput, file?: Express.Multer.File) {
@@ -96,13 +102,13 @@ export async function getGroup(slug: string, userId?: string) {
   const canApprove = canManage || (!!member && group.settings?.whoCanApprove === 'anyone');
   const canPost = !!member && (group.settings?.whoCanPost !== 'admins' || canManage);
   const canSee = group.privacy === 'public' || !!member;
-  const [posts, requests, pendingPosts, myPending] = await Promise.all([
-    canSee ? Post.find({ groupId: group._id, deletedAt: null, groupStatus: { $nin: ['pending', 'declined'] } }).sort({ createdAt: -1 }).limit(50).populate('authorId', PERSON_FIELDS).lean() : [],
+  // Discussion posts load in chunks through the lists API (see services/lists.service.ts).
+  const [requests, pendingPosts, myPending] = await Promise.all([
     canApprove ? GroupJoinRequest.find({ groupId: group._id, status: 'pending' }).sort({ createdAt: 1 }).populate('userId', PERSON_FIELDS).lean() : [],
     canManage ? Post.find({ groupId: group._id, deletedAt: null, groupStatus: 'pending' }).sort({ createdAt: 1 }).populate('authorId', PERSON_FIELDS).lean() : [],
     member && !canManage ? Post.countDocuments({ groupId: group._id, authorId: userId, deletedAt: null, groupStatus: 'pending' }) : 0
   ]);
-  return { group, member, pending: !!pendingRequest, invite, posts, requests, pendingPosts, myPending, canManage, canApprove, canPost, isAdmin: member?.role === 'admin' };
+  return { group, member, pending: !!pendingRequest, invite, canSee, requests, pendingPosts, myPending, canManage, canApprove, canPost, isAdmin: member?.role === 'admin' };
 }
 
 export async function requestJoin(userId: string, groupId: string, input: { answers: string[]; agreeRules: boolean }) {

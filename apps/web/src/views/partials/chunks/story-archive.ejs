@@ -1,0 +1,16 @@
+<%# Story archive tiles. Used by stories/archive.ejs and GET /api/lists/story-archive. %>
+<% items.forEach(function (story) { const active = new Date(story.expiresAt).getTime() > now; %>
+<li class="group relative aspect-[9/16] overflow-hidden rounded-xl bg-stage shadow-card" data-archive-story="<%= story._id %>" data-key="<%= story._id %>">
+  <%- include('../story-thumb', { story: { mediaUrl: story.media && story.media.url, mediaType: story.media ? (String(story.media.mimeType).indexOf('video/') === 0 ? 'video' : 'image') : null, text: story.text, background: story.background, style: story.style }, textClass: 'p-4 text-lg' }) %>
+  <div class="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/60"></div>
+  <div class="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between p-2.5 text-white">
+    <span class="rounded-md bg-black/45 px-2 py-1 text-center font-display leading-none"><span class="block text-lg font-bold"><%= new Date(story.createdAt).getDate() %></span><span class="block text-2xs font-semibold uppercase"><%= new Date(story.createdAt).toLocaleDateString('en', { month: 'short' }) %></span></span>
+    <% if (active) { %><span class="rounded-full bg-brand-600 px-2 py-0.5 text-2xs font-bold uppercase">Live</span><% } %>
+  </div>
+  <div class="absolute inset-x-0 bottom-0 z-10 flex items-center justify-between p-2.5 text-white">
+    <span class="flex items-center gap-1 text-[0.8125rem] font-semibold"><svg class="icon size-4"><use href="#i-eye"/></svg><%= story.viewCount || 0 %></span>
+    <button type="button" class="grid size-8 place-items-center rounded-full bg-black/45 opacity-100 hover:bg-black/70 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100" data-delete-story="<%= story._id %>" aria-label="Delete story from <%= new Date(story.createdAt).toLocaleDateString('en') %>"><svg class="icon size-4"><use href="#i-trash"/></svg></button>
+  </div>
+  <% if (active) { %><a href="/stories/<%= currentUser.username %>" class="absolute inset-0 z-0" aria-label="Open live story"></a><% } %>
+</li>
+<% }) %>

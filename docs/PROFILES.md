@@ -142,6 +142,4 @@ The **Media** card on the Posts tab shows the first nine items and the number of
 
 ## Limits
 
-- The Media tab reads up to 200 posts with media; there is no paging yet.
-- The counts on the Posts tab come from the latest 50 posts, so they can be lower than the real totals.
 - Family members (linking another user as a relative) are not supported yet.

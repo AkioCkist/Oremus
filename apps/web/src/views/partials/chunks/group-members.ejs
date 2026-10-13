@@ -1,0 +1,5 @@
+<%# Group member rows. Used by groups/detail.ejs (Members tab) and GET /api/lists/group-members. %>
+<% items.forEach(function (p) { %><li class="flex items-center gap-3" data-key="<%= p._id %>">
+  <a href="/profile/<%= p.username %>" class="shrink-0"><%- include('../avatar', { person: p, size: 'size-12 text-base' }) %></a>
+  <div class="min-w-0 flex-1"><a class="block truncate font-semibold hover:underline" href="/profile/<%= p.username %>"><%= p.displayName %></a><p class="truncate text-[0.8125rem] text-muted"><%= p.role === 'admin' ? 'Admin' : p.role === 'moderator' ? 'Moderator' : 'Member' %> · Joined <%= timeAgo(p.joinedAt) %></p></div>
+</li><% }) %>

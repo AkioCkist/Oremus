@@ -186,7 +186,7 @@ Hovering a comment shows a **…** button (always visible on phones) with **Edit
 
 ## The home feed
 
-`getFeed(userId, page, limit = 15)` builds the feed with one MongoDB aggregation and caches each page for 45 seconds.
+`getFeed(userId, page, limit = FEED_PAGE_SIZE)` builds the feed with one MongoDB aggregation and caches each page for 45 seconds. A page holds 10 posts. The query fetches one extra row to know whether another page exists (`hasMore`), so no separate count is needed.
 
 **Which posts are included:**
 
@@ -207,6 +207,10 @@ flowchart TB
 3. Everyone else after that, newest first.
 
 This order is applied **before** pagination, so following someone new immediately brings their posts (even older ones) to the top.
+
+### Infinite scroll
+
+The home page renders only the first 10 posts. The rest load in chunks of 10 when the reader reaches the 4th post from the end (`GET /api/lists/feed`). The feed pages by offset because of its follow-priority order; posts already on the page are skipped. Group discussions and profile posts work the same way. See [Endless lists](INFINITE_SCROLL.md).
 
 The FastAPI service also has a scoring endpoint (`POST /v1/feed/rank`) that mixes freshness, relationship and engagement. It is available but the home feed currently uses the MongoDB order above. See [Search and places](SEARCH_AND_PLACES.md).
 

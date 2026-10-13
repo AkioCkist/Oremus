@@ -7,8 +7,10 @@
     <div class="px-0 sm:px-0"><%- include('partials/composer') %></div>
     <h1 class="sr-only">News feed</h1>
     <% if (posts.length) { %>
-      <% posts.forEach(function (item) { %><%- include('partials/post-card', { item }) %><% }) %>
-      <p class="py-6 text-center text-sm text-muted">You're all caught up · <a class="font-semibold text-brand-600 hover:underline" href="/groups">Discover groups</a></p>
+      <div class="space-y-4" data-infinite="feed" data-infinite-next="<%= next || '' %>">
+        <%- include('partials/chunks/feed', { items: posts }) %>
+      </div>
+      <p class="<%= next ? 'hidden' : '' %> py-6 text-center text-sm text-muted" data-infinite-done="feed">You're all caught up · <a class="font-semibold text-brand-600 hover:underline" href="/groups">Discover groups</a></p>
     <% } else { %>
     <section class="empty-state">
       <div class="empty-icon"><svg class="icon size-7"><use href="#i-feed"/></svg></div>

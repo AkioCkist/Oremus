@@ -81,7 +81,7 @@
 
       <% if (!canSee) { %>
         <div class="empty-state"><div class="empty-icon"><svg class="icon size-7"><use href="#i-lock"/></svg></div><h2 class="mt-4 text-xl font-bold">This group is private</h2><p class="mt-1 text-muted">Join to see who's in it and what they post.</p></div>
-      <% } else if (posts.length) { posts.forEach(function (item) { %><%- include('../partials/post-card', { item }) %><% }) } else { %>
+      <% } else if (posts.length) { %><div class="space-y-4" data-infinite="group-posts" data-infinite-next="<%= postsNext || '' %>" data-infinite-query="group=<%= group._id %>"><%- include('../partials/chunks/group-posts', { items: posts }) %></div><% } else { %>
         <div class="empty-state"><div class="empty-icon"><svg class="icon size-7"><use href="#i-comment"/></svg></div><h2 class="mt-4 text-xl font-bold">No posts yet</h2><p class="mt-1 text-muted"><%= member ? 'Start the first conversation in this group.' : 'Join the group to take part.' %></p></div>
       <% } %>
     </section>
@@ -172,15 +172,11 @@
               <a href="/profile/<%= p.username %>" class="shrink-0"><%- include('../partials/avatar', { person: p, size: 'size-12 text-base' }) %></a>
               <div class="min-w-0 flex-1"><a class="block truncate font-semibold hover:underline" href="/profile/<%= p.username %>"><%= p.displayName %></a><p class="truncate text-[0.8125rem] text-muted"><%= p.role === 'admin' ? 'Admin' : p.role === 'moderator' ? 'Moderator' : 'Member' %> · Joined <%= timeAgo(p.joinedAt) %></p></div>
             </li><% }) %></ul>
-      <% if (canSee) { const others = allMembers.filter(function (p) { return p.role === 'member'; }); %>
+      <% if (canSee) { %>
       <div class="divider my-4"></div>
-      <h3 class="text-15 font-semibold">Members<% if (others.length) { %> · newest first<% } %></h3>
-      <% if (others.length) { %><ul class="mt-2 grid gap-3 sm:grid-cols-2"><% others.forEach(function (p) { %><li class="flex items-center gap-3">
-              <a href="/profile/<%= p.username %>" class="shrink-0"><%- include('../partials/avatar', { person: p, size: 'size-12 text-base' }) %></a>
-              <div class="min-w-0 flex-1"><a class="block truncate font-semibold hover:underline" href="/profile/<%= p.username %>"><%= p.displayName %></a><p class="truncate text-[0.8125rem] text-muted"><%= p.role === 'admin' ? 'Admin' : p.role === 'moderator' ? 'Moderator' : 'Member' %> · Joined <%= timeAgo(p.joinedAt) %></p></div>
-            </li><% }) %></ul>
+      <h3 class="text-15 font-semibold">Members<% if (allMembers.length) { %> · newest first<% } %></h3>
+      <% if (allMembers.length) { %><ul class="mt-2 grid gap-3 sm:grid-cols-2" data-infinite="group-members" data-infinite-next="<%= membersNext || '' %>" data-infinite-query="group=<%= group._id %>"><%- include('../partials/chunks/group-members', { items: allMembers }) %></ul>
       <% } else { %><p class="mt-1 text-15 text-muted">No other members yet.</p><% } %>
-      <% if (group.memberCount > allMembers.length) { %><p class="mt-3 text-[0.8125rem] text-muted">Showing the <%= allMembers.length %> newest members.</p><% } %>
       <% } %>
     </section>
 

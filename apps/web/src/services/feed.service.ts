@@ -4,11 +4,16 @@ import { env } from '../config/env.js';
 import { cacheGet, cacheSet, feedCacheVersion } from './cache.service.js';
 import { blockedUserIds, feedExclusions, restrictedAuthorIds } from './social.service.js';
 
-export async function getFeed(userId: string, page = 1, limit = 15) {
+/** Posts per feed chunk: the home page renders the first one, infinite scroll fetches the rest. */
+export const FEED_PAGE_SIZE = 10;
+
+type FeedPage = { items: any[]; hasMore: boolean };
+
+export async function getFeed(userId: string, page = 1, limit = FEED_PAGE_SIZE) {
   const version = await feedCacheVersion();
   const key = `feed:${version}:${userId}:${page}:${limit}`;
-  const cached = await cacheGet<any[]>(key);
-  if (cached) return { items: cached, cached: true };
+  const cached = await cacheGet<FeedPage>(key);
+  if (cached && !Array.isArray(cached)) return { ...cached, cached: true };
   const [follows, memberships, excluded, restricted] = await Promise.all([
     Follow.find({ followerId: userId }).sort({ createdAt: -1, _id: -1 }).select('followingId').lean(),
     GroupMember.find({ userId }).select('groupId').lean(),
@@ -33,8 +38,11 @@ export async function getFeed(userId: string, page = 1, limit = 15) {
     } } } },
     // Follow priority is applied before pagination, including older posts by a newly followed author.
     { $sort: { _followOrder: 1, createdAt: -1, _id: -1 } },
-    { $skip: (page - 1) * limit }, { $limit: limit }, { $project: { _followOrder: 0 } }
+    // One extra row tells whether another page exists without a separate count query.
+    { $skip: (page - 1) * limit }, { $limit: limit + 1 }, { $project: { _followOrder: 0 } }
   ]);
+  const hasMore = rows.length > limit;
+  rows.length = Math.min(rows.length, limit);
   const selected = await Post.populate(rows, [
     { path: 'authorId', select: 'username displayName profile.avatarUrl' },
     { path: 'groupId', select: 'name slug' }
@@ -42,8 +50,8 @@ export async function getFeed(userId: string, page = 1, limit = 15) {
   const reactions = await Reaction.find({ userId, postId: { $in: selected.map((post: any) => post._id) } }).lean();
   const mine = new Map(reactions.map((item: any) => [String(item.postId), item.type]));
   const items = selected.filter((post: any) => post.authorId).map((post: any) => ({ ...post, myReaction: mine.get(String(post._id)) || null }));
-  await cacheSet(key, items, 45);
-  return { items, cached: false };
+  await cacheSet(key, { items, hasMore } satisfies FeedPage, 45);
+  return { items, hasMore, cached: false };
 }
 
 export async function searchAll(query: string, viewerId?: string) {

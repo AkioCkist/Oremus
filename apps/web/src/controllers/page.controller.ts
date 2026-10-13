@@ -1,14 +1,15 @@
 import type { NextFunction, Request, Response } from 'express';
-import { Follow, Group, GroupMember, Notification, Post, User } from '../models/index.js';
-import { getFeed, searchAll } from '../services/feed.service.js';
+import { Follow, Group, GroupMember, Message, Notification, Post, User } from '../models/index.js';
+import { FEED_PAGE_SIZE, getFeed, searchAll } from '../services/feed.service.js';
 import { getProfile } from '../services/user.service.js';
 import { recordQuery } from '../services/search.service.js';
 import { getPostDetail, withReactionSummary } from '../services/post.service.js';
 import { GROUP_ARTWORK, GROUP_TYPE_LABELS, getGroup, inviteCandidates, listGroups } from '../services/group.service.js';
-import { countUnreadConversations, listConversations, listMessages, markConversationRead } from '../services/message.service.js';
+import { conversationChunk, countUnreadConversations, listConversations, listMessages, markConversationRead } from '../services/message.service.js';
 import { getStoryTray, listArchive } from '../services/story.service.js';
 import { getFriendshipStates, listFriends, mutualFriendCounts } from '../services/friendship.service.js';
-import { blockedUserIds, restrictedAuthorIds } from '../services/social.service.js';
+import { blockedUserIds } from '../services/social.service.js';
+import { groupMembers, groupPosts, notificationChunk, profileMedia, profileMediaCounts, profilePosts, MEDIA_SORTS, MEDIA_TYPES } from '../services/lists.service.js';
 import { AppError } from '../utils/errors.js';
 
 const base = (req: Request, title: string) => ({ title, path: req.path, csrfToken: resToken(req), currentUser: req.user?.toObject() ?? null });
@@ -56,56 +57,44 @@ export async function home(req: Request, res: Response) {
     .sort((a: any, b: any) => b.mutualFriends - a.mutualFriends)
     .slice(0, 6);
   const posts = await withReactionSummary(result.items, userId);
-  res.render('home', { ...base(req, 'Home'), posts, suggestions, contacts: friends.slice(0, 12), groups, tray, cached: result.cached });
+  res.render('home', { ...base(req, 'Home'), posts, next: result.hasMore ? `o${FEED_PAGE_SIZE}` : null, suggestions, contacts: friends.slice(0, 12), groups, tray, cached: result.cached });
 }
 
 const ABOUT_SECTIONS = ['overview', 'work', 'places', 'contact', 'relationship', 'details', 'hobbies'];
-const MEDIA_TYPES = ['all', 'photos', 'videos'];
-const MEDIA_SORTS: Record<string, Record<string, 1 | -1>> = {
-  newest: { createdAt: -1 }, oldest: { createdAt: 1 }, reactions: { reactionCount: -1, createdAt: -1 }, comments: { commentCount: -1, createdAt: -1 }
-};
-
-/** One tile per photo/video across posts; videos that failed to transcode are only shown to their owner. */
-const flattenMedia = (posts: any[], isOwner: boolean) => posts.flatMap((post) => (post.media || [])
-  .map((media: any) => ({ ...media, postId: post._id, mediaId: media._id, createdAt: post.createdAt, isVideo: String(media.mimeType).startsWith('video/') }))
-  .filter((media: any) => (media.isVideo || String(media.mimeType).startsWith('image/')) && (isOwner || media.status !== 'failed')));
 
 export async function profile(req: Request, res: Response) {
   const profile = await getProfile(param(req, 'username'), req.user?.id);
-  if (profile.blockedByMe) return res.render('profile', { ...base(req, profile.displayName), profile, posts: [], photos: [], mediaCounts: { all: 0, photos: 0, videos: 0 }, mediaFilter: { type: 'all', sort: 'newest' }, hasStory: false, friendsPreview: [], tab: 'posts', profileQuery: '', aboutSection: 'overview' });
-  const restricted = req.user ? (await restrictedAuthorIds(req.user.id)).includes(String(profile._id)) : false;
-  const visibility = profile.isSelf ? {} : profile.isFollowing && !restricted ? { visibility: { $in: ['public', 'followers'] } } : { visibility: 'public' };
+  if (profile.blockedByMe) return res.render('profile', { ...base(req, profile.displayName), profile, posts: [], postsNext: null, photos: [], photosNext: null, mediaCounts: { all: 0, photos: 0, videos: 0 }, mediaFilter: { type: 'all', sort: 'newest' }, hasStory: false, friendsPreview: [], tab: 'posts', profileQuery: '', aboutSection: 'overview' });
   const profileQuery = String(req.query.q || '').trim().slice(0, 80);
-  const searchFilter = profileQuery ? { content: { $regex: profileQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } } : {};
-  const raw = await Post.find({ authorId: profile._id, groupId: null, deletedAt: null, ...visibility, ...searchFilter }).sort({ createdAt: -1 }).limit(50).populate('authorId', AUTHOR_FIELDS).lean();
-  const posts = await withReactionSummary(raw, req.user?.id);
   const tab = profileQuery ? 'posts' : req.query.tab === 'about' ? 'about' : ['media', 'photos', 'videos'].includes(String(req.query.tab)) ? 'media' : 'posts';
   const mediaFilter = {
     type: MEDIA_TYPES.includes(String(req.query.type)) ? String(req.query.type) : req.query.tab === 'photos' ? 'photos' : req.query.tab === 'videos' ? 'videos' : 'all',
     sort: String(req.query.sort) in MEDIA_SORTS ? String(req.query.sort) : 'newest'
   };
-  const mediaSource = tab === 'media'
-    ? await Post.find({ authorId: profile._id, groupId: null, deletedAt: null, ...visibility, 'media.0': { $exists: true } }).sort(MEDIA_SORTS[mediaFilter.sort]!).limit(200).select('media createdAt reactionCount commentCount').lean()
-    : raw;
-  const allMedia = flattenMedia(mediaSource, profile.isSelf);
-  const mediaCounts = { all: allMedia.length, photos: allMedia.filter((item) => !item.isVideo).length, videos: allMedia.filter((item) => item.isVideo).length };
-  const photos = tab === 'media' ? allMedia.filter((item) => mediaFilter.type === 'all' || item.isVideo === (mediaFilter.type === 'videos')) : allMedia.slice(0, 9);
+  const username = profile.username as string;
+  // Posts and media tiles load in chunks (first chunk here, the rest via /api/lists).
+  const [postChunk, mediaChunk, mediaCounts] = await Promise.all([
+    tab === 'posts' ? profilePosts(username, req.user?.id, profileQuery, null) : Promise.resolve({ items: [], next: null }),
+    profileMedia(username, req.user?.id, tab === 'media' ? mediaFilter.type : 'all', tab === 'media' ? mediaFilter.sort : 'newest', null),
+    profileMediaCounts(username, req.user?.id)
+  ]);
+  const photos = tab === 'media' ? mediaChunk.items : mediaChunk.items.slice(0, 9);
   const tray = req.user ? await getStoryTray(req.user.id, [String(profile._id)]) : [];
   const hasStory = tray.some((group) => group.author._id === String(profile._id));
   const friendsPreview = await listFriends(String(profile._id), 9);
   const aboutSection = ABOUT_SECTIONS.includes(String(req.query.section)) ? String(req.query.section) : 'overview';
-  res.render('profile', { ...base(req, profile.displayName), profile, posts, photos, mediaCounts, mediaFilter, hasStory, friendsPreview, profileQuery, aboutSection, tab });
+  res.render('profile', { ...base(req, profile.displayName), profile, posts: postChunk.items, postsNext: postChunk.next, photos, photosNext: tab === 'media' ? mediaChunk.next : null, mediaCounts, mediaFilter, hasStory, friendsPreview, profileQuery, aboutSection, tab });
 }
 
 export async function post(req: Request, res: Response) {
   const detail = await getPostDetail(param(req, 'postId'), req.user?.id);
   const [withSummary] = await withReactionSummary([detail.post as any], req.user?.id);
-  res.render('post', { ...base(req, `${(detail.post as any).authorId?.displayName || 'Post'}`), post: withSummary, comments: detail.comments, canModerate: detail.canModerate });
+  res.render('post', { ...base(req, `${(detail.post as any).authorId?.displayName || 'Post'}`), post: withSummary, comments: detail.comments, commentsNext: detail.commentsNext, canModerate: detail.canModerate });
 }
 
 export async function groups(req: Request, res: Response) {
-  const [all, mine, candidates] = await Promise.all([listGroups(req.user?.id), req.user ? myGroups(req.user.id, 20) : Promise.resolve([]), req.user ? inviteCandidates(req.user.id, null) : Promise.resolve([])]);
-  res.render('groups/index', { ...base(req, 'Groups'), groups: all, myGroups: mine, groupArtwork: GROUP_ARTWORK, groupTypes: GROUP_TYPE_LABELS, inviteCandidates: candidates, openCreate: req.query.create === '1' });
+  const [directory, mine, candidates] = await Promise.all([listGroups(req.user?.id), req.user ? myGroups(req.user.id, 20) : Promise.resolve([]), req.user ? inviteCandidates(req.user.id, null) : Promise.resolve([])]);
+  res.render('groups/index', { ...base(req, 'Groups'), groups: directory.items, groupsNext: directory.next, myGroups: mine, groupArtwork: GROUP_ARTWORK, groupTypes: GROUP_TYPE_LABELS, inviteCandidates: candidates, openCreate: req.query.create === '1' });
 }
 
 const GROUP_TABS = ['discussion', 'about', 'members', 'requests', 'pending'];
@@ -113,27 +102,28 @@ const GROUP_TABS = ['discussion', 'about', 'members', 'requests', 'pending'];
 export async function group(req: Request, res: Response) {
   const detail = await getGroup(param(req, 'slug'), req.user?.id);
   const groupId = detail.group._id;
-  const canSee = detail.group.privacy === 'public' || !!detail.member;
+  const canSee = detail.canSee;
   let tab = GROUP_TABS.includes(String(req.query.tab)) ? String(req.query.tab) : 'discussion';
   // Tabs the viewer has no access to fall back to the discussion.
   if ((tab === 'requests' && !detail.canApprove) || (tab === 'pending' && !detail.canManage)) tab = 'discussion';
   const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000), monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const visiblePosts = { groupId, deletedAt: null, groupStatus: { $nin: ['pending', 'declined'] } };
-  const [posts, members, mine, candidates, staff, allMembers, activity] = await Promise.all([
-    withReactionSummary(detail.posts, req.user?.id),
+  const empty = { items: [], next: null };
+  const [postChunk, members, mine, candidates, staff, memberChunk, activity] = await Promise.all([
+    tab === 'discussion' && canSee ? groupPosts(groupId, req.user?.id, null) : Promise.resolve(empty),
     GroupMember.find({ groupId }).sort({ createdAt: 1 }).limit(8).populate('userId', AUTHOR_FIELDS).lean(),
     req.user ? myGroups(req.user.id, 20) : Promise.resolve([]),
     req.user && detail.member ? inviteCandidates(req.user.id, groupId) : Promise.resolve([]),
     // Admins and moderators are always listed on About, as on Facebook, even for private groups.
     tab === 'about' || tab === 'members' ? GroupMember.find({ groupId, role: { $in: ['admin', 'moderator'] } }).sort({ role: 1, createdAt: 1 }).limit(20).populate('userId', AUTHOR_FIELDS).lean() : Promise.resolve([]),
-    tab === 'members' && canSee ? GroupMember.find({ groupId }).sort({ createdAt: -1 }).limit(200).populate('userId', AUTHOR_FIELDS).lean() : Promise.resolve([]),
+    tab === 'members' && canSee ? groupMembers(groupId, req.user?.id, null) : Promise.resolve(empty),
     tab === 'about' && canSee ? Promise.all([Post.countDocuments({ ...visiblePosts, createdAt: { $gte: dayAgo } }), Post.countDocuments({ ...visiblePosts, createdAt: { $gte: monthAgo } }), GroupMember.countDocuments({ groupId, createdAt: { $gte: monthAgo } })]) : Promise.resolve(null)
   ]);
   const withUser = (rows: any[]) => rows.filter((row) => row.userId).map((row) => ({ ...row.userId, role: row.role, joinedAt: row.createdAt }));
   res.render('groups/detail', {
-    ...base(req, detail.group.name), ...detail, posts, tab,
+    ...base(req, detail.group.name), ...detail, posts: postChunk.items, postsNext: postChunk.next, tab,
     members: members.map((item: any) => item.userId).filter(Boolean),
-    staff: withUser(staff), allMembers: withUser(allMembers),
+    staff: withUser(staff), allMembers: memberChunk.items, membersNext: memberChunk.next,
     activity: activity ? { postsToday: activity[0], postsMonth: activity[1], newMembersMonth: activity[2] } : null,
     myGroups: mine, groupArtwork: GROUP_ARTWORK, groupTypes: GROUP_TYPE_LABELS, inviteCandidates: candidates
   });
@@ -147,31 +137,33 @@ export async function groupById(req: Request, res: Response) {
 }
 
 export async function messages(req: Request, res: Response) {
-  const conversations = await listConversations(req.user!.id);
-  res.render('messages', { ...base(req, 'Chats'), conversations, activeConversation: null, partner: null, messages: [] });
+  const conversations = await conversationChunk(req.user!.id, null);
+  res.render('messages', { ...base(req, 'Chats'), conversations: conversations.items, conversationsNext: conversations.next, activeConversation: null, partner: null, messages: [], messagesNext: null });
 }
 
 export async function conversation(req: Request, res: Response) {
   const userId = req.user!.id, conversationId = param(req, 'conversationId');
-  const items = await listMessages(userId, conversationId);
+  const chunk = await listMessages(userId, conversationId);
   await markConversationRead(userId, conversationId);
-  const [conversations, unreadMessages] = await Promise.all([listConversations(userId), countUnreadConversations(userId)]);
+  // Only the newest chunk is loaded, so the totals in the details panel come from the database.
+  const [{ items: conversations, next: conversationsNext }, unreadMessages, messageCount, firstMessage] = await Promise.all([
+    conversationChunk(userId, null), countUnreadConversations(userId),
+    Message.countDocuments({ conversationId, deletedAt: null }), Message.findOne({ conversationId, deletedAt: null }).sort({ createdAt: 1 }).select('createdAt').lean()
+  ]);
   res.locals.unreadMessages = unreadMessages;
   const active: any = conversations.find((item: any) => String(item._id) === conversationId);
   const partner = active?.memberIds.find((member: any) => String(member._id) !== userId) || active?.memberIds[0] || null;
-  res.render('messages', { ...base(req, partner ? partner.displayName : 'Chats'), conversations, activeConversation: conversationId, partner, messages: items });
+  res.render('messages', { ...base(req, partner ? partner.displayName : 'Chats'), conversations, conversationsNext, activeConversation: conversationId, partner, messages: chunk.items, messagesNext: chunk.next, messageCount, firstMessageAt: (firstMessage as any)?.createdAt || null });
 }
 
 export async function notifications(req: Request, res: Response) {
-  const blocked = await blockedUserIds(req.user!.id);
-  const items = await Notification.find({ recipientId: req.user!.id, actorId: { $nin: blocked } }).sort({ createdAt: -1 }).limit(50).populate('actorId', AUTHOR_FIELDS).lean();
-  const validItems = items.filter((item: any) => item.actorId);
-  const friendStates = await getFriendshipStates(req.user!.id, validItems.map((item: any) => String(item.actorId._id)));
-  const notifications = validItems.map((item: any) => ({ ...item, friendState: friendStates.get(String(item.actorId._id)) || 'none' }));
-  // Opening the page marks everything read; this render still highlights what was new so the user can spot it.
-  await Notification.updateMany({ recipientId: req.user!.id, readAt: null }, { readAt: new Date() });
+  const filter = req.query.filter === 'unread' ? 'unread' : 'all';
+  const openedAt = new Date();
+  const chunk = await notificationChunk(req.user!.id, filter === 'unread', openedAt, null);
+  // Opening the page marks everything read at `openedAt`; this visit (and its later chunks) still highlights what was new.
+  await Notification.updateMany({ recipientId: req.user!.id, readAt: null }, { readAt: openedAt });
   res.locals.unreadNotifications = 0;
-  res.render('notifications', { ...base(req, 'Notifications'), notifications, filter: req.query.filter === 'unread' ? 'unread' : 'all' });
+  res.render('notifications', { ...base(req, 'Notifications'), items: chunk.items, next: chunk.next, openedAt, filter });
 }
 
 export async function search(req: Request, res: Response) {
@@ -205,7 +197,6 @@ export async function stories(req: Request, res: Response) {
 }
 
 export async function storyArchive(req: Request, res: Response) {
-  const items = await listArchive(req.user!.id);
-  const tray = await getStoryTray(req.user!.id);
-  res.render('stories/archive', { ...base(req, 'Story archive'), items, tray, now: Date.now() });
+  const [archive, tray] = await Promise.all([listArchive(req.user!.id), getStoryTray(req.user!.id)]);
+  res.render('stories/archive', { ...base(req, 'Story archive'), items: archive.items, next: archive.next, tray, now: Date.now() });
 }

@@ -1,4 +1,5 @@
 import sanitizeHtml from 'sanitize-html';
+import { afterCursor, cursorSort, timeChunk } from '../utils/paginate.js';
 import { Follow, Story, StoryView, User, STORY_TTL_MS } from '../models/index.js';
 import type { StoryStyle } from '../shared/story-style.js';
 import { AppError } from '../utils/errors.js';
@@ -130,8 +131,11 @@ export async function listViewers(storyId: string, ownerId: string) {
   return { viewCount: (story as any).viewCount, viewers: views.filter((view: any) => view.viewerId).map((view: any) => ({ user: view.viewerId, reaction: view.reaction, viewedAt: view.updatedAt })) };
 }
 
-export async function listArchive(userId: string) {
-  return Story.find({ authorId: userId, deletedAt: null }).sort({ createdAt: -1 }).limit(120).lean();
+export const ARCHIVE_PAGE_SIZE = 20;
+
+export async function listArchive(userId: string, cursor: unknown = null) {
+  const rows = await Story.find({ authorId: userId, deletedAt: null, ...afterCursor(cursor) }).sort(cursorSort()).limit(ARCHIVE_PAGE_SIZE + 1).lean();
+  return timeChunk(rows as any[], ARCHIVE_PAGE_SIZE);
 }
 
 export async function updateStorySettings(userId: string, audience: 'public' | 'followers') {

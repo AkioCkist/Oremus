@@ -1,0 +1,2 @@
+<%# Post cards for an endless list (first chunk in the page, next ones from GET /api/lists/feed). %>
+<% items.forEach(function (item) { %><%- include('../post-card', { item }) %><% }) %>

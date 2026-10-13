@@ -1,0 +1,20 @@
+<%# Chat list rows. Used by messages.ejs and GET /api/lists/conversations. %>
+<%
+  const me = String(currentUser._id);
+  const otherOf = function (c) { return c.memberIds.find(function (m) { return String(m._id) !== me; }) || c.memberIds[0]; };
+-%>
+<% items.forEach(function (c) { const other = otherOf(c); const last = c.lastMessage; const mine = last && String(last.senderId) === me; const active = String(activeConversation) === String(c._id); %>
+<li data-key="<%= c._id %>" data-chat-name="<%= other.displayName.toLowerCase() %>" data-chat-id="<%= c._id %>" data-chat-first-name="<%= firstName(other.displayName) %>">
+  <a class="chat-row <%= active ? 'chat-row-active' : '' %>" href="/messages/<%= c._id %>" <%= active ? 'aria-current=page' : '' %>>
+    <%- include('../avatar', { person: other, size: 'size-14 text-lg' }) %>
+    <span class="min-w-0 flex-1">
+      <span class="block truncate text-15 <%= c.unread ? 'font-bold' : 'font-medium' %>" data-chat-title><%= other.displayName %></span>
+      <span class="flex gap-1 text-[0.8125rem] <%= c.unread ? 'font-bold text-brand-600' : 'text-muted' %>" data-chat-snippet>
+        <span class="truncate" data-chat-preview><%= last ? `${mine ? 'You' : firstName(other.displayName)}: ${last.content}` : 'Say hi 👋' %></span>
+        <span aria-hidden="true" class="<%= last ? '' : 'hidden' %>" data-chat-sep>·</span><span class="shrink-0 font-normal text-muted" data-chat-time><%= last ? timeAgo(last.createdAt) : '' %></span>
+      </span>
+    </span>
+    <span class="size-3 shrink-0 rounded-full bg-brand-600 <%= c.unread ? '' : 'hidden' %>" aria-label="Unread" data-chat-dot></span>
+  </a>
+</li>
+<% }) %>

@@ -1,26 +1,5 @@
 <%- include('partials/head') %><%- include('partials/nav') %>
-<%
-  const meta = {
-    reaction: { icon: 'r-like', fill: true, bg: '' },
-    story_reaction: { icon: 'r-love', fill: true, bg: '' },
-    comment: { icon: 'i-comment', bg: 'bg-[#45bd62]' },
-    follow: { icon: 'i-user-plus', bg: 'bg-brand-600' },
-    friend_request: { icon: 'i-user-plus', bg: 'bg-brand-600' },
-    friend_accept: { icon: 'i-users', bg: 'bg-brand-600' },
-    group_request: { icon: 'i-group', bg: 'bg-[#f7b928]' },
-    group_invite: { icon: 'i-group', bg: 'bg-brand-600' },
-    group_post: { icon: 'i-feed', bg: 'bg-[#45bd62]' },
-    message: { icon: 'i-chat', bg: 'bg-[#0084ff]' }
-  };
-  const hrefOf = function (n) {
-    if (n.entityType === 'Post') return `/posts/${n.entityId}`;
-    if (n.entityType === 'Conversation') return `/messages/${n.entityId}`;
-    if (n.entityType === 'Group') return `/g/${n.entityId}`;
-    if (n.entityType === 'Story') return '/stories/archive';
-    return `/profile/${n.actorId.username}`;
-  };
-  const shown = filter === 'unread' ? notifications.filter(function (n) { return !n.readAt; }) : notifications;
--%>
+
 <main id="main" class="app-shell xl:grid-cols-[18.5rem_minmax(0,1fr)]">
   <%- include('partials/sidebar') %>
   <section class="mx-auto w-full max-w-feed">
@@ -33,28 +12,9 @@
         <a class="chip <%= filter === 'all' ? 'chip-active' : '' %>" href="/notifications" <%= filter === 'all' ? 'aria-current=page' : '' %>>All</a>
         <a class="chip <%= filter === 'unread' ? 'chip-active' : '' %>" href="/notifications?filter=unread" <%= filter === 'unread' ? 'aria-current=page' : '' %>>Unread</a>
       </nav>
-      <% if (shown.length) { %>
-      <ul class="px-2 pb-2">
-        <% shown.forEach(function (n) { const m = meta[n.type] || meta.follow; %>
-        <li>
-          <a class="flex items-center gap-3 rounded-lg p-2 hover:bg-hover" href="<%= hrefOf(n) %>" data-unread="<%= n.readAt ? 'false' : 'true' %>">
-            <span class="relative shrink-0">
-              <%- include('partials/avatar', { person: n.actorId, size: 'size-14 text-lg' }) %>
-              <span class="absolute -bottom-1 -right-1 grid size-7 place-items-center rounded-full text-white ring-2 ring-surface <%= m.bg %>">
-                <% if (m.fill) { %><svg class="size-7"><use href="#<%= m.icon %>"/></svg><% } else { %><svg class="icon size-4"><use href="#<%= m.icon %>"/></svg><% } %>
-              </span>
-            </span>
-            <span class="min-w-0 flex-1">
-              <span class="line-clamp-3 text-15 <%= n.readAt ? 'text-muted' : '' %>"><strong class="font-semibold text-ink"><%= n.actorId.displayName %></strong> <%= n.text %></span>
-              <span class="mt-0.5 block text-[0.8125rem] <%= n.readAt ? 'text-muted' : 'font-semibold text-brand-600' %>" data-unread-time><%= timeAgo(n.createdAt) %></span>
-            </span>
-            <% if (!n.readAt) { %><span class="size-3 shrink-0 rounded-full bg-brand-600" data-unread-dot aria-label="Unread"></span><% } %>
-          </a>
-          <% if (n.type === 'friend_request' && n.friendState === 'incoming') { %>
-          <div class="ml-[4.25rem] pb-3 pr-3"><%- include('partials/friend-controls', { person: n.actorId, state: n.friendState, compact: true, full: false }) %></div>
-          <% } %>
-        </li>
-        <% }) %>
+      <% if (items.length) { %>
+      <ul class="px-2 pb-2" data-infinite="notifications" data-infinite-next="<%= next || '' %>" data-infinite-query="filter=<%= filter %>&opened=<%= openedAt.getTime() %>">
+        <%- include('partials/chunks/notifications', { items }) %>
       </ul>
       <% } else { %>
       <div class="px-6 pb-10 pt-6 text-center"><div class="empty-icon"><svg class="icon size-7"><use href="#i-bell"/></svg></div><h2 class="mt-4 text-lg font-bold"><%= filter === 'unread' ? 'No unread notifications' : "You're all caught up" %></h2><p class="mt-1 text-pretty text-muted">Friend requests, reactions, comments and messages will show up here.</p><a class="btn-primary mt-5" href="/">Back to feed</a></div>

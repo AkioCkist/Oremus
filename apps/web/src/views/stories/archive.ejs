@@ -10,22 +10,8 @@
       <div class="flex gap-2"><a class="btn-secondary" href="/stories">View stories</a><button class="btn-primary" type="button" data-open-story-composer><svg class="icon"><use href="#i-plus"/></svg>Create story</button></div>
     </div>
     <% if (items.length) { %>
-    <ul class="grid grid-cols-2 gap-3 px-3 sm:grid-cols-3 sm:px-0 lg:grid-cols-4 xl:grid-cols-5">
-      <% items.forEach(function (story) { const active = new Date(story.expiresAt).getTime() > now; %>
-      <li class="group relative aspect-[9/16] overflow-hidden rounded-xl bg-stage shadow-card" data-archive-story="<%= story._id %>">
-        <%- include('../partials/story-thumb', { story: { mediaUrl: story.media && story.media.url, mediaType: story.media ? (String(story.media.mimeType).indexOf('video/') === 0 ? 'video' : 'image') : null, text: story.text, background: story.background, style: story.style }, textClass: 'p-4 text-lg' }) %>
-        <div class="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/60"></div>
-        <div class="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between p-2.5 text-white">
-          <span class="rounded-md bg-black/45 px-2 py-1 text-center font-display leading-none"><span class="block text-lg font-bold"><%= new Date(story.createdAt).getDate() %></span><span class="block text-2xs font-semibold uppercase"><%= new Date(story.createdAt).toLocaleDateString('en', { month: 'short' }) %></span></span>
-          <% if (active) { %><span class="rounded-full bg-brand-600 px-2 py-0.5 text-2xs font-bold uppercase">Live</span><% } %>
-        </div>
-        <div class="absolute inset-x-0 bottom-0 z-10 flex items-center justify-between p-2.5 text-white">
-          <span class="flex items-center gap-1 text-[0.8125rem] font-semibold"><svg class="icon size-4"><use href="#i-eye"/></svg><%= story.viewCount || 0 %></span>
-          <button type="button" class="grid size-8 place-items-center rounded-full bg-black/45 opacity-100 hover:bg-black/70 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100" data-delete-story="<%= story._id %>" aria-label="Delete story from <%= new Date(story.createdAt).toLocaleDateString('en') %>"><svg class="icon size-4"><use href="#i-trash"/></svg></button>
-        </div>
-        <% if (active) { %><a href="/stories/<%= currentUser.username %>" class="absolute inset-0 z-0" aria-label="Open live story"></a><% } %>
-      </li>
-      <% }) %>
+    <ul class="grid grid-cols-2 gap-3 px-3 sm:grid-cols-3 sm:px-0 lg:grid-cols-4 xl:grid-cols-5" data-infinite="story-archive" data-infinite-next="<%= next || '' %>" data-infinite-prefetch="8">
+      <%- include('../partials/chunks/story-archive', { items }) %>
     </ul>
     <% } else { %>
     <div class="empty-state"><div class="empty-icon"><svg class="icon size-7"><use href="#i-archive"/></svg></div><h2 class="mt-4 text-xl font-bold">No stories in your archive</h2><p class="mt-1 text-muted">Stories you share are saved here automatically.</p><button class="btn-primary mt-5" type="button" data-open-story-composer>Create your first story</button></div>

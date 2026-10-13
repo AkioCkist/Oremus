@@ -111,7 +111,7 @@
     <section class="min-w-0 space-y-4" aria-label="Posts">
       <% if (isSelf) { %><%- include('partials/composer') %><% } %>
       <div class="card flex items-center justify-between gap-3 px-4 py-3"><h2 class="card-title text-balance text-xl"><%= profileQuery ? 'Results for “' + profileQuery + '”' : 'Posts' %></h2><% if (profileQuery) { %><a class="btn-ghost btn-sm" href="<%= tabHref('posts') %>">Clear search</a><% } %></div>
-      <% if (posts.length) { posts.forEach(function (item) { %><%- include('partials/post-card', { item }) %><% }) } else { %>
+      <% if (posts.length) { %><div class="space-y-4" data-infinite="profile-posts" data-infinite-next="<%= postsNext || '' %>" data-infinite-query="user=<%= encodeURIComponent(profile.username) %>&q=<%= encodeURIComponent(profileQuery) %>"><%- include('partials/chunks/profile-posts', { items: posts }) %></div><% } else { %>
       <div class="empty-state"><div class="empty-icon"><svg class="icon size-7"><use href="#i-feed"/></svg></div><h3 class="mt-4 text-balance text-lg font-bold"><%= profileQuery ? 'No matching posts' : 'No posts yet' %></h3><p class="mt-1 text-pretty text-muted"><%= profileQuery ? 'Try another keyword to search this profile.' : isSelf ? 'Share your first post — it will show up here.' : `When ${firstName(profile.displayName)} shares something, it will appear here.` %></p></div>
       <% } %>
     </section>
@@ -136,8 +136,8 @@
         <% }) %>
       </nav>
       <% if (photos.length) { %>
-      <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-        <% photos.forEach(function (item) { %><%- include('partials/media-tile', { item, isSelf, rounded: true }) %><% }) %>
+      <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" data-infinite="profile-media" data-infinite-next="<%= photosNext || '' %>" data-infinite-query="user=<%= encodeURIComponent(profile.username) %>&type=<%= mediaFilter.type %>&sort=<%= mediaFilter.sort %>" data-infinite-prefetch="10">
+        <%- include('partials/chunks/profile-media', { items: photos, isSelf }) %>
       </div>
       <% } else { %>
       <div class="py-10 text-center"><div class="empty-icon"><svg class="icon size-7"><use href="#<%= mediaFilter.type === 'videos' ? 'i-play' : 'i-image' %>"/></svg></div><p class="mt-3 text-muted"><%= mediaFilter.type === 'videos' ? 'No videos to show.' : mediaFilter.type === 'photos' ? 'No photos to show.' : 'No photos or videos to show.' %></p></div>

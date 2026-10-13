@@ -1,0 +1,17 @@
+<%# Group directory cards. Used by groups/index.ejs and GET /api/lists/groups. %>
+<% items.forEach(function (g) { %>
+<li class="card flex flex-col overflow-hidden" data-group-name="<%= g.name.toLowerCase() %>" data-key="<%= g._id %>">
+  <a href="/groups/<%= g.slug %>" class="block aspect-[16/7] overflow-hidden bg-field"><img class="size-full object-cover transition-transform duration-300 hover:scale-[1.03]" src="<%= g.coverUrl || '/assets/img/default-cover.svg' %>" alt="" loading="lazy"></a>
+  <div class="flex flex-1 flex-col p-4">
+    <h3 class="text-[1.0625rem] font-bold leading-snug"><a class="hover:underline" href="/groups/<%= g.slug %>"><%= g.name %></a></h3>
+    <p class="mt-0.5 flex items-center gap-1 text-[0.8125rem] text-muted"><svg class="icon size-3.5"><use href="#<%= g.visibility === 'hidden' ? 'i-eye-off' : g.privacy === 'private' ? 'i-lock' : 'i-globe' %>"/></svg><%= g.visibility === 'hidden' ? 'Hidden' : g.privacy === 'private' ? 'Private' : 'Public' %> group · <%= plural(g.memberCount, 'member') %></p>
+    <% if (g.tags && g.tags.length) { %><div class="mt-2 flex flex-wrap gap-1"><% g.tags.slice(0, 3).forEach(function (tag) { %><span class="rounded-full bg-field px-2 py-0.5 text-xs font-medium text-muted">#<%= tag %></span><% }) %></div><% } %>
+    <% if (g.description) { %><p class="mt-2 line-clamp-2 text-15 text-muted"><%= g.description %></p><% } %>
+    <div class="mt-auto pt-4">
+      <% if (g.isMember) { %><a class="btn-secondary w-full" href="/groups/<%= g.slug %>">View group</a>
+      <% } else if (currentUser) { %><a class="btn-soft w-full" href="/groups/<%= g.slug %>"><%= g.privacy === 'private' ? 'Request to join' : 'Join group' %></a>
+      <% } else { %><a class="btn-soft w-full" href="/login">Log in to join</a><% } %>
+    </div>
+  </div>
+</li>
+<% }) %>

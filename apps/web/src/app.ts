@@ -14,6 +14,8 @@ import { errorHandler, notFound } from './middleware/error.js';
 import { authRoutes } from './routes/auth.routes.js';
 import { apiRoutes } from './routes/api.routes.js';
 import { pageRoutes } from './routes/page.routes.js';
+import { listChunk } from './controllers/list.controller.js';
+import { optionalAuth } from './middleware/auth.js';
 import { asyncHandler } from './utils/async-handler.js';
 import { viewHelpers } from './utils/view-helpers.js';
 
@@ -76,6 +78,8 @@ export function createApp() {
   app.get('/offline', (_req, res) => res.render('offline', { title: 'Offline', csrfToken: '', currentUser: null }));
   app.use(requireCsrf);
   app.use('/auth', authRoutes);
+  // Endless-list chunks; some lists (public profiles and groups) are readable while signed out.
+  app.get('/api/lists/:name', optionalAuth, asyncHandler(listChunk));
   app.use('/api', apiRoutes);
   app.use(pageRoutes);
   app.use(notFound);

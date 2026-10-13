@@ -94,6 +94,7 @@ All endpoints of the web app and the search service.
 
 | Method | Path | Notes |
 |---|---|---|
+| GET | `/api/lists/:name?cursor=…` | Next chunk of an endless list (`feed`, `comments`, `messages`, `conversations`, `notifications`, `group-posts`, `group-members`, `groups`, `profile-posts`, `profile-media`, `story-archive`) → `{ html, next, items? }`. See [Endless lists](INFINITE_SCROLL.md) |
 | GET | `/api/notifications` | Latest 50 |
 | POST | `/api/notifications/read` | Mark all as read |
 | GET | `/api/search?q=` | Users, posts, groups |

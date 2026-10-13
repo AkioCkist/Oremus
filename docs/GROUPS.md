@@ -94,7 +94,7 @@ The group page is split into tabs. Each tab is its own URL, so it can be linked 
 |---|---|---|---|
 | Discussion | `/groups/:slug` | Everyone who can see the group | Composer, posts, short About card with **See more**, rules. Admins also get a "Needs your review" banner when there are requests or pending posts. |
 | About | `?tab=about` | Everyone | Description, privacy and visibility explained, type, location, tags, creation date; **Activity** (new posts today, posts and new members in the last month); rules; admins and moderators |
-| Members | `?tab=members` | Everyone (the full list only for public groups or members) | Admins and moderators, then the 200 newest members |
+| Members | `?tab=members` | Everyone (the full list only for public groups or members) | Admins and moderators, then every member, newest first, loading 20 at a time while scrolling |
 | Member requests | `?tab=requests` | People who can approve requests | Pending join requests with answers |
 | Pending posts | `?tab=pending` | Admins and moderators | Posts waiting for approval |
 

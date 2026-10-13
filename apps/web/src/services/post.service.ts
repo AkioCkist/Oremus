@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { afterCursor, cursorSort, timeChunk } from '../utils/paginate.js';
 import sanitizeHtml from 'sanitize-html';
 import { Comment, Follow, Group, GroupMember, GroupPost, Post, Reaction } from '../models/index.js';
 import { enqueuePostVideos } from '../media/queue.js';
@@ -196,9 +197,35 @@ export async function getPostDetail(postId: string, viewerId?: string) {
     const group = (post as any).groupId ? await Group.findById((post as any).groupId).select('privacy').lean() : null;
     if ((post as any).visibility !== 'public' || (group as any)?.privacy === 'private') throw new AppError(401, 'Please sign in to view this post.', 'AUTH_REQUIRED');
   } else await assertCanAccessPost(post, viewerId);
+  const [{ comments, next }, canModerate] = await Promise.all([commentChunk(postId, viewerId, null), canModeratePost(post, viewerId)]);
+  return { post, comments, commentsNext: next, canModerate };
+}
+
+/** Top-level comments per chunk; each chunk also carries all replies of those comments. */
+export const COMMENT_PAGE_SIZE = 10;
+
+async function commentChunk(postId: string, viewerId: string | undefined, cursor: unknown) {
   const blocked = viewerId ? await blockedUserIds(viewerId) : [];
-  const comments = await Comment.find({ postId, deletedAt: null, authorId: { $nin: blocked } }).sort({ createdAt: 1 }).populate('authorId', 'username displayName profile.avatarUrl').lean();
-  return { post, comments, canModerate: await canModeratePost(post, viewerId) };
+  const visible = { postId, deletedAt: null, authorId: { $nin: blocked } };
+  const rows = await Comment.find({ ...visible, parentId: null, ...afterCursor(cursor, 'createdAt', 1) })
+    .sort(cursorSort('createdAt', 1)).limit(COMMENT_PAGE_SIZE + 1).populate('authorId', 'username displayName profile.avatarUrl').lean();
+  const chunk = timeChunk(rows as any[], COMMENT_PAGE_SIZE);
+  const replies = chunk.items.length
+    ? await Comment.find({ ...visible, parentId: { $in: chunk.items.map((comment: any) => comment._id) } }).sort({ createdAt: 1 }).populate('authorId', 'username displayName profile.avatarUrl').lean()
+    : [];
+  return { comments: [...chunk.items, ...replies], next: chunk.next };
+}
+
+/** Next chunk of comments for infinite scroll, with the same access rules as opening the post. */
+export async function listComments(postId: string, viewerId: string | undefined, cursor: unknown) {
+  const post = await Post.findOne({ _id: postId, deletedAt: null }).lean();
+  if (!post) throw new AppError(404, 'Post not found.', 'POST_NOT_FOUND');
+  if (!viewerId) {
+    const group = (post as any).groupId ? await Group.findById((post as any).groupId).select('privacy').lean() : null;
+    if ((post as any).visibility !== 'public' || (group as any)?.privacy === 'private') throw new AppError(401, 'Please sign in to view this post.', 'AUTH_REQUIRED');
+  } else await assertCanAccessPost(post, viewerId);
+  const [chunk, canModerate] = await Promise.all([commentChunk(postId, viewerId, cursor), canModeratePost(post, viewerId)]);
+  return { ...chunk, post, canModerate };
 }
 
 

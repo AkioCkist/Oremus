@@ -3,6 +3,7 @@ import { STORY_VIDEO_MAX_SECONDS, storyTextAttrs, type StoryStyle } from '../sha
 import { EMOJI_CATEGORIES } from './emoji-data.js';
 import './search-box.js';
 import { optimizeFormUploads, optimizeUpload, runImageJob } from './workers.js';
+import { createInfiniteList, initInfiniteLists, type InfiniteList } from './infinite.js';
 
 declare const io: undefined | (() => { on: (event: string, callback: (payload: any) => void) => void; emit: (event: string, payload: unknown) => void });
 
@@ -337,7 +338,8 @@ function renderMap(container: HTMLElement, lat: number, lon: number, zoom = 15) 
   const credit = Object.assign(document.createElement('span'), { className: 'absolute bottom-1 right-1 rounded bg-surface/80 px-1 text-2xs text-muted', textContent: '© OpenStreetMap' });
   container.replaceChildren(tiles, pin, credit);
 }
-$$('[data-map][data-lat]').forEach((map) => renderMap(map, Number(map.dataset.lat), Number(map.dataset.lon)));
+const renderMaps = (root: ParentNode = document) => $$('[data-map][data-lat]', root).forEach((map) => renderMap(map, Number(map.dataset.lat), Number(map.dataset.lon)));
+renderMaps();
 
 /* ---------- Emoji picker popover ---------- */
 
@@ -590,7 +592,8 @@ if (composer) initPostExtras(composer);
 /* ---------- Story composer ---------- */
 
 // The CSP forbids inline style attributes, so server-rendered story styling ships as data and is applied here.
-$$('[data-story-style]').forEach((element) => { element.style.cssText = element.dataset.storyStyle || ''; });
+const applyStoryStyles = (root: ParentNode = document) => $$('[data-story-style]', root).forEach((element) => { element.style.cssText = element.dataset.storyStyle || ''; });
+applyStoryStyles();
 
 const STORY_IMAGE_TYPES = 'image/jpeg,image/png,image/webp,image/gif';
 const STORY_VIDEO_TYPES = 'video/mp4,video/webm,video/quicktime';
@@ -1226,6 +1229,7 @@ if (photoViewer) {
   let index = 0;
   let post: any = null;
   let comments: any[] = [];
+  let commentsFeed: InfiniteList | null = null;
   let replyTo: { id: string; name: string } | null = null;
   let canModerate = false;
   let zoom = 1, panX = 0, panY = 0;
@@ -1340,14 +1344,15 @@ if (photoViewer) {
     comments = comments.filter((comment) => !removed.includes(String(comment._id)));
     post.commentCount = commentCount; paintComments(); paintReactions();
   });
+  /** Top-level comments (keyed, so the endless list can count them) each followed by their replies. */
+  const threadNodes = (source: any[]) => source.filter((comment) => !comment.parentId).flatMap((root) => {
+    const node = commentNode(root, false); node.dataset.key = String(root._id);
+    return [node, ...source.filter((comment) => String(comment.parentId) === String(root._id)).map((child) => commentNode(child, true))];
+  });
   const paintComments = () => {
-    const roots = comments.filter((comment) => !comment.parentId);
-    const nodes: HTMLElement[] = [];
-    roots.forEach((root) => {
-      nodes.push(commentNode(root, false));
-      comments.filter((comment) => String(comment.parentId) === String(root._id)).forEach((child) => nodes.push(commentNode(child, true)));
-    });
+    const nodes = threadNodes(comments);
     commentsList.replaceChildren(...(nodes.length ? nodes : [Object.assign(document.createElement('li'), { className: 'py-6 text-center text-15 text-muted', textContent: 'No comments yet. Be the first to comment.' })]));
+    commentsFeed?.refresh();
   };
   const clearReply = () => { replyTo = null; const banner = $('[data-viewer-replying]', photoViewer)!; banner.classList.add('hidden'); banner.classList.remove('flex'); };
   $('[data-viewer-cancel-reply]', photoViewer)!.addEventListener('click', clearReply);
@@ -1420,6 +1425,18 @@ if (photoViewer) {
     request(`/api/posts/${postId}`).then((data) => {
       if (token !== loadToken) return;
       post = data.post; comments = data.comments || []; canModerate = !!data.canModerate;
+      // Older comments load in chunks as the reader scrolls the side panel.
+      commentsFeed?.destroy();
+      commentsFeed = createInfiniteList({
+        list: commentsList, root: $('[data-viewer-scroll]', photoViewer), next: data.commentsNext || null,
+        load: async (cursor) => {
+          const chunk = await request(`/api/lists/comments?cursor=${encodeURIComponent(cursor)}&post=${post._id}`);
+          const known = new Set(comments.map((comment) => String(comment._id)));
+          const fresh = (chunk.items as any[]).filter((comment) => !known.has(String(comment._id)));
+          comments = [...comments, ...fresh];
+          return { nodes: threadNodes(fresh), next: chunk.next };
+        }
+      });
       const urls = (post.media || []).map((media: any) => media.url);
       if (urls.length) { photos = urls; showPhoto(Math.max(0, urls.indexOf(url))); }
       panel.classList.remove('hidden'); panel.classList.add('flex', 'max-lg:hidden');
@@ -1820,11 +1837,12 @@ document.addEventListener('click', async (event) => {
 });
 
 // Touch devices have no hover: a long press on Like opens the reaction bar.
-$$('[data-reaction-toggle]').forEach((button) => {
+const bindReactionToggles = (root: ParentNode = document) => $$('[data-reaction-toggle]', root).forEach((button) => {
   let timer = 0;
   button.addEventListener('touchstart', () => { timer = window.setTimeout(() => button.parentElement?.querySelector('.reaction-bar')?.classList.add('is-open'), 450); }, { passive: true });
   button.addEventListener('touchend', () => window.clearTimeout(timer));
 });
+bindReactionToggles();
 
 /* ---------- Group tabs: old #about style links ---------- */
 
@@ -1954,7 +1972,7 @@ async function deleteCommentById(id: string) {
 
 /* ---------- Inline comments ---------- */
 
-$$<HTMLFormElement>('[data-comment-form]').forEach((form) => {
+const bindCommentForms = (root: ParentNode = document) => $$<HTMLFormElement>('[data-comment-form]', root).forEach((form) => {
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const input = $<HTMLInputElement>('input[name="content"]', form)!; const content = input.value.trim(); if (!content) return;
@@ -1978,6 +1996,26 @@ $$<HTMLFormElement>('[data-comment-form]').forEach((form) => {
     } catch (caught) { showToast(caught instanceof Error ? caught.message : 'Could not post comment.', 'error'); }
     finally { input.disabled = false; input.focus(); }
   });
+});
+bindCommentForms();
+
+/* ---------- Endless lists (feed, comments, chats, notifications, groups, archive…) ---------- */
+
+/** Wires up items that arrive after page load; everything else on them uses delegated listeners. */
+function initDynamic(root: ParentNode) {
+  renderMaps(root); bindReactionToggles(root); bindCommentForms(root); applyStoryStyles(root);
+}
+
+/** An older chunk ending close in time to the first message shown makes that message's date separator redundant. */
+function joinMessageDates(fragment: DocumentFragment) {
+  const rows = $('[data-message-rows]'); const first = rows?.firstElementChild as HTMLElement | null;
+  const last = [...fragment.querySelectorAll<HTMLElement>('[data-at]')].pop();
+  if (first?.dataset.messageTime && last && Number(first.dataset.messageTime) - Number(last.dataset.at) <= 20 * 60_000) first.remove();
+}
+
+initInfiniteLists(request, (name, fragment) => {
+  if (name === 'messages') joinMessageDates(fragment);
+  initDynamic(fragment);
 });
 
 /* ---------- Filters (chats, groups) ---------- */
@@ -2004,15 +2042,21 @@ function setMiniChatCollapsed(panel: HTMLElement, collapsed: boolean) {
   const toggle = $('[data-mini-toggle]', panel); toggle?.setAttribute('aria-expanded', String(!collapsed));
 }
 
-function appendMiniMessage(panel: HTMLElement, message: any) {
-  const list = $('[data-mini-message-list]', panel); if (!list) return;
-  $('[data-mini-empty]', list)?.remove();
+function miniMessageRow(message: any) {
   const mine = senderIdOf(message) === me.id;
   const row = document.createElement('div'); row.className = `flex ${mine ? 'justify-end' : 'justify-start'}`;
+  if (message._id) row.dataset.key = String(message._id);
   const bubble = document.createElement('p'); bubble.className = `bubble ${mine ? 'bubble-me' : 'bubble-them'}`;
   bubble.textContent = String(message.content || '');
   bubble.title = new Date(message.createdAt || Date.now()).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  row.appendChild(bubble); list.appendChild(row); list.scrollTop = list.scrollHeight;
+  row.appendChild(bubble);
+  return row;
+}
+
+function appendMiniMessage(panel: HTMLElement, message: any) {
+  const list = $('[data-mini-message-list]', panel); if (!list) return;
+  $('[data-mini-empty]', list)?.remove();
+  list.appendChild(miniMessageRow(message)); list.scrollTop = list.scrollHeight;
 }
 
 function createMiniChatShell(conversationId: string, displayName: string, avatarUrl: string) {
@@ -2055,7 +2099,17 @@ async function openMiniChat(link: HTMLAnchorElement) {
   try {
     const result = await request(`/api/conversations/${conversationId}/preview`);
     const list = $('[data-mini-message-list]', panel)!; list.replaceChildren();
-    if (result.messages.length) result.messages.forEach((message: any) => appendMiniMessage(panel, message));
+    if (result.messages.length) {
+      result.messages.forEach((message: any) => appendMiniMessage(panel, message));
+      // Scrolling up in the mini chat loads earlier messages.
+      createInfiniteList({
+        list, root: list, reverse: true, next: result.next || null,
+        load: async (cursor) => {
+          const chunk = await request(`/api/lists/messages?cursor=${encodeURIComponent(cursor)}&conversation=${encodeURIComponent(conversationId)}`);
+          return { nodes: (chunk.items as any[]).map(miniMessageRow), next: chunk.next };
+        }
+      });
+    }
     else { const empty = document.createElement('p'); empty.className = 'm-auto text-pretty text-center text-sm text-muted'; empty.dataset.miniEmpty = ''; empty.textContent = `No messages yet. Say hello to ${firstNameOf(result.conversation.partner.displayName)}.`; list.appendChild(empty); }
     const input = $<HTMLInputElement>('[name="content"]', panel)!, send = $<HTMLButtonElement>('button[type="submit"]', panel)!;
     input.disabled = false; send.disabled = false; setUnread('messages', result.unreadMessages); $('[data-mini-unread]', link)?.remove(); input.focus();
@@ -2100,7 +2154,9 @@ function appendMessage(message: any) {
   }
   const bubble = document.createElement('p'); bubble.className = `bubble ${mine ? 'bubble-me' : 'bubble-them'}`; bubble.textContent = message.content;
   bubble.title = new Date(message.createdAt || Date.now()).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  row.appendChild(bubble); messageList.appendChild(row);
+  if (message._id) row.dataset.key = String(message._id);
+  row.dataset.at = String(new Date(message.createdAt || Date.now()).getTime());
+  row.appendChild(bubble); ($('[data-message-rows]', messageList) || messageList).appendChild(row);
   if (nearBottom) messageList.scrollTop = messageList.scrollHeight;
 }
 
