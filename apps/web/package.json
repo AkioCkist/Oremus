@@ -19,7 +19,10 @@
     "migrate": "tsx src/scripts/migrate.ts",
     "migrate:status": "tsx src/scripts/migrate.ts --status",
     "db:setup": "npm run migrate && npm run seed",
-    "db:reset": "tsx src/scripts/db-reset.ts"
+    "db:reset": "tsx src/scripts/db-reset.ts",
+    "wipe:data": "tsx src/scripts/wipe-data.ts",
+    "wipe:cache": "tsx src/scripts/wipe-cache.ts",
+    "wipe:all": "tsx src/scripts/wipe-data.ts --cache"
   },
   "dependencies": {
     "@socket.io/redis-adapter": "^8.3.0",

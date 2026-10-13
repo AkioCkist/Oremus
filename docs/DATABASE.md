@@ -37,8 +37,9 @@ Run from the repository root.
 | `npm run db:setup` | `db:migrate`, then `seed` | Yes |
 | `npm run db:migrate` | Syncs indexes for every model, then runs pending migrations in order | Yes |
 | `npm run db:status` | Lists applied / pending migrations. Changes nothing | Yes |
-| `npm run seed` | Upserts sample users, posts, a group, chats and stories | Yes |
+| `npm run seed` | Creates 20 sample people with photos, groups, posts, stories and chats ([details](SCRIPTS.md#sample-data-seed)). Rebuilds the sample content on every run | Yes |
 | `npm run db:reset -- --yes` | **Drops the whole database.** Refuses when `NODE_ENV=production` or without `--yes` | Destructive |
+| `npm run wipe:all -- --yes` | **Empties everything**: database, uploads and Redis. See [Wipe scripts](SCRIPTS.md) | Destructive |
 
 Docker equivalents: `node dist/scripts/migrate.js --status`, `node dist/scripts/db-reset.js --yes`.
 
@@ -49,7 +50,7 @@ npm run db:reset -- --yes
 npm run db:setup
 ```
 
-`db:reset` only clears MongoDB. Uploaded files (`apps/web/uploads`) and Redis caches are kept.
+`db:reset` only clears MongoDB. Uploaded files (`apps/web/uploads`) and Redis caches are kept. To clear those too, use the [wipe scripts](SCRIPTS.md).
 
 ## How migrations work
 

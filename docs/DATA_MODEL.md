@@ -206,5 +206,5 @@ See [Search and places](SEARCH_AND_PLACES.md#search-box-recent-searches-and-sugg
 ## Migrations and seed data
 
 - `npm run db:migrate` runs [`scripts/migrate.ts`](../apps/web/src/scripts/migrate.ts). It syncs the indexes of every model and runs pending data migrations from [`src/migrations/`](../apps/web/src/migrations/); the `migrations` collection records which ones already ran. See [Database setup and migrations](DATABASE.md).
-- `npm run seed` runs [`scripts/seed.ts`](../apps/web/src/scripts/seed.ts). It upserts sample users, posts, a group, conversations and stories. It is safe to run many times. The sample login is `maya@example.com` / `CircleSpace123`.
+- `npm run seed` runs [`scripts/seed.ts`](../apps/web/src/scripts/seed.ts). It creates 20 sample people with full profiles and real photos, 5 groups, about 70 posts with reactions and comments, stories, chats and notifications. It is safe to run many times. The sample login is `maya@example.com` / `CircleSpace123`. See [Sample data](SCRIPTS.md#sample-data-seed).
 

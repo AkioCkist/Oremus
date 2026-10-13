@@ -102,6 +102,8 @@ docker compose config --quiet
 
 `npm run db:setup` prepares a database in one step (indexes, migrations, sample data). `npm run db:migrate` syncs MongoDB indexes and runs pending data migrations; it is safe to run many times. See [Database setup and migrations](docs/DATABASE.md).
 
+To return the app to an empty state (no users, posts, uploads or cache), run `npm run wipe:all -- --yes`. See [Wipe scripts](docs/SCRIPTS.md).
+
 ## Project structure
 
 ```text

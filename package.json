@@ -10,10 +10,15 @@
     "typecheck": "npm --workspace @oremus/web run typecheck",
     "test": "npm --workspace @oremus/web run test",
     "seed": "npm --workspace @oremus/web run seed",
+    "seed:docker": "npm run seed && npm run seed:copy-docker",
+    "seed:copy-docker": "docker compose cp apps/web/uploads/. web:/app/apps/web/uploads/",
     "db:migrate": "npm --workspace @oremus/web run migrate",
     "db:status": "npm --workspace @oremus/web run migrate:status",
     "db:setup": "npm --workspace @oremus/web run db:setup",
     "db:reset": "npm --workspace @oremus/web run db:reset --",
+    "wipe:data": "npm --workspace @oremus/web run wipe:data --",
+    "wipe:cache": "npm --workspace @oremus/web run wipe:cache --",
+    "wipe:all": "npm --workspace @oremus/web run wipe:all --",
     "deploy:vps": "sh scripts/deploy-vps.sh"
   },
   "engines": { "node": ">=22" }

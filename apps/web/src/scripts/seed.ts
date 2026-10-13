@@ -1,81 +1,342 @@
 import bcrypt from 'bcryptjs';
+import mongoose from 'mongoose';
 import { connectInfrastructure, disconnectInfrastructure } from '../config/database.js';
-import { Comment, Conversation, Follow, Friendship, Group, GroupMember, GroupPost, Message, Post, Reaction, Story, User, STORY_TTL_MS } from '../models/index.js';
+import {
+  Comment, Conversation, Follow, Friendship, Group, GroupInvite, GroupJoinRequest, GroupMember, GroupPost, Message, Notification,
+  Post, Reaction, Story, StoryView, User, STORY_TTL_MS
+} from '../models/index.js';
+import { invalidateByPrefix, invalidateFeedCaches } from '../services/cache.service.js';
+import { CHATS, COMMENTS, DEMO_ACCOUNT, EXTRA_FOLLOWS, FRIENDS, GROUPS, PENDING_REQUESTS, PEOPLE, POSTS, REPLIES, SEED_PASSWORD, STORIES, type SeedPhoto } from './seed-data.js';
+import { avatar, isServedBy, photo, prepareSeedImages, type SeedImageRequest } from './seed-media.js';
+import { env } from '../config/env.js';
+
+/**
+ * `npm run seed`: fills the app with 20 sample people (full profiles, real photos), 5 groups, ~70 posts with reactions
+ * and comment threads, stories, chats and notifications, so every page looks like a lived-in social network.
+ *
+ * Safe to re-run: sample users keep their ids (so open sessions survive), everything they created is rebuilt
+ * relative to "now" (stories stay inside the 24-hour window). Content made by other accounts is left alone.
+ * All randomness is seeded, so every run produces the same data.
+ */
+
+const { ObjectId } = mongoose.Types;
+type Id = mongoose.Types.ObjectId;
+
+const HOUR = 3_600_000;
+const MINUTE = 60_000;
+const now = Date.now();
+const ago = (ms: number) => new Date(now - ms);
+
+/* ---------- Deterministic randomness ---------- */
+
+function rng(seed: string) {
+  let state = [...seed].reduce((hash, char) => Math.imul(hash ^ char.charCodeAt(0), 16777619), 2166136261) >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const shuffle = <T>(items: T[], random: () => number) => {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i -= 1) { const j = Math.floor(random() * (i + 1)); [copy[i], copy[j]] = [copy[j]!, copy[i]!]; }
+  return copy;
+};
+const pick = <T>(items: T[], random: () => number) => items[Math.floor(random() * items.length)]!;
+const REACTION_WEIGHTS: Array<[string, number]> = [['like', 0.5], ['love', 0.28], ['haha', 0.1], ['wow', 0.08], ['sad', 0.04]];
+const reactionType = (random: () => number) => {
+  let roll = random();
+  for (const [type, weight] of REACTION_WEIGHTS) { if ((roll -= weight) < 0) return type; }
+  return 'like';
+};
+
+/* ---------- Images ---------- */
+
+const photoRequest = (value: SeedPhoto) => (Array.isArray(value) ? photo(value[0], value[1], value[2]) : photo(value));
+const coverRequest = (id: number) => photo(id, 1600, 600);
+const storyRequest = (id: number) => photo(id, 1080, 1920);
+
+function imageRequests(): SeedImageRequest[] {
+  return [
+    ...PEOPLE.flatMap((person) => [avatar(person.avatar), coverRequest(person.cover)]),
+    ...GROUPS.map((group) => coverRequest(group.cover)),
+    ...POSTS.flatMap((post) => (post.photos || []).map(photoRequest)),
+    ...STORIES.filter((story) => story.photo).map((story) => storyRequest(story.photo!))
+  ];
+}
+
+/* ---------- Seed ---------- */
 
 async function seed() {
   await connectInfrastructure();
-  const passwordHash = await bcrypt.hash('CircleSpace123', 12);
-  const avatar = (name: string) => `/assets/img/avatars/${name}.svg`;
-  const people = [
-    { email: 'maya@example.com', username: 'maya', displayName: 'Maya Tran', profile: { bio: 'Community gardener, weekend cyclist, and collector of good questions.', location: 'Da Nang, Vietnam', website: 'https://example.com/maya', privacy: 'public', storyAudience: 'followers', avatarUrl: avatar('maya'), coverUrl: '/assets/img/seed/cover-maya.svg' } },
-    { email: 'leo@example.com', username: 'leominh', displayName: 'Leo Minh', profile: { bio: 'Product designer exploring calmer digital spaces.', location: 'Ho Chi Minh City, Vietnam', privacy: 'public', storyAudience: 'public', avatarUrl: avatar('leominh') } },
-    { email: 'anika@example.com', username: 'anikar', displayName: 'Anika Rao', profile: { bio: 'Documentary photographer and slow traveler.', location: 'Singapore', privacy: 'public', storyAudience: 'public', avatarUrl: avatar('anikar'), coverUrl: '/assets/img/seed/rock.svg' } },
-    { email: 'jonah@example.com', username: 'jonahlee', displayName: 'Jonah Lee', profile: { bio: 'Cooking, code, and city walks.', location: 'Hanoi, Vietnam', privacy: 'public', storyAudience: 'followers', avatarUrl: avatar('jonahlee') } },
-    { email: 'ethan@example.com', username: 'ethanr', displayName: 'Ethan Reynolds', profile: { bio: 'Trail runner. Mountain person. Bad at sitting still.', location: 'Da Lat, Vietnam', privacy: 'public', storyAudience: 'public', avatarUrl: avatar('ethanr') } },
-    { email: 'olivia@example.com', username: 'oliviah', displayName: 'Olivia Hayes', profile: { bio: 'Dog mom, latte art enthusiast, part-time illustrator.', location: 'Hoi An, Vietnam', privacy: 'public', storyAudience: 'public', avatarUrl: avatar('olivia') } }
-  ];
-  const users: any[] = [];
-  for (const person of people) users.push(await User.findOneAndUpdate({ email: person.email }, { ...person, passwordHash, deletedAt: null }, { upsert: true, new: true, setDefaultsOnInsert: true }));
-  const [maya, leo, anika, jonah, ethan, olivia] = users;
-  const follows = [[maya, leo], [maya, anika], [maya, ethan], [maya, olivia], [leo, maya], [anika, maya], [ethan, maya], [olivia, maya], [jonah, maya], [olivia, anika]];
-  for (const [follower, following] of follows) await Follow.updateOne({ followerId: follower.id, followingId: following.id }, {}, { upsert: true });
-  const friendPairs = [[maya, leo], [maya, anika], [maya, ethan], [maya, olivia]];
-  for (const [first, second] of friendPairs) {
-    const [userAId, userBId] = [String(first.id), String(second.id)].sort();
-    await Friendship.updateOne({ userAId, userBId }, { requesterId: first.id, status: 'accepted', acceptedAt: new Date() }, { upsert: true });
+
+  console.log('Preparing photos (downloaded once, then reused from uploads/)…');
+  const url = await prepareSeedImages(imageRequests());
+
+  // 1. People: upsert by e-mail so ids (and open sessions) stay stable across runs.
+  const passwordHash = await bcrypt.hash(SEED_PASSWORD, 12);
+  const ids = new Map<string, Id>();
+  for (const [index, person] of PEOPLE.entries()) {
+    const avatarUrl = url(avatar(person.avatar));
+    const coverUrl = url(coverRequest(person.cover));
+    const joined = ago((60 + index * 37) * 24 * HOUR);
+    const user = await User.findOneAndUpdate({ email: person.email }, {
+      $set: {
+        username: person.key, displayName: person.displayName, passwordHash, deletedAt: null, lastSeenAt: ago((index % 7) * 13 * MINUTE),
+        profile: { privacy: 'public', ...person.profile, avatarUrl, coverUrl, avatarHistory: avatarUrl ? [avatarUrl] : [], coverHistory: [coverUrl] },
+        createdAt: joined, updatedAt: joined
+      }
+    }, { upsert: true, new: true, timestamps: false });
+    ids.set(person.key, user._id);
   }
-  const group = await Group.findOneAndUpdate({ slug: 'city-gardeners' }, { name: 'City Gardeners', slug: 'city-gardeners', description: 'Practical growing advice for balconies, rooftops, and small urban spaces.', coverUrl: '/assets/img/seed/garden-cover.svg', privacy: 'public', visibility: 'visible', groupType: 'hobbies', location: 'Da Nang, Vietnam', tags: ['gardening', 'balcony', 'urban'], rules: [{ title: 'Be kind and courteous', details: 'Everyone starts somewhere. Share advice, not judgement.' }, { title: 'No promotions or spam', details: 'Plant sales belong in the monthly swap thread.' }], settings: { whoCanPost: 'anyone', postApproval: false, whoCanApprove: 'admins' }, ownerId: maya.id, memberCount: 3 }, { upsert: true, new: true });
-  for (const [user, role] of [[maya, 'admin'], [leo, 'member'], [jonah, 'member']] as const) await GroupMember.updateOne({ groupId: group.id, userId: user.id }, { role }, { upsert: true });
-  const photoGroup = await Group.findOneAndUpdate({ slug: 'street-photography' }, { name: 'Street Photography', slug: 'street-photography', description: 'Candid city moments, gear talk, and weekly photo walks across Southeast Asia.', coverUrl: '/assets/img/seed/photo-cover.svg', privacy: 'private', visibility: 'visible', groupType: 'learning', location: 'Singapore', tags: ['photography', 'street', 'travel'], rules: [{ title: 'Only share your own photos', details: 'Credit collaborators and never repost without permission.' }, { title: "Respect everyone's privacy", details: 'Ask before posting recognisable faces of strangers.' }], questions: ['What do you usually shoot with?', 'Which city would you love to photograph next?'], settings: { whoCanPost: 'anyone', postApproval: true, whoCanApprove: 'admins' }, ownerId: anika.id, memberCount: 3 }, { upsert: true, new: true });
-  for (const [user, role] of [[anika, 'admin'], [maya, 'member'], [olivia, 'member']] as const) await GroupMember.updateOne({ groupId: photoGroup.id, userId: user.id }, { role }, { upsert: true });
-  const postData = [
-    { seedKey: 'seed-welcome', authorId: maya.id, content: 'I started Oremus to make online conversation feel a little more like sharing a table. What is one small thing your community taught you this week?', visibility: 'public' },
-    { seedKey: 'seed-design', authorId: leo.id, content: 'A useful design test: can someone understand the next action without reading every word? Clarity is a form of kindness.', visibility: 'public' },
-    { seedKey: 'seed-photo', authorId: anika.id, content: 'Early light at the market, before the streets fully wake. The quiet hour always tells a different story.', visibility: 'public', media: [{ url: '/assets/img/seed/market.svg', mimeType: 'image/svg+xml', alt: 'A market street at sunrise with fruit stalls and lanterns' }] },
-    { seedKey: 'seed-garden', authorId: jonah.id, groupId: group.id, content: 'My basil finally recovered after moving it out of the afternoon sun. Sharing the watering schedule that worked for me.', visibility: 'public', media: [{ url: '/assets/img/seed/basil.svg', mimeType: 'image/svg+xml', alt: 'A potted basil plant on a sunny windowsill' }] },
-    { seedKey: 'seed-trip', authorId: ethan.id, content: 'Finally made it to the rock fortress I have been dreaming about for years. Worth every one of the 1,200 steps.', visibility: 'public', media: [{ url: '/assets/img/seed/rock.svg', mimeType: 'image/svg+xml', alt: 'A huge rock fortress rising above the jungle' }, { url: '/assets/img/seed/mountain-story.svg', mimeType: 'image/svg+xml', alt: 'A cyclist riding through green mountains' }] },
-    { seedKey: 'seed-latte', authorId: olivia.id, content: 'Two flat whites, one very patient barista, and zero plans for the afternoon.', visibility: 'public' }
-  ];
-  const posts: any[] = [];
-  for (const data of postData) posts.push(await Post.findOneAndUpdate({ seedKey: data.seedKey }, { ...data, reactionCount: 0, commentCount: 0, deletedAt: null }, { upsert: true, new: true, strict: false }));
-  await GroupPost.updateOne({ postId: posts[3].id }, { groupId: group.id, authorId: jonah.id }, { upsert: true });
-  await Reaction.updateOne({ userId: maya.id, postId: posts[1].id }, { type: 'love' }, { upsert: true });
-  await Reaction.updateOne({ userId: leo.id, postId: posts[0].id }, { type: 'like' }, { upsert: true });
-  await Comment.updateOne({ postId: posts[0].id, authorId: leo.id, content: /This week/ }, { content: 'This week I learned that asking for help early makes a project stronger, not weaker.' }, { upsert: true });
-  await Reaction.updateOne({ userId: olivia.id, postId: posts[0].id }, { type: 'love' }, { upsert: true });
-  await Reaction.updateOne({ userId: maya.id, postId: posts[4].id }, { type: 'wow' }, { upsert: true });
-  await Reaction.updateOne({ userId: anika.id, postId: posts[4].id }, { type: 'like' }, { upsert: true });
-  await Reaction.updateOne({ userId: maya.id, postId: posts[5].id }, { type: 'haha' }, { upsert: true });
-  await Comment.updateOne({ postId: posts[4].id, authorId: maya.id, content: /steps/ }, { content: 'Those steps would have defeated me halfway. The view looks unreal!' }, { upsert: true });
-  for (const post of posts) await Post.updateOne({ _id: post.id }, { reactionCount: await Reaction.countDocuments({ postId: post.id }), commentCount: await Comment.countDocuments({ postId: post.id, deletedAt: null }) });
-  const conversation = await Conversation.findOneAndUpdate({ seedKey: 'maya-leo' }, { memberIds: [maya.id, leo.id], lastMessageAt: new Date() }, { upsert: true, new: true, strict: false });
-  if (!(await Message.exists({ conversationId: conversation.id }))) {
-    await Message.create({ conversationId: conversation.id, senderId: leo.id, content: 'The new community page feels thoughtful. Want to review it together tomorrow?', readBy: [leo.id] });
-    await Message.create({ conversationId: conversation.id, senderId: maya.id, content: 'Yes! My notes are here: https://example.com/maya/community-notes', readBy: [maya.id, leo.id] });
+  const id = (key: string) => { const value = ids.get(key); if (!value) throw new Error(`Unknown seed person "${key}"`); return value; };
+  const seedIds = [...ids.values()];
+  // Friendships store each pair once, sorted by id (see friendship.service.ts).
+  const pair = (a: string, b: string) => { const [userAId, userBId] = [String(id(a)), String(id(b))].sort(); return { userAId: new ObjectId(userAId), userBId: new ObjectId(userBId) }; };
+  console.log(`People: ${seedIds.length}`);
+
+  // 2. Groups keep their ids too; only sample members are rebuilt.
+  const groupIds = new Map<string, Id>();
+  for (const group of GROUPS) {
+    const owner = group.members.find(([, role]) => role === 'admin')![0];
+    const doc = await Group.findOneAndUpdate({ slug: group.slug }, {
+      $set: {
+        name: group.name, description: group.description, coverUrl: url(coverRequest(group.cover)), privacy: group.privacy, visibility: 'visible',
+        groupType: group.groupType, location: group.location, tags: group.tags, rules: group.rules, questions: group.questions || [],
+        settings: { whoCanPost: 'anyone', postApproval: !!group.postApproval, whoCanApprove: 'admins' }, ownerId: id(owner)
+      }
+    }, { upsert: true, new: true });
+    groupIds.set(group.slug, doc._id);
   }
-  const chat = await Conversation.findOneAndUpdate({ seedKey: 'maya-olivia' }, { memberIds: [maya.id, olivia.id], lastMessageAt: new Date() }, { upsert: true, new: true, strict: false });
-  if (!(await Message.exists({ conversationId: chat.id }))) {
-    await Message.create({ conversationId: chat.id, senderId: maya.id, content: 'On my way, but there is a crying baby on the bus and I forgot my headphones.', readBy: [maya.id, olivia.id] });
-    await Message.create({ conversationId: chat.id, senderId: olivia.id, content: 'Oh boy! You will manage. Just do not be late :D', readBy: [olivia.id] });
+  const allGroupIds = [...groupIds.values()];
+
+  await removePreviousSample(seedIds, allGroupIds);
+
+  // 3. Social graph.
+  const friendsOf = new Map<string, Set<string>>(PEOPLE.map((person) => [person.key, new Set()]));
+  const followerOf = new Map<string, Set<string>>(PEOPLE.map((person) => [person.key, new Set()]));
+  const follows: Array<[string, string, Date]> = [];
+  const friendships: Record<string, unknown>[] = [];
+  const notifications: Record<string, unknown>[] = [];
+  const notify = (recipient: string, actor: string, type: string, entityType: string, entityId: Id, text: string, at: Date) => {
+    if (recipient === actor) return;
+    notifications.push({ recipientId: id(recipient), actorId: id(actor), type, entityType, entityId, text, createdAt: at, updatedAt: at, readAt: now - at.getTime() > 12 * HOUR ? at : null });
+  };
+
+  FRIENDS.forEach(([a, b], index) => {
+    const random = rng(`friend:${a}:${b}`);
+    const acceptedAt = ago((2 + index * 9 + random() * 24) * HOUR);
+    const _id = new ObjectId();
+    friendships.push({ _id, ...pair(a, b), requesterId: id(a), status: 'accepted', acceptedAt, createdAt: new Date(acceptedAt.getTime() - 6 * HOUR), updatedAt: acceptedAt });
+    friendsOf.get(a)!.add(b); friendsOf.get(b)!.add(a);
+    follows.push([a, b, acceptedAt], [b, a, acceptedAt]);
+    if (now - acceptedAt.getTime() < 14 * 24 * HOUR) notify(a, b, 'friend_accept', 'Friendship', _id, 'accepted your friend request', acceptedAt);
+  });
+  PENDING_REQUESTS.forEach(([from, to], index) => {
+    const at = ago((3 + index * 5) * HOUR);
+    const _id = new ObjectId();
+    friendships.push({ _id, ...pair(from, to), requesterId: id(from), status: 'pending', acceptedAt: null, createdAt: at, updatedAt: at });
+    notify(to, from, 'friend_request', 'Friendship', _id, 'sent you a friend request', at);
+  });
+  EXTRA_FOLLOWS.forEach(([from, to], index) => {
+    const at = ago((5 + index * 11) * HOUR);
+    follows.push([from, to, at]);
+    notify(to, from, 'follow', 'User', id(from), 'started following you', at);
+  });
+  const followRows = [...new Map(follows.map(([from, to, at]) => [`${from}>${to}`, { followerId: id(from), followingId: id(to), createdAt: at, updatedAt: at }])).values()];
+  follows.forEach(([from, to]) => followerOf.get(to)!.add(from));
+  await Follow.insertMany(followRows);
+  await Friendship.insertMany(friendships);
+  console.log(`Follows: ${followRows.length}, friendships: ${FRIENDS.length} (+${PENDING_REQUESTS.length} pending)`);
+
+  // 4. Group members.
+  const membersOf = new Map<string, Set<string>>();
+  for (const group of GROUPS) {
+    const groupId = groupIds.get(group.slug)!;
+    membersOf.set(group.slug, new Set(group.members.map(([key]) => key)));
+    await GroupMember.insertMany(group.members.map(([key, role], index) => {
+      const at = ago((200 - index * 9) * 24 * HOUR);
+      return { groupId, userId: id(key), role, createdAt: at, updatedAt: at };
+    }));
+    await Group.updateOne({ _id: groupId }, { memberCount: await GroupMember.countDocuments({ groupId }) });
+  }
+  const photoGroup = GROUPS.find((group) => group.questions?.length);
+  if (photoGroup) {
+    const at = ago(5 * HOUR);
+    const groupId = groupIds.get(photoGroup.slug)!;
+    await GroupJoinRequest.create({ groupId, userId: id('quangvo'), status: 'pending', agreedToRules: true, answers: [{ question: photoGroup.questions![0], answer: 'An old Fujifilm X100 and my phone.' }, { question: photoGroup.questions![1], answer: 'Hà Nội Old Quarter at 5am.' }], createdAt: at, updatedAt: at });
+    notify(photoGroup.members[0]![0], 'quangvo', 'group_request', 'Group', groupId, `requested to join ${photoGroup.name}`, at);
   }
 
-  // Stories are refreshed on every seed run so they stay inside the 24-hour window.
-  const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000);
-  const stories = [
-    { seedKey: 'story-ethan-mountain', authorId: ethan.id, media: { url: '/assets/img/seed/mountain-story.svg', mimeType: 'image/svg+xml' }, text: 'Morning ride before the clouds roll in', audience: 'public', at: 5 },
-    { seedKey: 'story-olivia-coffee', authorId: olivia.id, media: { url: '/assets/img/seed/coffee-story.svg', mimeType: 'image/svg+xml' }, text: '', audience: 'public', at: 20 },
-    { seedKey: 'story-olivia-text', authorId: olivia.id, media: null, text: 'Lantern night in Hoi An tonight. Who is coming?', background: 'sunset', audience: 'public', at: 12 },
-    { seedKey: 'story-leo-corgi', authorId: leo.id, media: { url: '/assets/img/seed/corgi-story.svg', mimeType: 'image/svg+xml' }, text: 'Meet my new office manager', audience: 'public', at: 120 },
-    { seedKey: 'story-anika-market', authorId: anika.id, media: { url: '/assets/img/seed/market.svg', mimeType: 'image/svg+xml' }, text: '', audience: 'public', at: 150 },
-    { seedKey: 'story-maya-text', authorId: maya.id, media: null, text: 'Seedlings are up!', background: 'forest', audience: 'followers', at: 300 }
-  ];
-  for (const { at, ...story } of stories) {
-    const createdAt = minutesAgo(at);
-    await Story.findOneAndUpdate({ seedKey: story.seedKey }, { background: 'ocean', ...story, viewCount: 0, deletedAt: null, createdAt, updatedAt: createdAt, expiresAt: new Date(createdAt.getTime() + STORY_TTL_MS) }, { upsert: true, new: true, strict: false, timestamps: false });
+  // 5. Posts.
+  const postIds = new Map<string, Id>();
+  const postRows = POSTS.map((post) => {
+    const _id = new ObjectId();
+    postIds.set(post.key, _id);
+    const createdAt = ago(post.hoursAgo * HOUR);
+    return {
+      _id, seedKey: post.key, authorId: id(post.author), groupId: post.group ? groupIds.get(post.group)! : null, content: post.text,
+      media: (post.photos || []).map((value) => ({ _id: new ObjectId(), url: url(photoRequest(value)), mimeType: 'image/webp', alt: '', status: 'ready', poster: '' })),
+      visibility: post.visibility || 'public', feeling: post.feeling ? { text: '', ...post.feeling } : null, place: post.place ? { id: `seed:${post.key}`, ...post.place } : null,
+      groupStatus: 'approved', reactionCount: 0, commentCount: 0, deletedAt: null, createdAt, updatedAt: createdAt
+    };
+  });
+  await Post.insertMany(postRows);
+  await GroupPost.insertMany(POSTS.filter((post) => post.group).map((post) => {
+    const at = ago(post.hoursAgo * HOUR);
+    return { groupId: groupIds.get(post.group!)!, postId: postIds.get(post.key)!, authorId: id(post.author), createdAt: at, updatedAt: at };
+  }));
+
+  // 6. Reactions and comment threads: from the author's friends first, limited to who could actually see the post.
+  const reactions: Record<string, unknown>[] = [];
+  const comments: Record<string, unknown>[] = [];
+  for (const post of POSTS) {
+    const random = rng(`post:${post.key}`);
+    const postId = postIds.get(post.key)!;
+    const posted = now - post.hoursAgo * HOUR;
+    const window = Math.min(post.hoursAgo * HOUR - 5 * MINUTE, 30 * HOUR);
+    const at = () => new Date(posted + 5 * MINUTE + random() * Math.max(window, MINUTE));
+    const audience = PEOPLE.map((person) => person.key).filter((key) => key !== post.author)
+      .filter((key) => !post.group || membersOf.get(post.group)!.has(key))
+      .filter((key) => post.visibility !== 'followers' || followerOf.get(post.author)!.has(key));
+    const close = friendsOf.get(post.author)!;
+    const ranked = [...shuffle(audience.filter((key) => close.has(key)), random), ...shuffle(audience.filter((key) => !close.has(key)), random)];
+
+    const popularity = (post.photos?.length ? 0.55 : 0.35) + random() * 0.4;
+    for (const key of ranked.slice(0, Math.max(2, Math.round(ranked.length * popularity)))) {
+      const type = reactionType(random);
+      const when = at();
+      reactions.push({ userId: id(key), postId, type, createdAt: when, updatedAt: when });
+      notify(post.author, key, 'reaction', 'Post', postId, `reacted ${type} to your post`, when);
+    }
+
+    const thread: Array<[string, string, string?]> = [...(post.comments || [])];
+    const used = new Set(thread.map(([key]) => key));
+    const extra = Math.floor(random() * 4);
+    for (const key of ranked.filter((candidate) => !used.has(candidate)).slice(0, extra)) {
+      thread.push([key, pick([...COMMENTS[post.topic], ...COMMENTS.general], random), random() < 0.35 ? pick(REPLIES, random) : undefined]);
+    }
+    const times = thread.map(() => at()).sort((x, y) => x.getTime() - y.getTime());
+    thread.forEach(([key, text, reply], index) => {
+      if (!audience.includes(key)) return;
+      const _id = new ObjectId();
+      const when = times[index]!;
+      comments.push({ _id, postId, authorId: id(key), parentId: null, content: text, deletedAt: null, createdAt: when, updatedAt: when });
+      notify(post.author, key, 'comment', 'Post', postId, 'commented on your post', when);
+      if (reply) {
+        const replyAt = new Date(Math.min(now - MINUTE, when.getTime() + (10 + random() * 120) * MINUTE));
+        comments.push({ postId, authorId: id(post.author), parentId: _id, content: reply, deletedAt: null, createdAt: replyAt, updatedAt: replyAt });
+      }
+    });
   }
-  console.log('Seed complete. Sign in with maya@example.com / CircleSpace123');
-  await disconnectInfrastructure();
+  await Reaction.insertMany(reactions);
+  await Comment.insertMany(comments);
+  await recountPosts([...postIds.values()]);
+  console.log(`Posts: ${POSTS.length} (${postRows.reduce((sum, post) => sum + post.media.length, 0)} photos), reactions: ${reactions.length}, comments: ${comments.length}`);
+
+  // 7. Stories (always inside the last 24 hours) with views and a few reactions.
+  const storyViews: Record<string, unknown>[] = [];
+  for (const [index, story] of STORIES.entries()) {
+    const random = rng(`story:${index}`);
+    const createdAt = ago(story.minutesAgo * MINUTE);
+    const person = PEOPLE.find((candidate) => candidate.key === story.author)!;
+    const audience = String(person.profile.storyAudience) === 'public' ? PEOPLE.map((p) => p.key) : [...followerOf.get(story.author)!];
+    const viewers = shuffle(audience.filter((key) => key !== story.author), random).slice(0, 3 + Math.floor(random() * 9));
+    const doc = await Story.create({
+      seedKey: `story-${index}`, authorId: id(story.author), media: story.photo ? { url: url(storyRequest(story.photo)), mimeType: 'image/webp' } : null,
+      text: story.text || '', background: story.background || 'ocean', style: story.text ? { ...story.style } : null,
+      audience: String(person.profile.storyAudience) === 'public' ? 'public' : 'followers', viewCount: viewers.length, deletedAt: null,
+      createdAt, updatedAt: createdAt, expiresAt: new Date(createdAt.getTime() + STORY_TTL_MS)
+    });
+    for (const key of viewers) {
+      const seen = new Date(Math.min(now - MINUTE, createdAt.getTime() + random() * story.minutesAgo * MINUTE));
+      const reaction = random() < 0.25 ? pick(['love', 'haha', 'like'], random) : null;
+      storyViews.push({ storyId: doc._id, viewerId: id(key), reaction, createdAt: seen, updatedAt: seen });
+      if (reaction) notify(story.author, key, 'story_reaction', 'Story', doc._id, `reacted ${reaction} to your story`, seen);
+    }
+  }
+  await StoryView.insertMany(storyViews);
+  console.log(`Stories: ${STORIES.length}, story views: ${storyViews.length}`);
+
+  // 8. Conversations. Messages from the last hour stay unread so the inbox shows badges.
+  let messageCount = 0;
+  for (const chat of CHATS) {
+    const members = chat.members.map(id);
+    const last = Math.min(...chat.messages.map(([, , minutes]) => minutes));
+    const conversation = await Conversation.create({ memberIds: members, lastMessageAt: ago(last * MINUTE), createdAt: ago(Math.max(...chat.messages.map(([, , minutes]) => minutes)) * MINUTE) });
+    await Message.insertMany(chat.messages.map(([from, content, minutes]) => {
+      const at = ago(minutes * MINUTE);
+      const readBy = minutes > 60 ? members : [members[from]];
+      return { conversationId: conversation._id, senderId: members[from], content, readBy, deletedAt: null, createdAt: at, updatedAt: at };
+    }));
+    messageCount += chat.messages.length;
+    const [from, , minutes] = chat.messages.find(([, , value]) => value === last)!;
+    if (minutes <= 60) notify(chat.members[from === 0 ? 1 : 0], chat.members[from], 'message', 'Conversation', conversation._id, 'sent you a message', ago(minutes * MINUTE));
+  }
+  console.log(`Conversations: ${CHATS.length}, messages: ${messageCount}`);
+
+  await Notification.insertMany(notifications);
+  console.log(`Notifications: ${notifications.length}`);
+
+  // 9. Cached feeds, profiles and searches would still show the old sample.
+  await Promise.all([invalidateFeedCaches(), invalidateByPrefix('profile:'), invalidateByPrefix('group:'), invalidateByPrefix('search:')]);
+
+  const sample = url(avatar(PEOPLE[0]!.avatar)) || url(coverRequest(PEOPLE[0]!.cover));
+  const origin = env.APP_ORIGIN[0]!;
+  if (await isServedBy(origin, sample) === false) {
+    console.warn(`
+Warning: ${origin} cannot serve the seeded photos (${sample} returned an error).`);
+    console.warn('The app is probably running in Docker, whose uploads volume is separate from apps/web/uploads on this machine.');
+    console.warn('Copy the photos into the container with:  npm run seed:copy-docker   (or seed with: npm run seed:docker)');
+  }
+
+  const demo = PEOPLE.find((person) => person.key === DEMO_ACCOUNT)!;
+  console.log(`\nSeed complete. Sign in with ${demo.email} / ${SEED_PASSWORD} (every sample account uses the same password).`);
 }
 
-seed().catch(async (error) => { console.error(error); await disconnectInfrastructure(); process.exit(1); });
+/** Deletes everything the sample people created on a previous run, keeping the people and groups themselves. */
+async function removePreviousSample(seedIds: Id[], groupIds: Id[]) {
+  const seedPosts = await Post.find({ authorId: { $in: seedIds } }).distinct('_id');
+  // Posts by other accounts that sample people reacted to or commented on need their counters fixed afterwards.
+  const touched = [
+    ...await Reaction.find({ userId: { $in: seedIds }, postId: { $nin: seedPosts } }).distinct('postId'),
+    ...await Comment.find({ authorId: { $in: seedIds }, postId: { $nin: seedPosts } }).distinct('postId')
+  ];
+  const seedStories = await Story.find({ authorId: { $in: seedIds } }).distinct('_id');
+  // Conversations where every member is a sample person.
+  const conversations = await Conversation.find({ memberIds: { $not: { $elemMatch: { $nin: seedIds } } } }).distinct('_id');
+  const bothSeed = (a: string, b: string) => ({ [a]: { $in: seedIds }, [b]: { $in: seedIds } });
 
+  await Promise.all([
+    Reaction.deleteMany({ $or: [{ postId: { $in: seedPosts } }, { userId: { $in: seedIds } }] }),
+    Comment.deleteMany({ $or: [{ postId: { $in: seedPosts } }, { authorId: { $in: seedIds } }] }),
+    GroupPost.deleteMany({ postId: { $in: seedPosts } }),
+    Post.deleteMany({ _id: { $in: seedPosts } }),
+    StoryView.deleteMany({ $or: [{ storyId: { $in: seedStories } }, { viewerId: { $in: seedIds } }] }),
+    Story.deleteMany({ _id: { $in: seedStories } }),
+    Message.deleteMany({ conversationId: { $in: conversations } }),
+    Conversation.deleteMany({ _id: { $in: conversations } }),
+    Notification.deleteMany({ $or: [{ recipientId: { $in: seedIds } }, { actorId: { $in: seedIds } }] }),
+    Follow.deleteMany(bothSeed('followerId', 'followingId')),
+    Friendship.deleteMany(bothSeed('userAId', 'userBId')),
+    GroupMember.deleteMany({ groupId: { $in: groupIds }, userId: { $in: seedIds } }),
+    GroupJoinRequest.deleteMany({ groupId: { $in: groupIds }, userId: { $in: seedIds } }),
+    GroupInvite.deleteMany({ groupId: { $in: groupIds }, userId: { $in: seedIds } })
+  ]);
+  await recountPosts(touched);
+}
+
+async function recountPosts(postIds: Id[]) {
+  for (const postId of postIds) {
+    await Post.updateOne({ _id: postId }, {
+      reactionCount: await Reaction.countDocuments({ postId }),
+      commentCount: await Comment.countDocuments({ postId, deletedAt: null })
+    }, { timestamps: false });
+  }
+}
+
+seed()
+  .then(() => disconnectInfrastructure())
+  .catch(async (error) => { console.error(error); await disconnectInfrastructure(); process.exit(1); });

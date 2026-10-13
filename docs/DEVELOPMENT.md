@@ -201,6 +201,8 @@ Run from the repository root:
 | MongoDB indexes + migrations | `npm run db:migrate` |
 | Migration status | `npm run db:status` |
 | Wipe local database | `npm run db:reset -- --yes` |
+| Empty the whole app (database, uploads, Redis) | `npm run wipe:all -- --yes` ([details](SCRIPTS.md)) |
+| Clear Redis caches only | `npm run wipe:cache -- --yes` |
 | Sample data | `npm run seed` |
 | Check Docker Compose file | `docker compose config --quiet` |
 | Container status | `docker compose ps` |
@@ -275,4 +277,4 @@ The video worker is not running. Start it (Docker `media` service or `dev:worker
 
 ### Duplicate sample data
 
-The seed script uses upserts, so it is safe to run again. For a completely clean database, stop the stack and remove the volumes as shown above (this deletes all local data).
+The seed script keeps the sample accounts and rebuilds their content, so it is safe to run again (see [Sample data](SCRIPTS.md#sample-data-seed)). For a completely clean database, stop the stack and remove the volumes as shown above (this deletes all local data).
