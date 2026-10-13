@@ -15,7 +15,9 @@ const schema = z.object({
   REFRESH_TOKEN_DAYS: z.coerce.number().int().positive().default(30),
   COOKIE_SECURE: z.string().default('false').transform((value) => value === 'true'),
   FASTAPI_URL: z.string().url().default('http://localhost:8000'),
-  APP_ORIGIN: z.string().url().default('http://localhost:3000'),
+  APP_ORIGIN: z.string().default('http://localhost:3000')
+    .transform((value) => value.split(',').map((origin) => origin.trim()).filter(Boolean))
+    .pipe(z.array(z.string().url()).min(1)),
   PLACES_URL: z.string().url().default('https://photon.komoot.io'),
   LOG_LEVEL: z.string().default('info'),
   FFMPEG_PATH: z.string().min(1).default('ffmpeg')

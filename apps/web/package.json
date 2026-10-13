@@ -7,7 +7,7 @@
     "dev": "npm run build:client && npm run build:css && tsx watch src/server.ts",
     "dev:worker": "tsx watch src/media-worker.ts",
     "build": "npm run clean && tsc -p tsconfig.json && npm run build:client && npm run build:css",
-    "build:client": "esbuild src/views-or-client/app.ts --bundle --minify --format=esm --outfile=public/assets/app.js",
+    "build:client": "esbuild src/views-or-client/app.ts --bundle --minify --format=esm --outfile=public/assets/app.js && esbuild src/views-or-client/image-worker.ts --bundle --minify --format=iife --outfile=public/assets/image-worker.js && esbuild src/views-or-client/sw.ts --bundle --minify --format=iife --outfile=public/sw.js",
     "build:css": "tailwindcss -i src/views-or-client/styles.css -o public/assets/styles.css --minify",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "start": "node dist/server.js",

@@ -31,6 +31,12 @@ describe('authentication boundaries', () => {
     expect(response.text.indexOf('id="email"')).toBeLessThan(response.text.indexOf('id="password"'));
     expect(response.text.indexOf('id="password"')).toBeLessThan(response.text.indexOf('href="/reset-password"'));
   });
+
+  it('does not upgrade local HTTP assets to unavailable HTTPS URLs', async () => {
+    const response = await request(app).get('/login').set('Accept', 'text/html');
+
+    expect(response.headers['content-security-policy']).not.toContain('upgrade-insecure-requests');
+  });
 });
 
 describe('validation responses', () => {

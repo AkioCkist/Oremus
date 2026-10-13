@@ -1,0 +1,13 @@
+<%- include('partials/head', { bodyClass: 'bg-canvas' }) %>
+<%# Cached by the service worker and shown when a page can't load. Rendered anonymously so the cached copy holds no personal data. %>
+<meta http-equiv="refresh" content="20">
+<main id="main" class="grid min-h-dvh place-items-center bg-canvas p-6 text-center">
+  <div class="max-w-md">
+    <img src="/assets/brand/logo.svg" alt="" class="mx-auto size-16">
+    <h1 class="mt-6 text-balance text-2xl font-bold">You're offline</h1>
+    <p class="mt-2 text-pretty text-muted">Check your internet connection. This page will try again on its own once you're back online.</p>
+    <div class="mt-6 flex justify-center gap-2"><a class="btn-primary btn-lg" href="">Try again</a></div>
+  </div>
+</main>
+</body>
+</html>

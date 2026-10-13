@@ -6,7 +6,7 @@
   const gap = 20 * 60 * 1000;
 -%>
 <main id="main" class="mx-auto h-[calc(100dvh-3.5rem)] max-w-[100rem] pb-[3.75rem] md:p-4 md:pb-4">
-  <section class="flex h-full overflow-hidden bg-surface md:rounded-2xl md:shadow-card">
+  <section class="relative flex h-full overflow-hidden bg-surface md:rounded-2xl md:shadow-card">
     <!-- Icon rail -->
     <nav aria-label="Chat sections" class="hidden w-[4.5rem] shrink-0 flex-col items-center gap-2 border-r border-line py-4 lg:flex">
       <a href="/" class="msg-rail-link" aria-label="Back to home"><svg class="icon size-6"><use href="#i-arrow-left"/></svg></a>
@@ -101,7 +101,7 @@
 
     <% if (activeConversation && partner) { %>
     <!-- Chat details -->
-    <aside id="chat-details" class="hidden w-[22rem] shrink-0 flex-col overflow-y-auto border-l border-line p-4 xl:flex" aria-label="Chat details" data-chat-details>
+    <aside id="chat-details" class="hidden w-[22rem] shrink-0 flex-col overflow-y-auto border-l border-line bg-surface p-4 max-xl:absolute max-xl:inset-0 max-xl:z-30 max-xl:w-full xl:flex" aria-label="Chat details" data-chat-details>
       <div class="flex items-center justify-between"><h2 class="text-xl font-bold">Chat details</h2><button type="button" class="icon-btn-ghost" data-toggle-details aria-label="Close details"><svg class="icon"><use href="#i-x"/></svg></button></div>
       <div class="mt-5 flex flex-col items-center text-center">
         <%- include('partials/avatar', { person: partner, size: 'size-20 text-2xl' }) %>

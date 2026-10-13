@@ -17,10 +17,13 @@ import { pageRoutes } from './routes/page.routes.js';
 import { asyncHandler } from './utils/async-handler.js';
 import { viewHelpers } from './utils/view-helpers.js';
 
+// Built client bundles: served with ?v=<hash>, so they can be cached forever.
+const BUNDLES = ['styles.css', 'app.js', 'image-worker.js'];
+
 // Content hash appended to /assets URLs so browsers never keep a stale build.
 function assetVersion(): string {
   const hash = crypto.createHash('sha1');
-  for (const file of ['styles.css', 'app.js']) {
+  for (const file of BUNDLES) {
     try { hash.update(fs.readFileSync(path.resolve(process.cwd(), 'public/assets', file))); } catch { hash.update(String(Date.now())); }
   }
   return hash.digest('hex').slice(0, 10);
@@ -28,7 +31,7 @@ function assetVersion(): string {
 
 export function assetCacheControl(filePath: string, production = env.NODE_ENV === 'production'): string {
   if (!production) return 'no-store';
-  const bundle = ['app.js', 'styles.css'].includes(path.basename(filePath));
+  const bundle = BUNDLES.includes(path.basename(filePath));
   return bundle
     ? 'public, max-age=31536000, immutable'
     : 'public, max-age=604800';
@@ -44,7 +47,7 @@ export function createApp() {
   app.set('view engine', 'ejs');
   app.set('views', path.resolve(process.cwd(), 'src/views'));
   Object.assign(app.locals, viewHelpers, { assetVersion: assetVersion() });
-  app.use(helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'", 'https://cdn.socket.io'], imgSrc: ["'self'", 'data:', 'blob:', 'https:'], mediaSrc: ["'self'", 'blob:'], connectSrc: ["'self'", 'ws:', 'wss:'], styleSrc: ["'self'", 'https://fonts.googleapis.com'], fontSrc: ["'self'", 'https://fonts.gstatic.com'] } } }));
+  app.use(helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'", 'https://cdn.socket.io'], imgSrc: ["'self'", 'data:', 'blob:', 'https:'], mediaSrc: ["'self'", 'blob:'], connectSrc: ["'self'", 'ws:', 'wss:'], styleSrc: ["'self'", 'https://fonts.googleapis.com'], fontSrc: ["'self'", 'https://fonts.gstatic.com'], upgradeInsecureRequests: env.COOKIE_SECURE ? [] : null } } }));
   app.use(compression());
   app.use(pinoHttp({ logger }));
   app.use(requestContext);
@@ -56,6 +59,12 @@ export function createApp() {
   app.use('/assets', express.static(path.resolve(process.cwd(), 'public/assets'), { setHeaders: setAssetCacheHeaders }));
   // Upload filenames are UUIDs and are never overwritten, so they are safe to cache permanently.
   app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads'), { maxAge: '1y', immutable: true, fallthrough: false }));
+  // The service worker must be revalidated on every load so a deploy rolls out promptly; it controls the whole site.
+  app.get('/sw.js', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Service-Worker-Allowed', '/');
+    res.sendFile(path.resolve(process.cwd(), 'public/sw.js'));
+  });
   // Every remaining response is dynamic, personalized, or contains a CSRF token.
   app.use((_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
   app.use(csrfToken);
@@ -63,6 +72,8 @@ export function createApp() {
     const infrastructure = await checkInfrastructure();
     res.json({ ok: true, service: 'oremus-web', infrastructure });
   }));
+  // Precached by the service worker, so it is rendered without any session data.
+  app.get('/offline', (_req, res) => res.render('offline', { title: 'Offline', csrfToken: '', currentUser: null }));
   app.use(requireCsrf);
   app.use('/auth', authRoutes);
   app.use('/api', apiRoutes);

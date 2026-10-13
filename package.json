@@ -13,7 +13,8 @@
     "db:migrate": "npm --workspace @oremus/web run migrate",
     "db:status": "npm --workspace @oremus/web run migrate:status",
     "db:setup": "npm --workspace @oremus/web run db:setup",
-    "db:reset": "npm --workspace @oremus/web run db:reset --"
+    "db:reset": "npm --workspace @oremus/web run db:reset --",
+    "deploy:vps": "sh scripts/deploy-vps.sh"
   },
   "engines": { "node": ">=22" }
 }

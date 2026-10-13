@@ -28,6 +28,28 @@ describe('HTTP cache policy', () => {
     expect(assetCacheControl('/app/public/assets/app.js', false)).toBe('no-store');
   });
 
+  it('treats the image worker bundle as a versioned, immutable asset', () => {
+    expect(assetCacheControl('/app/public/assets/image-worker.js', true)).toBe('public, max-age=31536000, immutable');
+  });
+
+  it('serves the service worker for the whole site and always revalidates it', async () => {
+    const response = await request(createApp()).get('/sw.js');
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toMatch(/javascript/);
+    expect(response.headers['cache-control']).toBe('no-cache');
+    expect(response.headers['service-worker-allowed']).toBe('/');
+  });
+
+  it('renders the offline fallback page without session data', async () => {
+    const response = await request(createApp()).get('/offline');
+
+    expect(response.status).toBe(200);
+    expect(response.text).toContain("You're offline");
+    expect(response.text).toContain('<meta name="csrf-token" content="">');
+    expect(response.text).not.toContain('data-user-id');
+  });
+
   it('prevents storage of dynamic pages containing personalized or CSRF data', async () => {
     const response = await request(createApp()).get('/login');
 

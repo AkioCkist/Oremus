@@ -16,12 +16,19 @@ const resToken = (req: Request) => req.cookies?.csrf || '';
 const param = (req: Request, name: string) => String(req.params[name]);
 const AUTHOR_FIELDS = 'username displayName profile.avatarUrl';
 
-/** Header badges: unread notifications and conversations with unread messages. */
+/** Header badges and compact popover previews. */
 export async function navState(req: Request, res: Response, next: NextFunction) {
   if (req.user) {
     const blocked = await blockedUserIds(req.user.id);
-    const [unreadNotifications, unreadMessages] = await Promise.all([Notification.countDocuments({ recipientId: req.user.id, readAt: null, actorId: { $nin: blocked } }), countUnreadConversations(req.user.id)]);
-    Object.assign(res.locals, { unreadNotifications, unreadMessages });
+    const notificationFilter = { recipientId: req.user.id, actorId: { $nin: blocked } };
+    const [unreadNotifications, unreadMessages, headerConversations, headerNotificationRows] = await Promise.all([
+      Notification.countDocuments({ ...notificationFilter, readAt: null }),
+      countUnreadConversations(req.user.id),
+      listConversations(req.user.id, 8),
+      Notification.find(notificationFilter).sort({ createdAt: -1 }).limit(8).populate('actorId', AUTHOR_FIELDS).lean()
+    ]);
+    const headerNotifications = headerNotificationRows.filter((item: any) => item.actorId);
+    Object.assign(res.locals, { unreadNotifications, unreadMessages, headerConversations, headerNotifications });
   }
   next();
 }

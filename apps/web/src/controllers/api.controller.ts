@@ -58,6 +58,7 @@ export async function inviteToGroup(req: Request, res: Response) { const { userI
 export async function decideGroupPost(req: Request, res: Response) { const { decision } = decisionSchema.parse(req.body); res.json({ ok: true, data: await groups.decidePost(id(req), param(req, 'postId'), decision) }); }
 export async function decideJoin(req: Request, res: Response) { const { decision } = decisionSchema.parse(req.body); res.json({ ok: true, data: { request: await groups.decideJoin(id(req), param(req, 'requestId'), decision) } }); }
 export async function createConversation(req: Request, res: Response) { const { memberId } = conversationSchema.parse(req.body); const conversation = await messages.createConversation(id(req), memberId); res.status(201).json({ ok: true, data: { conversation, redirect: `/messages/${conversation.id}` } }); }
+export async function conversationPreview(req: Request, res: Response) { res.json({ ok: true, data: await messages.getConversationPreview(id(req), param(req, 'conversationId')) }); }
 export async function sendMessage(req: Request, res: Response) {
   const { content } = messageSchema.parse(req.body); const conversationId = param(req, 'conversationId');
   const result = await messages.sendMessage(id(req), conversationId, content);

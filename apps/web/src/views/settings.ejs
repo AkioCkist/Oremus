@@ -1,6 +1,6 @@
 <%- include('partials/head') %><%- include('partials/nav') %>
 <% const info = currentUser.profile || {}; -%>
-<main id="main" class="grid min-h-[calc(100dvh-3.5rem)] lg:grid-cols-[22.5rem_minmax(0,1fr)]">
+<main id="main" class="grid min-h-[calc(100dvh-3.5rem)] grid-cols-1 lg:grid-cols-[22.5rem_minmax(0,1fr)]">
   <aside class="border-b border-line bg-surface lg:sticky lg:top-14 lg:h-[calc(100dvh-3.5rem)] lg:border-b-0 lg:border-r" aria-label="Settings sections">
     <div class="p-4">
       <h1 class="font-display text-2xl font-extrabold">Settings</h1>

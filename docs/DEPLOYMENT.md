@@ -59,7 +59,7 @@ Set in `.env` (see `.env.example`). Docker Compose overrides the database hosts 
 | `REFRESH_TOKEN_DAYS` | `30` | web | "Remember me" session length |
 | `COOKIE_SECURE` | `false` | web | Set `true` behind HTTPS |
 | `FASTAPI_URL` | `http://localhost:8000` | web | Search service URL |
-| `APP_ORIGIN` | `http://localhost:3000` | web | Allowed origin for Socket.IO |
+| `APP_ORIGIN` | `http://localhost:3000` | web | Comma-separated allowed origins for Socket.IO |
 | `PLACES_URL` | `https://photon.komoot.io` | web | Place search provider |
 | `FFMPEG_PATH` | `ffmpeg` | media | Path to the ffmpeg binary |
 | `LOG_LEVEL` | `info` | web, media | pino log level |
@@ -95,6 +95,28 @@ flowchart LR
 ```
 
 Run the migration after every update that adds indexes. It is safe to run many times.
+
+## One-command VPS deployment
+
+On a Linux VPS, prepare `.env` once with strong JWT secrets and the public URL in
+`APP_ORIGIN`, then run:
+
+```sh
+sudo sh scripts/deploy-vps.sh
+```
+
+The equivalent npm alias is `sudo npm run deploy:vps` when `npm` is available
+on root's `PATH`.
+
+The deploy command validates the Compose configuration, builds and starts the
+containers, runs database migrations, waits for the web health check, and allows
+`WEB_PORT` through UFW or firewalld when either is installed. MongoDB, Redis, and
+the internal search API remain bound to localhost; only the web port is intended
+for public access.
+
+Some VPS providers also have a cloud firewall or security group outside the
+server. Allow `WEB_PORT` there once, or expose only ports 80/443 when adding an
+HTTPS reverse proxy.
 
 ## Production checklist
 

@@ -2,6 +2,7 @@ import { ACTIVITIES, FEELINGS, describeFeeling } from '../shared/feelings.js';
 import { STORY_VIDEO_MAX_SECONDS, storyTextAttrs, type StoryStyle } from '../shared/story-style.js';
 import { EMOJI_CATEGORIES } from './emoji-data.js';
 import './search-box.js';
+import { optimizeFormUploads, optimizeUpload, runImageJob } from './workers.js';
 
 declare const io: undefined | (() => { on: (event: string, callback: (payload: any) => void) => void; emit: (event: string, payload: unknown) => void });
 
@@ -26,7 +27,9 @@ function showToast(message: string, tone: 'success' | 'error' = 'success') {
 }
 
 async function request(url: string, options: RequestInit = {}) {
-  const response = await fetch(url, { credentials: 'same-origin', ...options, headers: { 'x-csrf-token': csrf, ...(options.headers || {}) } });
+  let response: Response;
+  try { response = await fetch(url, { credentials: 'same-origin', ...options, headers: { 'x-csrf-token': csrf, ...(options.headers || {}) } }); }
+  catch { throw new Error(navigator.onLine ? 'Could not reach Oremus. Please try again.' : "You're offline. Check your connection and try again."); }
   const payload = await response.json().catch(() => ({ ok: false, error: { message: 'Unexpected server response.' } }));
   if (!response.ok || !payload.ok) throw new Error(payload.error?.message || 'Request failed.');
   return payload.data;
@@ -112,7 +115,7 @@ $$<HTMLFormElement>('[data-api-form]').forEach((form) => {
       const formData = new FormData(form); formData.delete('_csrf');
       for (const [key, value] of [...formData.entries()]) if (value instanceof File && !value.name) formData.delete(key);
       const isMultipart = form.enctype === 'multipart/form-data';
-      const body: BodyInit = isMultipart ? formData : JSON.stringify(Object.fromEntries(formData));
+      const body: BodyInit = isMultipart ? await optimizeFormUploads(formData) : JSON.stringify(Object.fromEntries(formData));
       const data = await request(form.action, { method: form.dataset.method || form.method.toUpperCase(), body, headers: isMultipart ? {} : { 'content-type': 'application/json' } });
       if (data.redirect) window.location.assign(data.redirect);
       else if (form.dataset.reload !== undefined) window.location.reload();
@@ -812,12 +815,19 @@ async function showPickerPreview(src: string, choice: { url?: string; file?: Fil
   layoutCropFrame();
 }
 
-/** Draws exactly what is inside the frame onto a canvas at the output size and returns it as a JPEG. */
-function croppedBlob(): Promise<Blob> {
+/** Draws exactly what is inside the frame at the output size and returns it as a JPEG, in a worker when possible. */
+async function croppedBlob(): Promise<Blob> {
   const { image } = cropElements();
   const output = CROP_OUTPUT[pickerKind];
   const ratio = output.width / crop.frameW;
   const { width, height } = cropSize();
+  const source = pickerChoice?.file || pickerChoice?.url;
+  if (source) {
+    try {
+      const blob = await runImageJob({ task: 'crop', source, draw: { x: crop.left * ratio, y: crop.top * ratio, width: width * ratio, height: height * ratio }, output, quality: 0.9 });
+      if (blob) return blob;
+    } catch { /* fall back to the main thread */ }
+  }
   const canvas = document.createElement('canvas'); canvas.width = output.width; canvas.height = output.height;
   const context = canvas.getContext('2d')!;
   context.fillStyle = '#ffffff'; context.fillRect(0, 0, canvas.width, canvas.height);
@@ -1143,13 +1153,14 @@ editPostForm?.addEventListener('submit', async (event) => {
   // Always sent so removing a feeling or check-in also saves ("" = remove).
   body.append('feeling', editExtras?.state.feeling ? JSON.stringify(editExtras.state.feeling) : '');
   body.append('place', editExtras?.state.place ? JSON.stringify(editExtras.state.place) : '');
+  submit.disabled = true; error.classList.add('hidden');
   let upload = 0;
-  const layout = editSlots.map((slot) => {
+  const optimized = await Promise.all(editSlots.map((slot) => (slot.file ? optimizeUpload(slot.file) : null)));
+  const layout = editSlots.map((slot, index) => {
     if (slot.id) return { id: slot.id };
-    body.append('images', slot.file!); return { upload: upload++ };
+    body.append('images', optimized[index]!); return { upload: upload++ };
   });
   body.append('layout', JSON.stringify(layout));
-  submit.disabled = true; error.classList.add('hidden');
   try { await request(`/api/posts/${editPostForm.dataset.postId}`, { method: 'PATCH', body }); window.location.reload(); }
   catch (caught) { error.textContent = caught instanceof Error ? caught.message : 'Could not save the post.'; error.classList.remove('hidden'); }
   finally { submit.disabled = false; }
@@ -1164,7 +1175,7 @@ async function photoMenuFor(trigger: HTMLElement): Promise<PhotoMenuItem[]> {
     return [view,
       { label: `Replace ${noun}`, icon: 'i-edit', run: async () => {
         const [file] = await pickMediaFiles(); if (!file) return;
-        const body = new FormData(); body.append('photo', file);
+        const body = new FormData(); body.append('photo', await optimizeUpload(file));
         try { await request(`/api/posts/${post}/media/${media}`, { method: 'PUT', body }); window.location.reload(); }
         catch (caught) { showToast(caught instanceof Error ? caught.message : `Could not replace ${noun}.`, 'error'); }
       } },
@@ -1714,8 +1725,9 @@ document.addEventListener('click', async (event) => {
     if (data.scrollRail !== undefined) { $('[data-story-rail]')?.scrollBy({ left: 360, behavior: 'smooth' }); return; }
     if (data.toggleDetails !== undefined) {
       const panel = $('[data-chat-details]'); if (!panel) return;
-      const hidden = panel.classList.toggle('xl:flex'); panel.classList.toggle('hidden', !hidden);
-      $$('[data-toggle-details][aria-expanded]').forEach((button) => button.setAttribute('aria-expanded', String(hidden))); return;
+      const opening = getComputedStyle(panel).display === 'none';
+      panel.classList.toggle('!flex', opening); panel.classList.toggle('!hidden', !opening);
+      $$('[data-toggle-details][aria-expanded]').forEach((button) => button.setAttribute('aria-expanded', String(opening))); return;
     }
     if (data.editPost) {
       target.closest<HTMLDetailsElement>('details')?.removeAttribute('open');
@@ -1798,7 +1810,7 @@ document.addEventListener('click', async (event) => {
       $$('[data-unread-time]').forEach((node) => { node.classList.remove('font-semibold', 'text-brand-600'); node.classList.add('text-muted'); });
       showToast('All notifications marked as read.'); return;
     }
-    if (data.logout !== undefined) { const result = await request('/auth/logout', { method: 'POST' }); window.location.assign(result.redirect); }
+    if (data.logout !== undefined) { await clearUserCaches(); const result = await request('/auth/logout', { method: 'POST' }); window.location.assign(result.redirect); }
   } catch (caught) {
     const message = caught instanceof Error ? caught.message : 'Action failed.';
     const error = target.closest('.profile-actions')?.querySelector<HTMLElement>('[data-profile-action-error]');
@@ -1982,6 +1994,91 @@ $<HTMLInputElement>('[data-group-filter]')?.addEventListener('input', (event) =>
 
 /* ---------- Messenger ---------- */
 
+const miniChatDock = $('[data-mini-chat-dock]');
+const miniChatPanel = (conversationId: string) => miniChatDock?.querySelector<HTMLElement>(`[data-mini-conversation="${CSS.escape(conversationId)}"]`) || null;
+
+function setMiniChatCollapsed(panel: HTMLElement, collapsed: boolean) {
+  panel.classList.toggle('h-[28rem]', !collapsed); panel.classList.toggle('h-12', collapsed);
+  $('[data-mini-message-list]', panel)?.classList.toggle('hidden', collapsed);
+  $('[data-mini-message-form]', panel)?.classList.toggle('hidden', collapsed);
+  const toggle = $('[data-mini-toggle]', panel); toggle?.setAttribute('aria-expanded', String(!collapsed));
+}
+
+function appendMiniMessage(panel: HTMLElement, message: any) {
+  const list = $('[data-mini-message-list]', panel); if (!list) return;
+  $('[data-mini-empty]', list)?.remove();
+  const mine = senderIdOf(message) === me.id;
+  const row = document.createElement('div'); row.className = `flex ${mine ? 'justify-end' : 'justify-start'}`;
+  const bubble = document.createElement('p'); bubble.className = `bubble ${mine ? 'bubble-me' : 'bubble-them'}`;
+  bubble.textContent = String(message.content || '');
+  bubble.title = new Date(message.createdAt || Date.now()).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  row.appendChild(bubble); list.appendChild(row); list.scrollTop = list.scrollHeight;
+}
+
+function createMiniChatShell(conversationId: string, displayName: string, avatarUrl: string) {
+  const panel = document.createElement('section');
+  panel.className = 'flex h-[28rem] w-80 flex-col overflow-hidden rounded-t-xl bg-surface shadow-pop ring-1 ring-black/10';
+  panel.dataset.miniConversation = conversationId; panel.setAttribute('aria-label', `Chat with ${displayName}`);
+
+  const header = document.createElement('header'); header.className = 'flex h-12 shrink-0 items-center gap-2 border-b border-line px-2';
+  const person = document.createElement('a'); person.className = 'flex min-w-0 flex-1 items-center gap-2 rounded-lg p-1 hover:bg-hover'; person.href = `/messages/${conversationId}`;
+  const name = document.createElement('span'); name.className = 'truncate font-semibold'; name.textContent = displayName;
+  person.append(avatarEl({ displayName, avatarUrl }, 'size-8 text-xs'), name);
+  const full = document.createElement('a'); full.className = 'icon-btn-ghost size-8 text-brand-600'; full.href = `/messages/${conversationId}`; full.setAttribute('aria-label', 'Open full chat'); full.appendChild(svgUse('i-expand', 'icon size-4'));
+  const minimize = document.createElement('button'); minimize.type = 'button'; minimize.className = 'icon-btn-ghost size-8 text-brand-600'; minimize.dataset.miniToggle = ''; minimize.setAttribute('aria-label', `Minimize chat with ${displayName}`); minimize.setAttribute('aria-expanded', 'true'); minimize.appendChild(svgUse('i-minus', 'icon size-4'));
+  const close = document.createElement('button'); close.type = 'button'; close.className = 'icon-btn-ghost size-8 text-brand-600'; close.setAttribute('aria-label', `Close chat with ${displayName}`); close.appendChild(svgUse('i-x', 'icon size-4'));
+  minimize.addEventListener('click', () => setMiniChatCollapsed(panel, minimize.getAttribute('aria-expanded') === 'true'));
+  close.addEventListener('click', () => panel.remove()); header.append(person, full, minimize, close);
+
+  const list = document.createElement('div'); list.className = 'flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto bg-canvas px-3 py-3'; list.dataset.miniMessageList = ''; list.setAttribute('aria-live', 'polite');
+  const skeleton = document.createElement('div'); skeleton.className = 'space-y-2'; skeleton.dataset.miniLoading = '';
+  for (const width of ['w-2/3', 'ml-auto w-3/4', 'w-1/2']) { const line = document.createElement('span'); line.className = `block h-9 ${width} rounded-[1.125rem] bg-control`; skeleton.appendChild(line); }
+  list.appendChild(skeleton);
+
+  const form = document.createElement('form'); form.className = 'flex shrink-0 items-center gap-2 border-t border-line p-2'; form.dataset.miniMessageForm = '';
+  const label = document.createElement('label'); label.className = 'sr-only'; label.htmlFor = `mini-chat-${conversationId}`; label.textContent = `Message ${displayName}`;
+  const input = document.createElement('input'); input.id = label.htmlFor; input.name = 'content'; input.className = 'pill-input h-9 min-w-0 flex-1'; input.placeholder = 'Aa'; input.maxLength = 3000; input.autocomplete = 'off'; input.disabled = true;
+  const send = document.createElement('button'); send.type = 'submit'; send.className = 'grid size-9 shrink-0 place-items-center rounded-full text-brand-600 hover:bg-hover disabled:opacity-40'; send.setAttribute('aria-label', 'Send message'); send.disabled = true; send.appendChild(svgUse('i-send', 'icon'));
+  form.append(label, input, send); panel.append(header, list, form);
+  return panel;
+}
+
+async function openMiniChat(link: HTMLAnchorElement) {
+  if (!miniChatDock) return;
+  const conversationId = link.dataset.miniChat; if (!conversationId) return;
+  const existing = miniChatPanel(conversationId);
+  if (existing) { setMiniChatCollapsed(existing, false); $<HTMLInputElement>('[name="content"]', existing)?.focus(); return; }
+  const panels = $$<HTMLElement>('[data-mini-conversation]', miniChatDock);
+  if (panels.length >= 2) panels[0]?.remove();
+  const displayName = link.dataset.chatName || 'Chat';
+  const panel = createMiniChatShell(conversationId, displayName, link.dataset.chatAvatar || ''); miniChatDock.appendChild(panel);
+  try {
+    const result = await request(`/api/conversations/${conversationId}/preview`);
+    const list = $('[data-mini-message-list]', panel)!; list.replaceChildren();
+    if (result.messages.length) result.messages.forEach((message: any) => appendMiniMessage(panel, message));
+    else { const empty = document.createElement('p'); empty.className = 'm-auto text-pretty text-center text-sm text-muted'; empty.dataset.miniEmpty = ''; empty.textContent = `No messages yet. Say hello to ${firstNameOf(result.conversation.partner.displayName)}.`; list.appendChild(empty); }
+    const input = $<HTMLInputElement>('[name="content"]', panel)!, send = $<HTMLButtonElement>('button[type="submit"]', panel)!;
+    input.disabled = false; send.disabled = false; setUnread('messages', result.unreadMessages); $('[data-mini-unread]', link)?.remove(); input.focus();
+    const person = $('header a', panel); if (person && result.conversation.partner.username) person.setAttribute('href', `/profile/${result.conversation.partner.username}`);
+    $<HTMLFormElement>('[data-mini-message-form]', panel)!.addEventListener('submit', async (event) => {
+      event.preventDefault(); const content = input.value.trim(); if (!content) return;
+      input.disabled = true; send.disabled = true;
+      try { const sent = await postJson(`/api/conversations/${conversationId}/messages`, { content }); input.value = ''; appendMiniMessage(panel, sent.message); }
+      catch (caught) { showToast(caught instanceof Error ? caught.message : 'Message failed.', 'error'); }
+      finally { input.disabled = false; send.disabled = false; input.focus(); }
+    });
+  } catch (caught) {
+    const list = $('[data-mini-message-list]', panel)!; list.replaceChildren();
+    const error = document.createElement('p'); error.className = 'm-auto px-5 text-pretty text-center text-sm text-red-600'; error.setAttribute('role', 'alert'); error.textContent = caught instanceof Error ? caught.message : 'Could not open this chat.'; list.appendChild(error);
+  }
+}
+
+document.addEventListener('click', (event) => {
+  const link = (event.target as HTMLElement).closest<HTMLAnchorElement>('[data-mini-chat]');
+  if (!link || window.innerWidth < 1024 || !(event instanceof MouseEvent) || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  event.preventDefault(); link.closest<HTMLDetailsElement>('details')?.removeAttribute('open'); void openMiniChat(link);
+});
+
 const messageList = $('#message-list');
 if (messageList) messageList.scrollTop = messageList.scrollHeight;
 const activeConversation = $('[data-conversation]')?.dataset.conversation || '';
@@ -2157,10 +2254,16 @@ if (typeof io === 'function' && me.id) {
     if (senderIdOf(message) === me.id) return; // already rendered from the POST response
     const name = senderOf(message)?.displayName || 'Someone';
     const inActiveChat = String(message.conversationId) === activeConversation;
+    const openMini = miniChatPanel(String(message.conversationId));
     if (inActiveChat) {
       appendMessage(message); updateChatRow(message, false);
       if (document.hidden && typeof message.unreadMessages === 'number') setUnread('messages', message.unreadMessages);
       markActiveRead();
+    } else if (openMini) {
+      appendMiniMessage(openMini, message); updateChatRow(message, false);
+      void postJson(`/api/conversations/${message.conversationId}/read`, {})
+        .then((result) => setUnread('messages', result.unreadMessages))
+        .catch(() => undefined);
     } else {
       updateChatRow(message, true);
       if (typeof message.unreadMessages === 'number') setUnread('messages', message.unreadMessages);
@@ -2409,3 +2512,30 @@ if (viewer && storyData && Number(viewer.dataset.activeIndex) >= 0) {
   render();
   requestAnimationFrame((now) => { last = now; tick(now); });
 }
+
+/* ---------- Offline support: service worker and connection status ---------- */
+
+// Must match UPLOADS_CACHE in sw.ts.
+const UPLOADS_CACHE = 'oremus-uploads';
+
+/** Cached photos can come from private posts, so they are dropped when the user logs out. */
+async function clearUserCaches() {
+  try {
+    navigator.serviceWorker?.controller?.postMessage({ type: 'clear-user-cache' });
+    if (typeof caches !== 'undefined') await caches.delete(UPLOADS_CACHE);
+  } catch { /* storage unavailable */ }
+}
+
+if ('serviceWorker' in navigator && window.isSecureContext) {
+  // Same content hash as this bundle, so every deploy installs a fresh worker and drops old caches.
+  const register = () => navigator.serviceWorker.register(`/sw.js${new URL(import.meta.url).search}`).catch(() => undefined);
+  if (document.readyState === 'complete') void register(); else window.addEventListener('load', () => void register(), { once: true });
+}
+
+function paintConnection(announce: boolean) {
+  document.documentElement.toggleAttribute('data-offline', !navigator.onLine);
+  if (announce) showToast(navigator.onLine ? 'Back online.' : "You're offline. Some features won't work until you reconnect.", navigator.onLine ? 'success' : 'error');
+}
+window.addEventListener('online', () => paintConnection(true));
+window.addEventListener('offline', () => paintConnection(true));
+if (!navigator.onLine) paintConnection(true);

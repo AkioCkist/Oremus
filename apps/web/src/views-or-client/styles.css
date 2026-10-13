@@ -117,6 +117,8 @@
   .header-primary { @apply max-w-[50rem]; }
   .header-action { @apply size-11; }
   .header-action > .icon { @apply size-6; }
+  .header-popover { @apply absolute right-0 top-12 z-40 w-[22.5rem] max-w-[calc(100vw-1rem)] overflow-hidden rounded-xl bg-surface shadow-pop; }
+  .mini-chat-dock { position: fixed; right: max(1rem, env(safe-area-inset-right)); bottom: max(0rem, env(safe-area-inset-bottom)); z-index: 50; }
   .top-tab { @apply relative grid h-14 w-full max-w-[10rem] place-items-center text-muted; }
   .top-tab > span { @apply grid h-12 w-full place-items-center rounded-lg transition-colors; }
   .top-tab:hover > span { @apply bg-hover; }

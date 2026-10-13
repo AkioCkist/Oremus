@@ -1,4 +1,5 @@
 <div id="toast-region" class="pointer-events-none fixed bottom-20 left-4 z-[60] flex flex-col gap-2 md:bottom-6" aria-live="polite" aria-atomic="true"></div>
+<div class="mini-chat-dock hidden items-end gap-3 lg:flex" data-mini-chat-dock aria-label="Open mini chats"></div>
 <% if (currentUser) { %><%- include('break-dialog') %><% } %>
 
 <dialog id="confirm-dialog" class="w-[min(30rem,calc(100%-2rem))] rounded-xl p-0 shadow-pop" role="alertdialog" aria-labelledby="confirm-title" aria-describedby="confirm-description">

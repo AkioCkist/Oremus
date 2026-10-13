@@ -42,6 +42,7 @@ apiRoutes.post('/group-posts/:postId/decision', asyncHandler(controller.decideGr
 apiRoutes.post('/groups/:groupId/join', asyncHandler(controller.requestJoin));
 apiRoutes.post('/group-requests/:requestId/decision', asyncHandler(controller.decideJoin));
 apiRoutes.post('/conversations', asyncHandler(controller.createConversation));
+apiRoutes.get('/conversations/:conversationId/preview', asyncHandler(controller.conversationPreview));
 apiRoutes.post('/conversations/:conversationId/messages', rateLimit('message', 120, 60), asyncHandler(controller.sendMessage));
 apiRoutes.post('/conversations/:conversationId/read', asyncHandler(controller.readConversation));
 apiRoutes.get('/stories', asyncHandler(story.tray));

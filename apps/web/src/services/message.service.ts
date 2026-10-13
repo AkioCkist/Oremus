@@ -23,10 +23,10 @@ export async function createConversation(userId: string, memberId: string) {
   return existing || Conversation.create({ memberIds: [userId, memberId] });
 }
 
-export async function listConversations(userId: string) {
+export async function listConversations(userId: string, limit = 60) {
   const friendIds = new Set(await listFriendIds(userId));
   if (!friendIds.size) return [];
-  const conversations = await Conversation.find(conversationMemberFilter(userId, friendIds)).sort({ lastMessageAt: -1 }).limit(60).populate('memberIds', 'username displayName profile.avatarUrl').lean();
+  const conversations = await Conversation.find(conversationMemberFilter(userId, friendIds)).sort({ lastMessageAt: -1 }).limit(limit).populate('memberIds', 'username displayName profile.avatarUrl').lean();
   if (!conversations.length) return [];
   const latest = await Message.aggregate([
     { $match: { conversationId: { $in: conversations.map((item: any) => item._id) }, deletedAt: null } },
@@ -64,6 +64,16 @@ export async function countUnreadConversations(userId: string): Promise<number> 
 export async function listMessages(userId: string, conversationId: string) {
   await conversationForFriend(userId, conversationId);
   return Message.find({ conversationId, deletedAt: null }).sort({ createdAt: 1 }).limit(100).populate('senderId', 'username displayName profile.avatarUrl').lean();
+}
+
+/** Compact conversation payload used by the floating mini-chat. Opening it marks the thread read. */
+export async function getConversationPreview(userId: string, conversationId: string) {
+  const conversation: any = await conversationForFriend(userId, conversationId);
+  await conversation.populate('memberIds', 'username displayName profile.avatarUrl');
+  const recent = await Message.find({ conversationId, deletedAt: null }).sort({ createdAt: -1 }).limit(50).populate('senderId', 'username displayName profile.avatarUrl').lean();
+  await markConversationRead(userId, conversationId);
+  const partner = conversation.memberIds.find((member: any) => String(member._id) !== String(userId)) || conversation.memberIds[0];
+  return { conversation: { _id: conversation._id, partner }, messages: recent.reverse(), unreadMessages: await countUnreadConversations(userId) };
 }
 
 export async function sendMessage(userId: string, conversationId: string, content: string) {

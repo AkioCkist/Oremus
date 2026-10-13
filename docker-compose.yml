@@ -3,7 +3,7 @@ services:
     image: mongo:8.0
     restart: unless-stopped
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     volumes:
       - mongo-data:/data/db
     healthcheck:
@@ -16,7 +16,7 @@ services:
     image: redis:7.4-alpine
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     command: redis-server --appendonly yes
     volumes:
       - redis-data:/data
@@ -33,7 +33,7 @@ services:
       MONGODB_URI: mongodb://mongo:27017/${MONGO_DB_NAME:-oremus}
       REDIS_URL: redis://redis:6379
     ports:
-      - "${API_PORT:-8001}:8000"
+      - "127.0.0.1:${API_PORT:-8001}:8000"
     depends_on:
       mongo:
         condition: service_healthy
