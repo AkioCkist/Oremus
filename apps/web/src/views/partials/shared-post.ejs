@@ -1,0 +1,47 @@
+<%# The original post inside a share (Facebook-style attachment). Locals: shared (populated original, or null when unavailable). -%>
+<% if (!shared) { %>
+<div class="mx-4 mb-3 flex items-start gap-3 rounded-lg border border-line bg-canvas p-4">
+  <span class="icon-btn shrink-0 bg-surface text-muted"><svg class="icon"><use href="#i-lock"/></svg></span>
+  <span class="min-w-0"><span class="block font-semibold">This content isn't available right now</span><span class="mt-0.5 block text-pretty text-[0.8125rem] text-muted">When this happens, it's usually because the owner only shared it with a small group of people, changed who can see it, or it's been deleted.</span></span>
+</div>
+<% } else {
+  const sAuthor = shared.authorId || {};
+  const sGroup = shared.groupId && shared.groupId.name ? shared.groupId : null;
+  const sMedia = (shared.media || []).slice(0, 4);
+  const sExtra = (shared.media || []).length - sMedia.length;
+  const sFeeling = describeFeeling(shared.feeling);
+  const sIcon = shared.visibility === 'private' ? 'i-lock' : shared.visibility === 'followers' ? 'i-users' : 'i-globe';
+-%>
+<div class="mx-4 mb-3 overflow-hidden rounded-lg border border-line" data-shared-post="<%= shared._id %>">
+  <% if (sMedia.length) { %>
+  <a href="/posts/<%= shared._id %>" class="media-grid <%= sMedia.length === 1 ? '' : 'grid-cols-2' %>" aria-label="Open the shared post">
+    <% sMedia.forEach(function (m, i) { const video = String(m.mimeType || '').startsWith('video/'); %>
+    <span class="relative block overflow-hidden <%= sMedia.length === 1 ? 'max-h-[30rem]' : sMedia.length === 3 && i === 0 ? 'row-span-2' : 'aspect-square' %>">
+      <% if (video) { %>
+      <% if (m.poster) { %><img src="<%= m.poster %>" alt="" loading="lazy" decoding="async"><% } else { %><video src="<%= m.url %>#t=0.1" muted playsinline preload="metadata" tabindex="-1" aria-hidden="true"></video><% } %>
+      <span class="pointer-events-none absolute inset-0 grid place-items-center"><span class="grid size-12 place-items-center rounded-full bg-black/55 text-white ring-2 ring-white/80"><svg class="icon size-6 translate-x-0.5 fill-current"><use href="#i-play"/></svg></span></span>
+      <% } else { %><img src="<%= m.url %>" alt="<%= m.alt || ('Photo shared by ' + sAuthor.displayName) %>" loading="lazy" decoding="async"><% } %>
+      <% if (i === sMedia.length - 1 && sExtra > 0) { %><span class="absolute inset-0 grid place-items-center bg-black/45 font-display text-2xl font-bold text-white">+<%= sExtra %></span><% } %>
+    </span>
+    <% }) %>
+  </a>
+  <% } %>
+  <div class="px-3 py-3">
+    <div class="flex items-start gap-2.5">
+      <a href="/profile/<%= sAuthor.username %>" class="shrink-0" aria-label="<%= sAuthor.displayName %>'s profile"><%- include('avatar', { person: sAuthor, size: 'size-10 text-sm' }) %></a>
+      <div class="min-w-0 flex-1 leading-tight">
+        <p class="text-15">
+          <a class="font-semibold hover:underline" href="/profile/<%= sAuthor.username %>"><%= sAuthor.displayName %></a>
+          <% if (sGroup) { %><svg class="icon -mt-0.5 inline size-3.5 text-muted"><use href="#i-chevron-right"/></svg> <a class="font-semibold hover:underline" href="/groups/<%= sGroup.slug %>"><%= sGroup.name %></a><% } %>
+          <% if (sFeeling || shared.place) { %><span> is<% if (sFeeling) { %> <%= sFeeling.emoji %> <%= sFeeling.text %><% } %><% if (shared.place) { %> at <span class="font-semibold"><%= shared.place.name %></span><% } %>.</span><% } %>
+        </p>
+        <p class="mt-0.5 flex items-center gap-1 text-[0.8125rem] text-muted">
+          <a class="hover:underline" href="/posts/<%= shared._id %>" title="<%= longTime(shared.createdAt) %>"><time datetime="<%= new Date(shared.createdAt).toISOString() %>"><%= timeAgo(shared.createdAt) %></time></a>
+          <span aria-hidden="true">·</span><svg class="icon size-3.5" aria-hidden="true"><use href="#<%= sIcon %>"/></svg>
+        </p>
+      </div>
+    </div>
+    <% if (shared.content) { %><p class="mt-2 line-clamp-6 whitespace-pre-wrap break-words text-15 leading-[1.4]"><%= shared.content %></p><% } %>
+  </div>
+</div>
+<% } %>

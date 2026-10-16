@@ -1,15 +1,5 @@
 <%
   const unreadN = locals.unreadNotifications || 0, unreadM = locals.unreadMessages || 0;
-  const headerChats = locals.headerConversations || [], headerAlerts = locals.headerNotifications || [];
-  const meId = currentUser ? String(currentUser._id) : '';
-  const chatPartner = function (conversation) { return conversation.memberIds.find(function (member) { return String(member._id) !== meId; }) || conversation.memberIds[0]; };
-  const notificationHref = function (notification) {
-    if (notification.entityType === 'Post') return `/posts/${notification.entityId}`;
-    if (notification.entityType === 'Conversation') return `/messages/${notification.entityId}`;
-    if (notification.entityType === 'Group') return `/g/${notification.entityId}`;
-    if (notification.entityType === 'Story') return '/stories/archive';
-    return `/profile/${notification.actorId.username}`;
-  };
 -%>
 <header class="sticky top-0 z-40 h-14 border-b border-line bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
   <div class="flex h-full items-center gap-2 px-3 sm:px-4 xl:gap-3">
@@ -36,72 +26,22 @@
 
     <!-- Right actions -->
     <div class="ml-auto flex items-center justify-end gap-2 xl:w-[28rem] xl:gap-3">
-      <details class="group/menu relative" data-menu>
+      <details class="group/menu relative" data-menu data-read-on-open="messages">
         <summary class="icon-btn header-action relative <%= path.startsWith('/messages') ? '!bg-brand-50 !text-brand-600' : '' %> group-open/menu:bg-brand-50 group-open/menu:text-brand-600" aria-label="Messages<%= unreadM ? `, ${unreadM} unread` : '' %>" data-badge-link="messages" data-badge-label="Messages">
           <svg class="icon"><use href="#i-chat"/></svg>
           <% if (unreadM) { %><span class="badge" data-badge><%= unreadM > 9 ? '9+' : unreadM %></span><% } %>
         </summary>
-        <section class="header-popover" aria-label="Recent chats">
-          <div class="flex items-center justify-between px-4 pb-2 pt-4">
-            <h2 class="text-balance font-display text-2xl font-extrabold">Chats</h2>
-            <a href="/search?kind=user" class="icon-btn-ghost" aria-label="New message"><svg class="icon size-6"><use href="#i-compose"/></svg></a>
-          </div>
-          <% if (headerChats.length) { %>
-          <ul class="max-h-[28rem] overflow-y-auto px-2 pb-2">
-            <% headerChats.forEach(function (conversation) { const partner = chatPartner(conversation); const last = conversation.lastMessage; const mine = last && String(last.senderId) === meId; %>
-            <li>
-              <a href="/messages/<%= conversation._id %>" class="flex items-center gap-3 rounded-lg p-2 hover:bg-hover" data-mini-chat="<%= conversation._id %>" data-chat-name="<%= partner.displayName %>" data-chat-avatar="<%= (partner.profile && partner.profile.avatarUrl) || '' %>">
-                <%- include('avatar', { person: partner, size: 'size-12 text-sm' }) %>
-                <span class="min-w-0 flex-1">
-                  <span class="block truncate text-15 <%= conversation.unread ? 'font-bold' : 'font-semibold' %>"><%= partner.displayName %></span>
-                  <span class="flex gap-1 text-[0.8125rem] <%= conversation.unread ? 'font-semibold text-ink' : 'text-muted' %>">
-                    <span class="truncate"><%= last ? `${mine ? 'You' : firstName(partner.displayName)}: ${last.content}` : 'Start a conversation' %></span>
-                    <% if (last) { %><span aria-hidden="true">·</span><span class="shrink-0 font-normal text-muted"><%= timeAgo(last.createdAt) %></span><% } %>
-                  </span>
-                </span>
-                <% if (conversation.unread) { %><span class="size-3 shrink-0 rounded-full bg-brand-600" aria-label="Unread" data-mini-unread></span><% } %>
-              </a>
-            </li>
-            <% }) %>
-          </ul>
-          <% } else { %>
-          <div class="px-6 py-8 text-center"><div class="empty-icon"><svg class="icon size-7"><use href="#i-chat"/></svg></div><p class="mt-3 font-semibold">No chats yet</p><p class="mt-1 text-pretty text-sm text-muted">Find a friend and start a conversation.</p></div>
-          <% } %>
-          <div class="border-t border-line p-2"><a href="/messages" class="btn-secondary w-full">Go to chats</a></div>
+        <section class="header-popover" aria-label="Recent chats" data-live-panel="chats">
+          <%- include('header-chats') %>
         </section>
       </details>
-      <details class="group/menu relative" data-menu>
+      <details class="group/menu relative" data-menu data-read-on-open="notifications">
         <summary class="icon-btn header-action relative <%= path === '/notifications' ? '!bg-brand-50 !text-brand-600' : '' %> group-open/menu:bg-brand-50 group-open/menu:text-brand-600" aria-label="Notifications<%= unreadN ? `, ${unreadN} unread` : '' %>" data-badge-link="notifications" data-badge-label="Notifications">
           <svg class="icon"><use href="#i-bell"/></svg>
           <% if (unreadN) { %><span class="badge" data-badge><%= unreadN > 9 ? '9+' : unreadN %></span><% } %>
         </summary>
-        <section class="header-popover" aria-label="Recent notifications">
-          <div class="flex items-center justify-between px-4 pb-2 pt-4">
-            <h2 class="text-balance font-display text-2xl font-extrabold">Notifications</h2>
-            <% if (unreadN) { %><button type="button" class="btn-ghost px-2 text-sm text-brand-600" data-read-notifications>Mark all read</button><% } %>
-          </div>
-          <% if (headerAlerts.length) { %>
-          <ul class="max-h-[28rem] overflow-y-auto px-2 pb-2">
-            <% headerAlerts.forEach(function (notification) { %>
-            <li>
-              <a href="<%= notificationHref(notification) %>" class="flex items-center gap-3 rounded-lg p-2 hover:bg-hover">
-                <span class="relative shrink-0">
-                  <%- include('avatar', { person: notification.actorId, size: 'size-12 text-sm' }) %>
-                  <span class="absolute -bottom-0.5 -right-0.5 grid size-6 place-items-center rounded-full bg-brand-600 text-white ring-2 ring-surface"><svg class="icon size-3.5"><use href="#i-bell"/></svg></span>
-                </span>
-                <span class="min-w-0 flex-1">
-                  <span class="line-clamp-2 text-15 <%= notification.readAt ? 'text-muted' : '' %>"><strong class="font-semibold text-ink"><%= notification.actorId.displayName %></strong> <%= notification.text %></span>
-                  <span class="mt-0.5 block text-[0.8125rem] <%= notification.readAt ? 'text-muted' : 'font-semibold text-brand-600' %>" data-unread-time><%= timeAgo(notification.createdAt) %></span>
-                </span>
-                <% if (!notification.readAt) { %><span class="size-3 shrink-0 rounded-full bg-brand-600" data-unread-dot aria-label="Unread"></span><% } %>
-              </a>
-            </li>
-            <% }) %>
-          </ul>
-          <% } else { %>
-          <div class="px-6 py-8 text-center"><div class="empty-icon"><svg class="icon size-7"><use href="#i-bell"/></svg></div><p class="mt-3 font-semibold">You're all caught up</p><p class="mt-1 text-pretty text-sm text-muted">New activity will appear here.</p></div>
-          <% } %>
-          <div class="border-t border-line p-2"><a href="/notifications" class="btn-secondary w-full">View all notifications</a></div>
+        <section class="header-popover" aria-label="Recent notifications" data-live-panel="notifications">
+          <%- include('header-notifications') %>
         </section>
       </details>
       <details class="relative" data-menu>

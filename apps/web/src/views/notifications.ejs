@@ -12,13 +12,11 @@
         <a class="chip <%= filter === 'all' ? 'chip-active' : '' %>" href="/notifications" <%= filter === 'all' ? 'aria-current=page' : '' %>>All</a>
         <a class="chip <%= filter === 'unread' ? 'chip-active' : '' %>" href="/notifications?filter=unread" <%= filter === 'unread' ? 'aria-current=page' : '' %>>Unread</a>
       </nav>
-      <% if (items.length) { %>
+      <%# The list is always rendered so notifications that arrive live have somewhere to go. %>
       <ul class="px-2 pb-2" data-infinite="notifications" data-infinite-next="<%= next || '' %>" data-infinite-query="filter=<%= filter %>&opened=<%= openedAt.getTime() %>">
         <%- include('partials/chunks/notifications', { items }) %>
       </ul>
-      <% } else { %>
-      <div class="px-6 pb-10 pt-6 text-center"><div class="empty-icon"><svg class="icon size-7"><use href="#i-bell"/></svg></div><h2 class="mt-4 text-lg font-bold"><%= filter === 'unread' ? 'No unread notifications' : "You're all caught up" %></h2><p class="mt-1 text-pretty text-muted">Friend requests, reactions, comments and messages will show up here.</p><a class="btn-primary mt-5" href="/">Back to feed</a></div>
-      <% } %>
+      <div class="<%= items.length ? 'hidden' : '' %> px-6 pb-10 pt-6 text-center" data-notifications-empty><div class="empty-icon"><svg class="icon size-7"><use href="#i-bell"/></svg></div><h2 class="mt-4 text-lg font-bold"><%= filter === 'unread' ? 'No unread notifications' : "You're all caught up" %></h2><p class="mt-1 text-pretty text-muted">Friend requests, reactions, comments and messages will show up here.</p><a class="btn-primary mt-5" href="/">Back to feed</a></div>
     </div>
   </section>
 </main>

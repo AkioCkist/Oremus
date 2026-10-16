@@ -12,7 +12,7 @@ import { assertNotBlocked, blockedUserIds, restrictedAuthorIds } from './social.
 const uploadedMedia = (file: Express.Multer.File) => ({ url: `/uploads/${file.filename}`, mimeType: file.mimetype, alt: '', status: file.mimetype.startsWith('video/') ? 'processing' : 'ready', poster: '' });
 const clean = (value: string) => sanitizeHtml(value, { allowedTags: [], allowedAttributes: {} }).trim();
 
-async function assertCanAccessPost(post: any, viewerId: string): Promise<void> {
+export async function assertCanAccessPost(post: any, viewerId: string): Promise<void> {
   const authorId = String(post.authorId?._id || post.authorId);
   if (authorId === viewerId) return;
   await assertNotBlocked(authorId, viewerId);
@@ -43,8 +43,8 @@ export async function createPost(authorId: string, input: any, files: Express.Mu
   }
   const media = files.map(uploadedMedia);
   const content = clean(input.content || '');
-  if (!content && media.length === 0 && !input.feeling && !input.place) throw new AppError(422, 'Write something, add a photo or video, or check in somewhere.', 'EMPTY_POST');
-  const post = await Post.create({ authorId, groupId: input.groupId || null, content, visibility: input.visibility, media, groupStatus, feeling: input.feeling || null, place: input.place || null });
+  if (!content && media.length === 0 && !input.feeling && !input.place && !input.sharedPostId) throw new AppError(422, 'Write something, add a photo or video, or check in somewhere.', 'EMPTY_POST');
+  const post = await Post.create({ authorId, groupId: input.groupId || null, sharedPostId: input.sharedPostId || null, content, visibility: input.visibility, media, groupStatus, feeling: input.feeling || null, place: input.place || null });
   await enqueuePostVideos(post, media.map((item) => item.url));
   if (input.groupId) await GroupPost.create({ groupId: input.groupId, postId: post.id, authorId });
   if (groupStatus === 'pending') await notify({ recipientId: String(groupInfo.ownerId), actorId: authorId, type: 'group_post', entityType: 'Group', entityId: input.groupId, text: `posted in ${groupInfo.name} and is waiting for approval` });
@@ -52,7 +52,7 @@ export async function createPost(authorId: string, input: any, files: Express.Mu
   return post;
 }
 
-const isEmptyPost = (post: any) => !post.content && !post.media.length && !post.feeling && !post.place;
+const isEmptyPost = (post: any) => !post.content && !post.media.length && !post.feeling && !post.place && !post.sharedPostId;
 
 async function ownedPost(userId: string, postId: string) {
   const post = await Post.findOne({ _id: postId, deletedAt: null });
@@ -118,7 +118,9 @@ export async function deletePost(userId: string, postId: string) {
   if (!post) throw new AppError(404, 'Post not found.', 'POST_NOT_FOUND');
   await assertCanAccessPost(post, userId);
   assertOwner(post.authorId, userId, 'You can only delete your own posts.');
-  post.deletedAt = new Date(); await post.save(); await invalidateSocialCaches([userId], { search: !post.groupId });
+  post.deletedAt = new Date(); await post.save();
+  if (post.sharedPostId) await Post.updateOne({ _id: post.sharedPostId, shareCount: { $gt: 0 } }, { $inc: { shareCount: -1 } });
+  await invalidateSocialCaches([userId], { search: !post.groupId });
 }
 
 export async function react(userId: string, postId: string, type: string) {
@@ -247,9 +249,42 @@ export async function withReactionSummary<T extends { _id: unknown; myReaction?:
     byPost.set(key, [...(byPost.get(key) || []), { type: row._id.type, count: row.count }]);
   }
   const mineByPost = new Map((mine as any[]).map((item) => [String(item.postId), item.type as string]));
-  return posts.map((post) => {
+  const summarized = posts.map((post) => {
     const key = String(post._id);
     const topReactions = (byPost.get(key) || []).sort((a, b) => b.count - a.count).slice(0, 3).map((item) => item.type);
     return { ...post, topReactions, myReaction: mineByPost.get(key) ?? null };
   });
+  return withSharedPosts(summarized, viewerId);
+}
+
+/** Whether a signed-out visitor may see a post: public and not inside a private group. */
+async function openToGuests(post: any) {
+  if (post.visibility !== 'public') return false;
+  if (!post.groupId) return true;
+  const group: any = post.groupId.privacy ? post.groupId : await Group.findById(post.groupId).select('privacy').lean();
+  return group?.privacy === 'public';
+}
+
+/**
+ * Puts the original of each share on `shared` (author and group populated). Originals the viewer may not see,
+ * or that were deleted, become null and render as "This content isn't available", as on Facebook.
+ */
+async function withSharedPosts<T>(posts: T[], viewerId?: string): Promise<T[]> {
+  // Group privacy decides whether a group post can be re-shared (see share.service).
+  const groupIds = [...new Set(posts.map((post: any) => post.groupId?._id || post.groupId).filter(Boolean).map(String))];
+  const privacy = new Map(groupIds.length ? (await Group.find({ _id: { $in: groupIds } }).select('privacy').lean()).map((group: any) => [String(group._id), group.privacy]) : []);
+  posts = posts.map((post: any) => post.groupId ? { ...post, groupPrivacy: privacy.get(String(post.groupId._id || post.groupId)) } : post);
+  const ids = [...new Set(posts.map((post: any) => post.sharedPostId).filter(Boolean).map(String))];
+  if (!ids.length) return posts;
+  const originals: any[] = await Post.find({ _id: { $in: ids }, deletedAt: null })
+    .populate('authorId', 'username displayName profile.avatarUrl').populate('groupId', 'name slug privacy').lean();
+  const visible = new Map<string, any>();
+  await Promise.all(originals.filter((original) => original.authorId).map(async (original) => {
+    try {
+      if (viewerId) await assertCanAccessPost({ ...original, groupId: original.groupId?._id ?? null }, viewerId);
+      else if (!(await openToGuests(original))) return;
+      visible.set(String(original._id), original);
+    } catch (error) { if (!(error instanceof AppError)) throw error; }
+  }));
+  return posts.map((post: any) => post.sharedPostId ? { ...post, shared: visible.get(String(post.sharedPostId)) ?? null } : post);
 }

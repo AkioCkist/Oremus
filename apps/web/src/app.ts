@@ -49,7 +49,7 @@ export function createApp() {
   app.set('view engine', 'ejs');
   app.set('views', path.resolve(process.cwd(), 'src/views'));
   Object.assign(app.locals, viewHelpers, { assetVersion: assetVersion() });
-  app.use(helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'", 'https://cdn.socket.io'], imgSrc: ["'self'", 'data:', 'blob:', 'https:'], mediaSrc: ["'self'", 'blob:'], connectSrc: ["'self'", 'ws:', 'wss:'], styleSrc: ["'self'", 'https://fonts.googleapis.com'], fontSrc: ["'self'", 'https://fonts.gstatic.com'], upgradeInsecureRequests: env.COOKIE_SECURE ? [] : null } } }));
+  app.use(helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'"], imgSrc: ["'self'", 'data:', 'blob:', 'https:'], mediaSrc: ["'self'", 'blob:'], connectSrc: ["'self'", 'ws:', 'wss:'], styleSrc: ["'self'", 'https://fonts.googleapis.com'], fontSrc: ["'self'", 'https://fonts.gstatic.com'], upgradeInsecureRequests: env.COOKIE_SECURE ? [] : null } } }));
   app.use(compression());
   app.use(pinoHttp({ logger }));
   app.use(requestContext);

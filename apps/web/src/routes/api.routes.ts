@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as controller from '../controllers/api.controller.js';
 import * as story from '../controllers/story.controller.js';
+import { live } from '../controllers/live.controller.js';
 import { requireAuth } from '../middleware/auth.js';
 import { rateLimit } from '../middleware/rate-limit.js';
 import { enforcePostMediaSize, postUpload, storyUpload, upload } from '../middleware/upload.js';
@@ -9,6 +10,7 @@ import { asyncHandler } from '../utils/async-handler.js';
 
 export const apiRoutes = Router();
 apiRoutes.use(requireAuth);
+apiRoutes.get('/live', asyncHandler(live));
 apiRoutes.patch('/profile', upload.fields([{ name: 'avatar', maxCount: 1 }, { name: 'cover', maxCount: 1 }]), compressUploadedImages, asyncHandler(controller.updateProfile));
 apiRoutes.get('/profile/photos', asyncHandler(controller.photoLibrary));
 apiRoutes.delete('/profile/photos', asyncHandler(controller.deletePhoto));
@@ -30,6 +32,9 @@ apiRoutes.patch('/posts/:postId', postUpload.array('images'), enforcePostMediaSi
 apiRoutes.put('/posts/:postId/media/:mediaId', postUpload.single('photo'), enforcePostMediaSize, compressUploadedImages, asyncHandler(controller.replacePostMedia));
 apiRoutes.delete('/posts/:postId/media/:mediaId', asyncHandler(controller.removePostMedia));
 apiRoutes.delete('/posts/:postId', asyncHandler(controller.deletePost));
+apiRoutes.post('/posts/:postId/shares', rateLimit('post', 20, 3600), asyncHandler(controller.sharePost));
+apiRoutes.post('/posts/:postId/send', rateLimit('message', 120, 60), asyncHandler(controller.sendPost));
+apiRoutes.get('/share/targets', asyncHandler(controller.shareTargets));
 apiRoutes.post('/posts/:postId/reactions', asyncHandler(controller.react));
 apiRoutes.post('/posts/:postId/comments', rateLimit('comment', 60, 3600), asyncHandler(controller.comment));
 apiRoutes.patch('/comments/:commentId', rateLimit('comment-edit', 60, 3600), asyncHandler(controller.editComment));
@@ -44,6 +49,7 @@ apiRoutes.post('/group-requests/:requestId/decision', asyncHandler(controller.de
 apiRoutes.post('/conversations', asyncHandler(controller.createConversation));
 apiRoutes.get('/conversations/:conversationId/preview', asyncHandler(controller.conversationPreview));
 apiRoutes.post('/conversations/:conversationId/messages', rateLimit('message', 120, 60), asyncHandler(controller.sendMessage));
+apiRoutes.post('/conversations/read', asyncHandler(controller.readConversations));
 apiRoutes.post('/conversations/:conversationId/read', asyncHandler(controller.readConversation));
 apiRoutes.get('/stories', asyncHandler(story.tray));
 apiRoutes.post('/stories', rateLimit('story', 30, 3600), storyUpload.single('media'), enforcePostMediaSize, compressUploadedImages, asyncHandler(story.create));

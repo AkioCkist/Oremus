@@ -184,6 +184,23 @@ Hovering a comment shows a **…** button (always visible on phones) with **Edit
 | Edit | `PATCH /api/comments/:commentId { content }` (1–1500 chars, 60 per hour) |
 | Delete | `DELETE /api/comments/:commentId` → `{ removed: [ids], commentCount, postId }` |
 
+## Sharing
+
+**Share** opens a Facebook-style dialog ([`share-dialog.ejs`](../apps/web/src/views/partials/share-dialog.ejs), [`services/share.service.ts`](../apps/web/src/services/share.service.ts)):
+
+| Option | What happens |
+|---|---|
+| **Share now** (Feed or a group) | `POST /api/posts/:id/shares` creates a post with `sharedPostId` and an optional caption; the original is embedded below it ([`shared-post.ejs`](../apps/web/src/views/partials/shared-post.ejs)). Group shares follow group rules (who can post, approval). |
+| **Send in Messenger** | `POST /api/posts/:id/send` sends the link (and an optional note) into a chat with each picked friend. |
+| **Copy link / Email / WhatsApp / Facebook / X / More options** | Client-only: clipboard, `mailto:`, share URLs, or the Web Share API. |
+
+Rules:
+
+- Sharing a share shares its original (`sharedPostId` always points at the original).
+- Public posts and posts in public groups can be shared anywhere. The author may also share their own followers-only or private post, but not to a wider audience. Anything else can only be sent as a link or copied.
+- Each viewer sees the original only if they could open it; otherwise the share shows "This content isn't available right now".
+- `shareCount` on the original goes up on share and down when the share is deleted; the author gets a `share` notification.
+
 ## The home feed
 
 `getFeed(userId, page, limit = FEED_PAGE_SIZE)` builds the feed with one MongoDB aggregation and caches each page for 45 seconds. A page holds 10 posts. The query fetches one extra row to know whether another page exists (`hasMore`), so no separate count is needed.

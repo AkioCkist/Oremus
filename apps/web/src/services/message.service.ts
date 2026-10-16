@@ -1,8 +1,9 @@
-import { Conversation, Message, User } from '../models/index.js';
+import { Conversation, Message, Notification, User } from '../models/index.js';
 import { afterCursor, cursorSort, timeChunk } from '../utils/paginate.js';
 import { AppError } from '../utils/errors.js';
 import { notify } from './notification.service.js';
 import { areFriends, listFriendIds } from './friendship.service.js';
+import { blockedUserIds } from './social.service.js';
 
 export function conversationMemberFilter(userId: string, friendIds: Iterable<string>) {
   return { $and: [{ memberIds: userId }, { memberIds: { $in: [...friendIds] } }] };
@@ -57,14 +58,38 @@ async function withLastMessages(userId: string, conversations: any[]) {
 }
 
 export async function markConversationRead(userId: string, conversationId: string) {
-  await Message.updateMany({ conversationId, readBy: { $ne: userId } }, { $addToSet: { readBy: userId } });
+  await Promise.all([
+    Message.updateMany({ conversationId, readBy: { $ne: userId } }, { $addToSet: { readBy: userId } }),
+    // Reading the chat also settles its "sent you a message" notifications, so the bell badge doesn't count them.
+    Notification.updateMany({ recipientId: userId, type: 'message', entityId: conversationId, readAt: null }, { readAt: new Date() })
+  ]);
 }
 
-/** Marks a conversation read from the client (live chat) and returns the fresh unread-conversation count. */
-export async function readConversation(userId: string, conversationId: string): Promise<number> {
+/** Unread notifications shown on the bell badge (people you blocked, or who blocked you, are left out). */
+export async function countUnreadNotifications(userId: string): Promise<number> {
+  const blocked = await blockedUserIds(userId);
+  return Notification.countDocuments({ recipientId: userId, actorId: { $nin: blocked }, readAt: null });
+}
+
+/** Marks a conversation read from the client (live chat) and returns the fresh badge counts. */
+export async function readConversation(userId: string, conversationId: string) {
   await conversationForFriend(userId, conversationId);
   await markConversationRead(userId, conversationId);
-  return countUnreadConversations(userId);
+  const [unreadMessages, unreadNotifications] = await Promise.all([countUnreadConversations(userId), countUnreadNotifications(userId)]);
+  return { unreadMessages, unreadNotifications };
+}
+
+/** Opening the Chats menu marks every visible conversation and its message notifications as read. */
+export async function readAllConversations(userId: string) {
+  const conversations = await Conversation.find({ memberIds: userId }).select('_id').lean();
+  const conversationIds = conversations.map((conversation: any) => conversation._id);
+  await Promise.all([
+    conversationIds.length
+      ? Message.updateMany({ conversationId: { $in: conversationIds }, senderId: { $ne: userId }, readBy: { $ne: userId }, deletedAt: null }, { $addToSet: { readBy: userId } })
+      : Promise.resolve(),
+    Notification.updateMany({ recipientId: userId, type: 'message', readAt: null }, { readAt: new Date() })
+  ]);
+  return { unreadMessages: 0, unreadNotifications: await countUnreadNotifications(userId) };
 }
 
 export async function countUnreadConversations(userId: string): Promise<number> {
@@ -95,7 +120,8 @@ export async function getConversationPreview(userId: string, conversationId: str
   const recent = await listMessages(userId, conversationId);
   await markConversationRead(userId, conversationId);
   const partner = conversation.memberIds.find((member: any) => String(member._id) !== String(userId)) || conversation.memberIds[0];
-  return { conversation: { _id: conversation._id, partner }, messages: recent.items, next: recent.next, unreadMessages: await countUnreadConversations(userId) };
+  const [unreadMessages, unreadNotifications] = await Promise.all([countUnreadConversations(userId), countUnreadNotifications(userId)]);
+  return { conversation: { _id: conversation._id, partner }, messages: recent.items, next: recent.next, unreadMessages, unreadNotifications };
 }
 
 export async function sendMessage(userId: string, conversationId: string, content: string) {

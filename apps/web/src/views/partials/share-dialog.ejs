@@ -1,0 +1,81 @@
+<%# Facebook-style Share dialog: share to your feed or a group, send in Messenger, or share elsewhere. Scripted by initShareDialog in app.ts. -%>
+<dialog id="share-dialog" class="w-[min(34rem,calc(100%-1.5rem))] rounded-xl p-0 shadow-pop" aria-labelledby="share-title" data-share-dialog>
+  <!-- Main view -->
+  <div data-share-view="main">
+    <div class="relative border-b border-line px-4 py-3 text-center"><h2 id="share-title" class="text-xl font-bold">Share</h2><button type="button" class="icon-btn absolute right-3 top-2" data-close-dialog="share-dialog" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button></div>
+    <div class="max-h-[min(75dvh,44rem)] overflow-y-auto">
+      <form class="border-b border-line p-4" data-share-form>
+        <div class="flex items-start gap-2.5">
+          <%- include('avatar', { person: currentUser, size: 'size-10 text-sm' }) %>
+          <div class="min-w-0">
+            <p class="text-15 font-semibold leading-snug"><%= currentUser.displayName %></p>
+            <div class="mt-1 flex flex-wrap items-center gap-1.5">
+              <button type="button" class="inline-flex h-7 max-w-[14rem] items-center gap-1 rounded-md bg-control px-2 text-[0.8125rem] font-semibold hover:bg-control-hover" data-share-open="destinations" aria-haspopup="true">
+                <svg class="icon size-3.5"><use href="#i-feed" data-share-destination-icon/></svg><span class="truncate" data-share-destination-label>Feed</span><svg class="icon size-3.5"><use href="#i-chevron-down"/></svg>
+              </button>
+              <div class="relative inline-flex" data-share-audience-wrap>
+                <label class="sr-only" for="share-visibility">Who can see this share</label>
+                <svg class="icon pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2"><use href="#i-globe" data-share-audience-icon/></svg>
+                <select id="share-visibility" name="visibility" class="h-7 appearance-none rounded-md bg-control pl-7 pr-7 text-[0.8125rem] font-semibold focus:outline-none focus:ring-2 focus:ring-brand-200" data-share-visibility>
+                  <option value="public">Public</option><option value="followers">Followers</option><option value="private">Only me</option>
+                </select>
+                <svg class="icon pointer-events-none absolute right-2 top-1/2 size-3.5 -translate-y-1/2"><use href="#i-chevron-down"/></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="relative mt-3">
+          <label class="sr-only" for="share-content">Say something about this</label>
+          <textarea id="share-content" name="content" maxlength="5000" rows="2" class="field-bare w-full resize-none p-0 pr-10 text-15 leading-snug placeholder:text-subtle" placeholder="Say something about this…" data-share-content></textarea>
+          <button type="button" class="icon-btn-ghost absolute bottom-0 right-0" data-emoji-for="#share-content" aria-label="Insert emoji" title="Emoji"><svg class="icon"><use href="#i-smile"/></svg></button>
+        </div>
+        <p class="mt-2 hidden rounded-lg bg-canvas px-3 py-2 text-pretty text-[0.8125rem] text-muted" data-share-note></p>
+        <p class="form-error mt-2 hidden" data-form-error role="alert"></p>
+        <div class="mt-3 flex justify-end"><button type="submit" class="btn-primary px-8" data-share-submit>Share now</button></div>
+      </form>
+
+      <section class="border-b border-line px-4 py-3" aria-labelledby="share-messenger-title" data-share-messenger>
+        <div class="flex items-center justify-between gap-3">
+          <h3 id="share-messenger-title" class="text-[1.0625rem] font-bold">Send in Messenger</h3>
+          <div class="input-icon w-44"><svg class="icon size-4"><use href="#i-search"/></svg><label class="sr-only" for="share-friend-search">Search friends</label><input id="share-friend-search" type="search" class="pill-input h-8 pl-9 text-sm" placeholder="Search friends" autocomplete="off" data-share-friend-search></div>
+        </div>
+        <ul class="-mx-1 mt-2 flex snap-x gap-1 overflow-x-auto pb-1" aria-label="Friends" data-share-friends>
+          <li class="px-1 py-6 text-15 text-muted" data-share-friends-status>Loading friends…</li>
+        </ul>
+        <div class="mt-2 hidden items-center gap-2" data-share-send-bar>
+          <label class="sr-only" for="share-send-note">Add a message</label>
+          <input id="share-send-note" class="pill-input h-9 flex-1" maxlength="1000" placeholder="Add a message (optional)" autocomplete="off" data-share-send-note>
+          <button type="button" class="btn-primary h-9 shrink-0" data-share-send>Send</button>
+        </div>
+      </section>
+
+      <section class="px-4 py-3" aria-labelledby="share-to-title">
+        <h3 id="share-to-title" class="text-[1.0625rem] font-bold">Share to</h3>
+        <div class="-mx-1 mt-2 flex gap-1 overflow-x-auto pb-1">
+          <button type="button" class="share-target" data-share-action="messenger"><span class="share-target-icon"><svg class="icon"><use href="#i-chat"/></svg></span>Messenger</button>
+          <button type="button" class="share-target" data-share-action="group"><span class="share-target-icon"><svg class="icon"><use href="#i-group"/></svg></span>Group</button>
+          <button type="button" class="share-target" data-share-action="copy"><span class="share-target-icon"><svg class="icon"><use href="#i-link"/></svg></span>Copy link</button>
+          <a class="share-target" href="#" data-share-external="email"><span class="share-target-icon"><svg class="icon"><use href="#i-mail"/></svg></span>Email</a>
+          <a class="share-target" href="#" target="_blank" rel="noopener noreferrer" data-share-external="whatsapp"><span class="share-target-icon"><svg class="icon"><use href="#i-whatsapp"/></svg></span>WhatsApp</a>
+          <a class="share-target" href="#" target="_blank" rel="noopener noreferrer" data-share-external="facebook"><span class="share-target-icon"><svg class="icon"><use href="#i-facebook"/></svg></span>Facebook</a>
+          <a class="share-target" href="#" target="_blank" rel="noopener noreferrer" data-share-external="x"><span class="share-target-icon"><svg class="icon"><use href="#i-brand-x"/></svg></span>X</a>
+          <button type="button" class="share-target hidden" data-share-action="native"><span class="share-target-icon"><svg class="icon"><use href="#i-more"/></svg></span>More options</button>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Where to share: your feed or one of your groups -->
+  <div class="hidden" data-share-view="destinations">
+    <div class="relative border-b border-line px-4 py-3 text-center"><button type="button" class="icon-btn absolute left-3 top-2" data-share-back aria-label="Back"><svg class="icon"><use href="#i-arrow-left"/></svg></button><h2 class="text-xl font-bold">Share to</h2></div>
+    <div class="p-2">
+      <button type="button" class="menu-item" data-share-destination=""><span class="menu-icon"><svg class="icon"><use href="#i-feed"/></svg></span><span class="min-w-0"><span class="block font-semibold">Feed</span><span class="block text-[0.8125rem] font-normal text-muted">Share on your profile and in friends' feeds</span></span></button>
+      <div class="mt-1 border-t border-line px-2 pb-1 pt-3">
+        <h3 class="text-[1.0625rem] font-bold">Your groups</h3>
+        <div class="input-icon mt-2"><svg class="icon size-4"><use href="#i-search"/></svg><label class="sr-only" for="share-group-search">Search groups</label><input id="share-group-search" type="search" class="pill-input h-9 pl-9 text-sm" placeholder="Search groups" autocomplete="off" data-share-group-search></div>
+      </div>
+      <ul class="max-h-[50dvh] overflow-y-auto" data-share-groups><li class="px-2 py-4 text-15 text-muted">Loading groups…</li></ul>
+      <p class="hidden px-2 py-3 text-pretty text-[0.8125rem] text-muted" data-share-groups-note>Only public posts can be shared to groups.</p>
+    </div>
+  </div>
+</dialog>

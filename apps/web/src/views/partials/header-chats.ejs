@@ -1,0 +1,32 @@
+<%# Recent chats popover body. Rendered by nav.ejs and by GET /api/live (refreshed after realtime events). %>
+<%
+  const headerChats = locals.headerConversations || [];
+  const meId = currentUser ? String(currentUser._id) : '';
+  const chatPartner = function (conversation) { return conversation.memberIds.find(function (member) { return String(member._id) !== meId; }) || conversation.memberIds[0]; };
+-%>
+<div class="flex items-center justify-between px-4 pb-2 pt-4">
+  <h2 class="text-balance font-display text-2xl font-extrabold">Chats</h2>
+  <a href="/search?kind=user" class="icon-btn-ghost" aria-label="New message"><svg class="icon size-6"><use href="#i-compose"/></svg></a>
+</div>
+<% if (headerChats.length) { %>
+<ul class="max-h-[28rem] overflow-y-auto px-2 pb-2">
+  <% headerChats.forEach(function (conversation) { const partner = chatPartner(conversation); const last = conversation.lastMessage; const mine = last && String(last.senderId) === meId; %>
+  <li>
+    <a href="/messages/<%= conversation._id %>" class="flex items-center gap-3 rounded-lg p-2 hover:bg-hover" data-mini-chat="<%= conversation._id %>" data-chat-name="<%= partner.displayName %>" data-chat-avatar="<%= (partner.profile && partner.profile.avatarUrl) || '' %>">
+      <%- include('avatar', { person: partner, size: 'size-12 text-sm' }) %>
+      <span class="min-w-0 flex-1">
+        <span class="block truncate text-15 <%= conversation.unread ? 'font-bold' : 'font-semibold' %>"><%= partner.displayName %></span>
+        <span class="flex gap-1 text-[0.8125rem] <%= conversation.unread ? 'font-semibold text-ink' : 'text-muted' %>">
+          <span class="truncate"><%= last ? `${mine ? 'You' : firstName(partner.displayName)}: ${last.content}` : 'Start a conversation' %></span>
+          <% if (last) { %><span aria-hidden="true">·</span><span class="shrink-0 font-normal text-muted"><%= timeAgo(last.createdAt) %></span><% } %>
+        </span>
+      </span>
+      <% if (conversation.unread) { %><span class="size-3 shrink-0 rounded-full bg-brand-600" aria-label="Unread" data-mini-unread></span><% } %>
+    </a>
+  </li>
+  <% }) %>
+</ul>
+<% } else { %>
+<div class="px-6 py-8 text-center"><div class="empty-icon"><svg class="icon size-7"><use href="#i-chat"/></svg></div><p class="mt-3 font-semibold">No chats yet</p><p class="mt-1 text-pretty text-sm text-muted">Find a friend and start a conversation.</p></div>
+<% } %>
+<div class="border-t border-line p-2"><a href="/messages" class="btn-secondary w-full">Go to chats</a></div>

@@ -143,6 +143,8 @@ const postSchema = new Schema({
   seedKey: { type: String, unique: true, sparse: true, select: false },
   authorId: { type: objectId, ref: 'User', required: true, index: true },
   groupId: { type: objectId, ref: 'Group', default: null, index: true },
+  // Facebook-style share: this post re-shares another one (always the original, never a share of a share).
+  sharedPostId: { type: objectId, ref: 'Post', default: null },
   content: { type: String, maxlength: 5000, default: '' },
   media: { type: [postMediaSchema], default: [] },
   visibility: { type: String, enum: ['public', 'followers', 'private'], default: 'public' },
@@ -152,6 +154,7 @@ const postSchema = new Schema({
   groupStatus: { type: String, enum: ['approved', 'pending', 'declined'], default: 'approved' },
   reactionCount: { type: Number, default: 0 },
   commentCount: { type: Number, default: 0 },
+  shareCount: { type: Number, default: 0 },
   editedAt: Date,
   deletedAt: { type: Date, default: null, index: true }
 }, options);
@@ -258,7 +261,7 @@ messageSchema.index({ conversationId: 1, createdAt: -1 });
 const notificationSchema = new Schema({
   recipientId: { type: objectId, ref: 'User', required: true, index: true },
   actorId: { type: objectId, ref: 'User', required: true },
-  type: { type: String, enum: ['reaction', 'comment', 'follow', 'friend_request', 'friend_accept', 'group_request', 'group_invite', 'group_post', 'message', 'story_reaction'], required: true },
+  type: { type: String, enum: ['reaction', 'comment', 'follow', 'friend_request', 'friend_accept', 'group_request', 'group_invite', 'group_post', 'message', 'story_reaction', 'share'], required: true },
   entityType: { type: String, required: true },
   entityId: { type: objectId, required: true },
   text: { type: String, required: true, maxlength: 180 },

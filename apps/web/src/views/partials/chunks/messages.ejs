@@ -11,6 +11,6 @@
   <% if (newBlock) { %><p class="py-3 text-center text-xs font-semibold text-muted" data-message-time="<%= new Date(message.createdAt).getTime() %>"><%= longTime(message.createdAt) %></p><% } %>
   <div data-key="<%= message._id %>" data-at="<%= new Date(message.createdAt).getTime() %>" class="flex items-end gap-2 <%= mine ? 'justify-end' : 'justify-start' %> <%= lastOfRun ? 'mb-2' : 'mb-0.5' %>">
     <% if (!mine) { %><span class="w-7 shrink-0"><% if (lastOfRun) { %><%- include('../avatar', { person: message.senderId, size: 'size-7 text-2xs' }) %><% } %></span><% } %>
-    <p class="bubble <%= mine ? 'bubble-me' : 'bubble-them' %>" title="<%= clockTime(message.createdAt) %>"><%= message.content %></p>
+    <p class="bubble <%= mine ? 'bubble-me' : 'bubble-them' %>" title="<%= clockTime(message.createdAt) %>"><%- linkify(message.content) %></p>
   </div>
 <% }) %>

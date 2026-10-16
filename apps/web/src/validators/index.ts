@@ -97,6 +97,8 @@ const optionalJsonField = <T extends z.ZodTypeAny>(schema: T) => z.preprocess((v
   try { return JSON.parse(value); } catch { return value; }
 }, schema.nullable().optional());
 export const postEditSchema = z.object({ content: z.string().trim().max(5000).default(''), visibility: z.enum(['public', 'followers', 'private']).optional(), layout: jsonField(z.array(mediaSlot)), feeling: optionalJsonField(postFeelingSchema), place: optionalJsonField(postPlaceSchema) });
+export const shareSchema = z.object({ content: z.string().trim().max(5000).default(''), visibility: z.enum(['public', 'followers', 'private']).default('public'), groupId: z.string().min(1).optional() });
+export const shareSendSchema = z.object({ userIds: z.array(z.string().min(1)).min(1).max(20), content: z.string().trim().max(1000).default('') });
 export const photoDeleteSchema = z.object({ url: z.string().min(1).max(500) });
 export const placeSearchSchema = z.object({ q: z.string().trim().min(2).max(100), lat: z.coerce.number().min(-90).max(90).optional(), lon: z.coerce.number().min(-180).max(180).optional() });
 export const placeNearbySchema = z.object({ lat: z.coerce.number().min(-90).max(90), lon: z.coerce.number().min(-180).max(180) });

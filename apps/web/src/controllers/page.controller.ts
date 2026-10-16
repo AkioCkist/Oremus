@@ -5,7 +5,7 @@ import { getProfile } from '../services/user.service.js';
 import { recordQuery } from '../services/search.service.js';
 import { getPostDetail, withReactionSummary } from '../services/post.service.js';
 import { GROUP_ARTWORK, GROUP_TYPE_LABELS, getGroup, inviteCandidates, listGroups } from '../services/group.service.js';
-import { conversationChunk, countUnreadConversations, listConversations, listMessages, markConversationRead } from '../services/message.service.js';
+import { conversationChunk, countUnreadConversations, countUnreadNotifications, listConversations, listMessages, markConversationRead } from '../services/message.service.js';
 import { getStoryTray, listArchive } from '../services/story.service.js';
 import { getFriendshipStates, listFriends, mutualFriendCounts } from '../services/friendship.service.js';
 import { blockedUserIds } from '../services/social.service.js';
@@ -17,20 +17,22 @@ const resToken = (req: Request) => req.cookies?.csrf || '';
 const param = (req: Request, name: string) => String(req.params[name]);
 const AUTHOR_FIELDS = 'username displayName profile.avatarUrl';
 
-/** Header badges and compact popover previews. */
+/** Header badges and compact popover previews. Also served live by GET /api/live. */
+export async function headerState(userId: string) {
+  const blocked = await blockedUserIds(userId);
+  const notificationFilter = { recipientId: userId, actorId: { $nin: blocked } };
+  const [unreadNotifications, unreadMessages, headerConversations, headerNotificationRows] = await Promise.all([
+    Notification.countDocuments({ ...notificationFilter, readAt: null }),
+    countUnreadConversations(userId),
+    listConversations(userId, 8),
+    Notification.find(notificationFilter).sort({ createdAt: -1 }).limit(8).populate('actorId', AUTHOR_FIELDS).lean()
+  ]);
+  const headerNotifications = headerNotificationRows.filter((item: any) => item.actorId);
+  return { unreadNotifications, unreadMessages, headerConversations, headerNotifications };
+}
+
 export async function navState(req: Request, res: Response, next: NextFunction) {
-  if (req.user) {
-    const blocked = await blockedUserIds(req.user.id);
-    const notificationFilter = { recipientId: req.user.id, actorId: { $nin: blocked } };
-    const [unreadNotifications, unreadMessages, headerConversations, headerNotificationRows] = await Promise.all([
-      Notification.countDocuments({ ...notificationFilter, readAt: null }),
-      countUnreadConversations(req.user.id),
-      listConversations(req.user.id, 8),
-      Notification.find(notificationFilter).sort({ createdAt: -1 }).limit(8).populate('actorId', AUTHOR_FIELDS).lean()
-    ]);
-    const headerNotifications = headerNotificationRows.filter((item: any) => item.actorId);
-    Object.assign(res.locals, { unreadNotifications, unreadMessages, headerConversations, headerNotifications });
-  }
+  if (req.user) Object.assign(res.locals, await headerState(req.user.id));
   next();
 }
 
@@ -146,11 +148,12 @@ export async function conversation(req: Request, res: Response) {
   const chunk = await listMessages(userId, conversationId);
   await markConversationRead(userId, conversationId);
   // Only the newest chunk is loaded, so the totals in the details panel come from the database.
-  const [{ items: conversations, next: conversationsNext }, unreadMessages, messageCount, firstMessage] = await Promise.all([
-    conversationChunk(userId, null), countUnreadConversations(userId),
+  const [{ items: conversations, next: conversationsNext }, unreadMessages, unreadNotifications, messageCount, firstMessage] = await Promise.all([
+    conversationChunk(userId, null), countUnreadConversations(userId), countUnreadNotifications(userId),
     Message.countDocuments({ conversationId, deletedAt: null }), Message.findOne({ conversationId, deletedAt: null }).sort({ createdAt: 1 }).select('createdAt').lean()
   ]);
-  res.locals.unreadMessages = unreadMessages;
+  // The header counts were taken before this chat was marked read.
+  Object.assign(res.locals, { unreadMessages, unreadNotifications });
   const active: any = conversations.find((item: any) => String(item._id) === conversationId);
   const partner = active?.memberIds.find((member: any) => String(member._id) !== userId) || active?.memberIds[0] || null;
   res.render('messages', { ...base(req, partner ? partner.displayName : 'Chats'), conversations, conversationsNext, activeConversation: conversationId, partner, messages: chunk.items, messagesNext: chunk.next, messageCount, firstMessageAt: (firstMessage as any)?.createdAt || null });

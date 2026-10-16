@@ -54,6 +54,15 @@ export function extractLinks(text: string): string[] {
   return [...new Set(matches.map((url) => url.replace(/[.,!?;:)\]]+$/, '')))];
 }
 
+/** Escapes text and turns its http(s) links into anchors (chat bubbles, where shared posts arrive as links). */
+export function linkify(text: string): string {
+  return String(text || '').split(/(https?:\/\/[^\s<>"']+)/g).map((part, index) => {
+    if (index % 2 === 0) return escapeHtml(part);
+    const url = part.replace(/[.,!?;:)\]]+$/, ''), rest = part.slice(url.length);
+    return `<a class="underline" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>${escapeHtml(rest)}`;
+  }).join('');
+}
+
 export const REACTION_LABELS: Record<string, { label: string; color: string }> = {
   like: { label: 'Like', color: 'text-[#0866ff]' },
   love: { label: 'Love', color: 'text-[#f33e58]' },
@@ -109,4 +118,4 @@ export function escapeHtml(value: unknown): string {
   return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!));
 }
 
-export const viewHelpers = { escapeHtml, describeFeeling, timeAgo, longTime, clockTime, toneOf, initials, firstName, compact, plural, extractLinks, REACTION_LABELS, RELATIONSHIP_LABELS, GENDER_LABELS, PLATFORM_LABELS, AUDIENCE_LABELS, MONTHS, shortDate, duration, birthdayText, linkLabel, storyTextAttrs, STORY_BACKGROUNDS, STORY_COLORS, STORY_FONT_LABELS, STORY_EFFECT_LABELS, STORY_ANIMATION_LABELS };
+export const viewHelpers = { escapeHtml, describeFeeling, timeAgo, longTime, clockTime, toneOf, initials, firstName, compact, plural, extractLinks, linkify, REACTION_LABELS, RELATIONSHIP_LABELS, GENDER_LABELS, PLATFORM_LABELS, AUDIENCE_LABELS, MONTHS, shortDate, duration, birthdayText, linkLabel, storyTextAttrs, STORY_BACKGROUNDS, STORY_COLORS, STORY_FONT_LABELS, STORY_EFFECT_LABELS, STORY_ANIMATION_LABELS };

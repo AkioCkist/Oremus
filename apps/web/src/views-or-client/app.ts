@@ -3,9 +3,7 @@ import { STORY_VIDEO_MAX_SECONDS, storyTextAttrs, type StoryStyle } from '../sha
 import { EMOJI_CATEGORIES } from './emoji-data.js';
 import './search-box.js';
 import { optimizeFormUploads, optimizeUpload, runImageJob } from './workers.js';
-import { createInfiniteList, initInfiniteLists, type InfiniteList } from './infinite.js';
-
-declare const io: undefined | (() => { on: (event: string, callback: (payload: any) => void) => void; emit: (event: string, payload: unknown) => void });
+import { createInfiniteList, htmlNodes, initInfiniteLists, type InfiniteList } from './infinite.js';
 
 const csrf = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content || '';
 const me = {
@@ -61,6 +59,15 @@ function avatarEl(person: { displayName: string; avatarUrl?: string }, size: str
   if (person.avatarUrl) { const img = document.createElement('img'); img.src = person.avatarUrl; img.alt = ''; span.appendChild(img); }
   else { const text = document.createElement('span'); text.textContent = initials(person.displayName); span.appendChild(text); }
   return span;
+}
+
+/** Fills a chat bubble with text whose http(s) links are clickable (shared posts arrive as links). */
+function setLinkedText(element: HTMLElement, text: string) {
+  element.replaceChildren(...text.split(/(https?:\/\/[^\s<>"']+)/g).map((part, index) => {
+    if (index % 2 === 0) return document.createTextNode(part);
+    const link = document.createElement('a'); link.className = 'underline'; link.href = part.replace(/[.,!?;:)\]]+$/, '');
+    link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = part; return link;
+  }));
 }
 
 function readAsDataUrl(file: File): Promise<string> {
@@ -1394,7 +1401,13 @@ if (photoViewer) {
     } catch (caught) { showToast(caught instanceof Error ? caught.message : 'Could not react.', 'error'); }
   }
   $('[data-viewer-like]', photoViewer)!.addEventListener('click', () => void react(post?.myReaction || 'like'));
-  $('[data-viewer-share]', photoViewer)!.addEventListener('click', async () => { if (!post) return; await navigator.clipboard.writeText(`${window.location.origin}/posts/${post._id}`); showToast('Link copied to clipboard.'); });
+  $('[data-viewer-share]', photoViewer)!.addEventListener('click', () => {
+    if (!post) return;
+    // Reuse the card's share details when the post is on the page; otherwise derive them from the post itself.
+    const fromCard = document.querySelector<HTMLElement>(`[data-post-id="${post._id}"] [data-share-post]`)?.dataset.sharePost;
+    const author = post.authorId || {};
+    openShare(fromCard ? JSON.parse(fromCard) : { id: String(post._id), author: author.displayName || '', authorId: String(author._id || post.authorId || ''), visibility: post.visibility, group: !!post.groupId, groupPrivate: null });
+  });
   $('[data-viewer-focus-comment]', photoViewer)!.addEventListener('click', () => { panel.classList.remove('max-lg:hidden'); commentInput.focus(); });
 
   commentForm.addEventListener('submit', async (event) => {
@@ -1409,7 +1422,7 @@ if (photoViewer) {
       const scroller = $('[data-viewer-scroll]', photoViewer)!; scroller.scrollTop = scroller.scrollHeight;
       const card = document.querySelector(`[data-post-id="${post._id}"]`);
       const counter = card && $('[data-comment-count]', card);
-      if (counter) { counter.textContent = String(post.commentCount); $('[data-comment-count-label]', card!)?.classList.remove('invisible'); }
+      if (counter) { counter.textContent = String(post.commentCount); $('[data-comment-count-label]', card!)?.classList.remove('hidden'); }
     } catch (caught) { showToast(caught instanceof Error ? caught.message : 'Could not post comment.', 'error'); }
     finally { commentInput.disabled = false; commentInput.focus(); }
   });
@@ -1805,6 +1818,7 @@ document.addEventListener('click', async (event) => {
       const result = await postJson(`/api/posts/${data.post}/reactions`, { type: data.react });
       const card = target.closest('[data-post-id]'); if (card) paintReaction(card, result.active, result.count); return;
     }
+    if (data.sharePost) { openShare(JSON.parse(data.sharePost)); return; }
     if (data.copy) { target.closest<HTMLDetailsElement>('details')?.removeAttribute('open'); await navigator.clipboard.writeText(`${window.location.origin}/posts/${data.copy}`); showToast('Link copied to clipboard.'); return; }
     if (data.deletePost) {
       target.closest<HTMLDetailsElement>('details')?.removeAttribute('open');
@@ -1962,7 +1976,7 @@ async function deleteCommentById(id: string) {
     $$(`[data-post-id="${result.postId}"]`).forEach((card) => {
       const counter = $('[data-comment-count]', card); if (counter) counter.textContent = String(count);
       const label = $('[data-comment-count-label]', card);
-      if (label) { label.classList.toggle('invisible', count === 0); label.lastChild!.textContent = count === 1 ? ' comment' : ' comments'; }
+      if (label) { label.classList.toggle('hidden', count === 0); label.lastChild!.textContent = count === 1 ? ' comment' : ' comments'; }
     });
     const total = $('[data-comments-total]'); if (total) total.textContent = `${count} ${count === 1 ? 'comment' : 'comments'}`;
     document.dispatchEvent(new CustomEvent('oremus:comment-removed', { detail: result }));
@@ -1991,13 +2005,207 @@ const bindCommentForms = (root: ParentNode = document) => $$<HTMLFormElement>('[
       item.append(avatarEl({ displayName: me.name, avatarUrl: me.avatar }, 'size-8 text-xs'), body);
       $('[data-comment-list]', card)?.appendChild(item);
       const counter = $('[data-comment-count]', card);
-      if (counter) { const next = Number(counter.textContent || 0) + 1; counter.textContent = String(next); const label = $('[data-comment-count-label]', card); label?.classList.remove('invisible'); if (label) label.lastChild!.textContent = next === 1 ? ' comment' : ' comments'; }
+      if (counter) { const next = Number(counter.textContent || 0) + 1; counter.textContent = String(next); const label = $('[data-comment-count-label]', card); label?.classList.remove('hidden'); if (label) label.lastChild!.textContent = next === 1 ? ' comment' : ' comments'; }
       input.value = '';
     } catch (caught) { showToast(caught instanceof Error ? caught.message : 'Could not post comment.', 'error'); }
     finally { input.disabled = false; input.focus(); }
   });
 });
 bindCommentForms();
+
+/* ---------- Share dialog (Facebook-style: feed, group, Messenger, elsewhere) ---------- */
+
+type ShareInfo = { id: string; author: string; authorId: string; visibility: string; group: boolean; groupPrivate: boolean | null };
+type ShareFriend = { _id: string; username: string; displayName: string; avatarUrl: string };
+type ShareGroup = { _id: string; name: string; slug: string; coverUrl: string; privacy: string; canPost: boolean; needsApproval: boolean };
+
+const shareDialog = $<HTMLDialogElement>('[data-share-dialog]');
+const AUDIENCE_RANK: Record<string, number> = { private: 0, followers: 1, public: 2 };
+const shareState = { info: null as ShareInfo | null, groupId: '', picked: new Set<string>(), sent: new Set<string>() };
+let shareTargets: Promise<{ friends: ShareFriend[]; groups: ShareGroup[] }> | null = null;
+const loadShareTargets = () => (shareTargets ||= request('/api/share/targets').catch((error) => { shareTargets = null; throw error; }));
+
+/** Widest audience the viewer may re-share to, mirroring share.service (null: send or copy the link only). */
+function shareLimit(info: ShareInfo): string | null {
+  if (info.group) return info.groupPrivate ? null : 'public';
+  if (info.visibility === 'public') return 'public';
+  return info.authorId === me.id ? info.visibility : null;
+}
+
+function openShare(info: ShareInfo) {
+  if (!shareDialog) return;
+  Object.assign(shareState, { info, groupId: '', picked: new Set(), sent: new Set() });
+  const form = $<HTMLFormElement>('[data-share-form]', shareDialog)!;
+  form.reset(); $('[data-form-error]', form)!.classList.add('hidden');
+  $<HTMLInputElement>('[data-share-send-note]', shareDialog)!.value = '';
+  $<HTMLInputElement>('[data-share-friend-search]', shareDialog)!.value = '';
+  $<HTMLInputElement>('[data-share-group-search]', shareDialog)!.value = '';
+  const limit = shareLimit(info);
+  const visibility = $<HTMLSelectElement>('[data-share-visibility]', shareDialog)!;
+  [...visibility.options].forEach((option) => { option.disabled = !!limit && AUDIENCE_RANK[option.value]! > AUDIENCE_RANK[limit]!; });
+  visibility.value = limit || 'public';
+  const note = $('[data-share-note]', shareDialog)!;
+  note.textContent = !limit
+    ? `Only public posts can be shared to a feed or group. You can still send ${info.author ? `${info.author}'s` : 'this'} post to friends who can see it, or copy the link.`
+    : limit !== 'public' ? `Your post is shared with ${limit === 'private' ? 'only you' : 'your followers'}, so it can't be shared more widely.` : '';
+  note.classList.toggle('hidden', !note.textContent);
+  $$<HTMLButtonElement>('textarea, button, select', form).forEach((control) => { control.disabled = !limit; });
+  setShareDestination('');
+  paintShareLinks();
+  paintShareSendBar();
+  $('[data-share-action="native"]', shareDialog)!.classList.toggle('hidden', typeof navigator.share !== 'function');
+  showShareView('main');
+  shareDialog.showModal();
+  if (limit) $<HTMLTextAreaElement>('[data-share-content]', shareDialog)!.focus();
+  void paintShareFriends();
+}
+
+const shareUrl = () => `${window.location.origin}/posts/${shareState.info!.id}`;
+function paintShareLinks() {
+  const url = encodeURIComponent(shareUrl());
+  const title = encodeURIComponent(shareState.info?.author ? `${shareState.info.author}'s post on Oremus` : 'A post on Oremus');
+  const links: Record<string, string> = {
+    email: `mailto:?subject=${title}&body=${url}`,
+    whatsapp: `https://wa.me/?text=${url}`,
+    facebook: `https://www.facebook.com/sharer/sharer.php?u=${url}`,
+    x: `https://twitter.com/intent/tweet?url=${url}`
+  };
+  $$<HTMLAnchorElement>('[data-share-external]', shareDialog!).forEach((link) => { link.href = links[link.dataset.shareExternal!] || '#'; });
+}
+
+function showShareView(view: 'main' | 'destinations') {
+  $$('[data-share-view]', shareDialog!).forEach((node) => node.classList.toggle('hidden', node.dataset.shareView !== view));
+  if (view === 'destinations') { void paintShareGroups(); $<HTMLInputElement>('[data-share-group-search]', shareDialog!)?.focus(); }
+}
+
+function setShareDestination(groupId: string, groupName = '') {
+  shareState.groupId = groupId;
+  $('[data-share-destination-label]', shareDialog!)!.textContent = groupId ? groupName : 'Feed';
+  $('[data-share-destination-icon]', shareDialog!)!.setAttribute('href', groupId ? '#i-group' : '#i-feed');
+  // Group shares follow the group's privacy, like group posts.
+  $('[data-share-audience-wrap]', shareDialog!)!.classList.toggle('hidden', !!groupId);
+  paintShareAudienceIcon();
+}
+const paintShareAudienceIcon = () => $('[data-share-audience-icon]', shareDialog!)!.setAttribute('href', `#${VISIBILITY_ICONS[$<HTMLSelectElement>('[data-share-visibility]', shareDialog!)!.value] || 'i-globe'}`);
+
+function shareListStatus(list: HTMLElement, text: string, className: string) {
+  const item = document.createElement('li'); item.className = className; item.textContent = text; list.replaceChildren(item);
+}
+
+async function paintShareFriends() {
+  const list = $('[data-share-friends]', shareDialog!)!;
+  const status = (text: string) => shareListStatus(list, text, 'px-1 py-6 text-15 text-muted');
+  let friends: ShareFriend[];
+  try { friends = (await loadShareTargets()).friends; } catch (caught) { status(caught instanceof Error ? caught.message : 'Could not load friends.'); return; }
+  const term = $<HTMLInputElement>('[data-share-friend-search]', shareDialog!)!.value.trim().toLowerCase();
+  const shown = friends.filter((friend) => !term || friend.displayName.toLowerCase().includes(term) || friend.username.toLowerCase().includes(term));
+  if (!friends.length) { status('Add friends to send posts in Messenger.'); return; }
+  if (!shown.length) { status('No friends match your search.'); return; }
+  list.replaceChildren(...shown.map((friend) => {
+    const sent = shareState.sent.has(friend._id);
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'share-friend'; button.dataset.shareFriend = friend._id; button.title = friend.displayName;
+    button.setAttribute('aria-pressed', String(shareState.picked.has(friend._id))); button.disabled = sent;
+    const check = document.createElement('span'); check.className = 'share-friend-check'; check.appendChild(svgUse('i-check', 'icon size-3'));
+    const name = document.createElement('span'); name.className = `line-clamp-2 break-words${sent ? ' font-semibold text-brand-600' : ''}`; name.textContent = sent ? 'Sent' : friend.displayName;
+    button.append(avatarEl({ displayName: friend.displayName, avatarUrl: friend.avatarUrl }, 'size-14 text-lg'), check, name);
+    const item = document.createElement('li'); item.appendChild(button); return item;
+  }));
+}
+
+function paintShareSendBar() {
+  const count = shareState.picked.size;
+  const bar = $('[data-share-send-bar]', shareDialog!)!;
+  bar.classList.toggle('hidden', !count); bar.classList.toggle('flex', !!count);
+  $('[data-share-send]', shareDialog!)!.textContent = count > 1 ? `Send to ${count}` : 'Send';
+}
+
+async function paintShareGroups() {
+  const list = $('[data-share-groups]', shareDialog!)!;
+  const status = (text: string) => shareListStatus(list, text, 'px-2 py-4 text-15 text-muted');
+  const allowed = !!shareState.info && shareLimit(shareState.info) === 'public';
+  $('[data-share-groups-note]', shareDialog!)!.classList.toggle('hidden', allowed);
+  let groups: ShareGroup[];
+  try { groups = (await loadShareTargets()).groups; } catch (caught) { status(caught instanceof Error ? caught.message : 'Could not load groups.'); return; }
+  const term = $<HTMLInputElement>('[data-share-group-search]', shareDialog!)!.value.trim().toLowerCase();
+  const shown = groups.filter((group) => !term || group.name.toLowerCase().includes(term));
+  if (!groups.length) { status("You haven't joined any groups yet."); return; }
+  if (!shown.length) { status('No groups match your search.'); return; }
+  list.replaceChildren(...shown.map((group) => {
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'menu-item disabled:cursor-not-allowed disabled:opacity-50';
+    button.dataset.shareDestination = group._id; button.dataset.shareGroupName = group.name;
+    button.disabled = !allowed || !group.canPost;
+    const cover = document.createElement('span'); cover.className = 'size-10 shrink-0 overflow-hidden rounded-lg bg-field';
+    if (group.coverUrl) { const img = document.createElement('img'); img.src = group.coverUrl; img.alt = ''; img.className = 'size-full object-cover'; cover.appendChild(img); }
+    const title = document.createElement('span'); title.className = 'block truncate font-semibold'; title.textContent = group.name;
+    const meta = document.createElement('span'); meta.className = 'block text-[0.8125rem] font-normal text-muted';
+    meta.textContent = !group.canPost ? 'Only admins can post' : `${group.privacy === 'private' ? 'Private' : 'Public'} group${group.needsApproval ? ' · Posts need approval' : ''}`;
+    const text = document.createElement('span'); text.className = 'min-w-0'; text.append(title, meta);
+    button.append(cover, text);
+    const item = document.createElement('li'); item.appendChild(button); return item;
+  }));
+}
+
+function bumpShareCount(postId: string) {
+  $$(`[data-post-id="${postId}"]`).forEach((card) => {
+    const counter = $('[data-share-count]', card), label = $('[data-share-count-label]', card);
+    if (!counter || !label) return;
+    const next = Number(counter.textContent || 0) + 1; counter.textContent = String(next);
+    label.classList.remove('hidden'); label.lastChild!.textContent = next === 1 ? ' share' : ' shares';
+  });
+}
+
+if (shareDialog) {
+  const form = $<HTMLFormElement>('[data-share-form]', shareDialog)!;
+  $('[data-share-visibility]', shareDialog)!.addEventListener('change', paintShareAudienceIcon);
+  $('[data-share-friend-search]', shareDialog)!.addEventListener('input', () => void paintShareFriends());
+  $('[data-share-group-search]', shareDialog)!.addEventListener('input', () => void paintShareGroups());
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const info = shareState.info; if (!info) return;
+    const error = $('[data-form-error]', form)!; error.classList.add('hidden');
+    const submit = $<HTMLButtonElement>('[data-share-submit]', form)!; submit.disabled = true;
+    try {
+      const body = { content: $<HTMLTextAreaElement>('[data-share-content]', form)!.value, visibility: $<HTMLSelectElement>('[data-share-visibility]', form)!.value, ...(shareState.groupId ? { groupId: shareState.groupId } : {}) };
+      const result = await postJson(`/api/posts/${info.id}/shares`, body);
+      bumpShareCount(info.id); shareDialog.close(); showToast(result.message);
+    } catch (caught) { error.textContent = caught instanceof Error ? caught.message : 'Could not share this post.'; error.classList.remove('hidden'); }
+    finally { submit.disabled = false; }
+  });
+  shareDialog.addEventListener('click', async (event) => {
+    if (event.target === shareDialog) { shareDialog.close(); return; }
+    const target = (event.target as HTMLElement).closest<HTMLElement>('button, a');
+    if (!target || !shareState.info) return;
+    const data = target.dataset;
+    if (data.shareOpen === 'destinations' || data.shareAction === 'group') { showShareView('destinations'); return; }
+    if (data.shareBack !== undefined) { showShareView('main'); return; }
+    if (data.shareDestination !== undefined) { setShareDestination(data.shareDestination, data.shareGroupName || ''); showShareView('main'); $<HTMLTextAreaElement>('[data-share-content]', shareDialog)!.focus(); return; }
+    if (data.shareFriend) {
+      if (shareState.picked.has(data.shareFriend)) shareState.picked.delete(data.shareFriend); else shareState.picked.add(data.shareFriend);
+      target.setAttribute('aria-pressed', String(shareState.picked.has(data.shareFriend))); paintShareSendBar(); return;
+    }
+    if (data.shareSend !== undefined) {
+      const userIds = [...shareState.picked]; if (!userIds.length) return;
+      const button = target as HTMLButtonElement; button.disabled = true;
+      try {
+        const note = $<HTMLInputElement>('[data-share-send-note]', shareDialog)!;
+        const result = await postJson(`/api/posts/${shareState.info.id}/send`, { userIds, content: note.value });
+        userIds.forEach((userId) => { shareState.sent.add(userId); shareState.picked.delete(userId); });
+        note.value = ''; paintShareSendBar(); void paintShareFriends(); showToast(result.message);
+      } catch (caught) { showToast(caught instanceof Error ? caught.message : 'Could not send.', 'error'); }
+      finally { button.disabled = false; }
+      return;
+    }
+    if (data.shareAction === 'messenger') { $<HTMLInputElement>('[data-share-friend-search]', shareDialog)!.focus(); return; }
+    if (data.shareAction === 'copy') {
+      try { await navigator.clipboard.writeText(shareUrl()); showToast('Link copied to clipboard.'); } catch { showToast('Could not copy the link.', 'error'); }
+      return;
+    }
+    if (data.shareAction === 'native') {
+      try { await navigator.share({ title: 'Oremus', url: shareUrl() }); }
+      catch (caught) { if ((caught as DOMException)?.name !== 'AbortError') showToast('Could not open the share menu.', 'error'); }
+    }
+  });
+}
 
 /* ---------- Endless lists (feed, comments, chats, notifications, groups, archive…) ---------- */
 
@@ -2047,7 +2255,7 @@ function miniMessageRow(message: any) {
   const row = document.createElement('div'); row.className = `flex ${mine ? 'justify-end' : 'justify-start'}`;
   if (message._id) row.dataset.key = String(message._id);
   const bubble = document.createElement('p'); bubble.className = `bubble ${mine ? 'bubble-me' : 'bubble-them'}`;
-  bubble.textContent = String(message.content || '');
+  setLinkedText(bubble, String(message.content || ''));
   bubble.title = new Date(message.createdAt || Date.now()).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   row.appendChild(bubble);
   return row;
@@ -2055,6 +2263,7 @@ function miniMessageRow(message: any) {
 
 function appendMiniMessage(panel: HTMLElement, message: any) {
   const list = $('[data-mini-message-list]', panel); if (!list) return;
+  if (message._id && $(`[data-key="${CSS.escape(String(message._id))}"]`, list)) return;
   $('[data-mini-empty]', list)?.remove();
   list.appendChild(miniMessageRow(message)); list.scrollTop = list.scrollHeight;
 }
@@ -2112,7 +2321,7 @@ async function openMiniChat(link: HTMLAnchorElement) {
     }
     else { const empty = document.createElement('p'); empty.className = 'm-auto text-pretty text-center text-sm text-muted'; empty.dataset.miniEmpty = ''; empty.textContent = `No messages yet. Say hello to ${firstNameOf(result.conversation.partner.displayName)}.`; list.appendChild(empty); }
     const input = $<HTMLInputElement>('[name="content"]', panel)!, send = $<HTMLButtonElement>('button[type="submit"]', panel)!;
-    input.disabled = false; send.disabled = false; setUnread('messages', result.unreadMessages); $('[data-mini-unread]', link)?.remove(); input.focus();
+    input.disabled = false; send.disabled = false; setUnreadCounts(result); $('[data-mini-unread]', link)?.remove(); input.focus();
     const person = $('header a', panel); if (person && result.conversation.partner.username) person.setAttribute('href', `/profile/${result.conversation.partner.username}`);
     $<HTMLFormElement>('[data-mini-message-form]', panel)!.addEventListener('submit', async (event) => {
       event.preventDefault(); const content = input.value.trim(); if (!content) return;
@@ -2144,6 +2353,7 @@ const firstNameOf = (name: string) => (name || '').trim().split(/\s+/)[0] || nam
 
 function appendMessage(message: any) {
   if (!messageList) return;
+  if (message._id && $(`[data-key="${CSS.escape(String(message._id))}"]`, messageList)) return;
   const mine = senderIdOf(message) === me.id;
   const nearBottom = mine || messageList.scrollHeight - messageList.scrollTop - messageList.clientHeight < 160;
   const row = document.createElement('div'); row.className = `mb-2 flex animate-fade-in items-end gap-2 ${mine ? 'justify-end' : 'justify-start'}`;
@@ -2152,7 +2362,7 @@ function appendMessage(message: any) {
     const sender = senderOf(message); if (sender) slot.appendChild(avatarEl({ displayName: sender.displayName, avatarUrl: sender.profile?.avatarUrl }, 'size-7 text-2xs'));
     row.appendChild(slot);
   }
-  const bubble = document.createElement('p'); bubble.className = `bubble ${mine ? 'bubble-me' : 'bubble-them'}`; bubble.textContent = message.content;
+  const bubble = document.createElement('p'); bubble.className = `bubble ${mine ? 'bubble-me' : 'bubble-them'}`; setLinkedText(bubble, String(message.content || ''));
   bubble.title = new Date(message.createdAt || Date.now()).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   if (message._id) row.dataset.key = String(message._id);
   row.dataset.at = String(new Date(message.createdAt || Date.now()).getTime());
@@ -2220,6 +2430,12 @@ function flashTitle(text: string) {
 
 function stopTitleFlash() { window.clearInterval(titleFlashTimer); titleAlert = ''; titleFlashOn = false; renderTitle(); }
 
+/** Applies the badge counts a read/preview response carries. */
+function setUnreadCounts(result: { unreadMessages?: number; unreadNotifications?: number }) {
+  if (typeof result.unreadMessages === 'number') setUnread('messages', result.unreadMessages);
+  if (typeof result.unreadNotifications === 'number' && !notificationList) setUnread('notifications', result.unreadNotifications);
+}
+
 function setUnread(kind: 'notifications' | 'messages', count: number) {
   const value = unreadCounts[kind] = Math.max(0, count);
   $$<HTMLElement>(`[data-badge-link="${kind}"]`).forEach((link) => {
@@ -2234,6 +2450,29 @@ function setUnread(kind: 'notifications' | 'messages', count: number) {
   renderTitle();
 }
 renderTitle();
+
+const readMenuInFlight: Partial<Record<'notifications' | 'messages', Promise<void>>> = {};
+function markMenuRead(kind: 'notifications' | 'messages') {
+  if (!unreadCounts[kind] || readMenuInFlight[kind]) return;
+  const endpoint = kind === 'notifications' ? '/api/notifications/read' : '/api/conversations/read';
+  readMenuInFlight[kind] = postJson(endpoint, {})
+    .then((result) => {
+      setUnreadCounts(result); setUnread(kind, 0);
+      if (kind === 'notifications') {
+        $$('[data-unread-dot]').forEach((node) => node.remove());
+        $$('[data-unread-time]').forEach((node) => { node.classList.remove('font-semibold', 'text-brand-600'); node.classList.add('text-muted'); });
+      }
+      scheduleLiveSync(0);
+    })
+    .catch(() => undefined)
+    .finally(() => { delete readMenuInFlight[kind]; });
+}
+
+$$<HTMLDetailsElement>('details[data-read-on-open]').forEach((menu) => menu.addEventListener('toggle', () => {
+  if (!menu.open) return;
+  const kind = menu.dataset.readOnOpen;
+  if (kind === 'notifications' || kind === 'messages') markMenuRead(kind);
+}));
 
 /* Notification sounds are synthesized, so there is no audio file to ship. Browsers only allow audio after a user gesture. */
 let audioContext: AudioContext | null = null, lastSoundAt = 0;
@@ -2261,7 +2500,7 @@ function markActiveRead() {
   if (document.hidden) { pendingRead = true; return; }
   pendingRead = false;
   readInFlight ??= postJson(`/api/conversations/${activeConversation}/read`, {})
-    .then((result) => setUnread('messages', result.unreadMessages))
+    .then(setUnreadCounts)
     .catch(() => undefined)
     .finally(() => { readInFlight = null; });
 }
@@ -2281,12 +2520,147 @@ messageForm?.addEventListener('submit', async (event) => {
   catch (caught) { input.value = content; showToast(caught instanceof Error ? caught.message : 'Message failed.', 'error'); }
 });
 
+/* ---------- Live updates ---------- */
+
+/*
+ * Realtime events arrive over the socket; GET /api/live is the source of truth the page catches up from.
+ * It runs after every event (debounced), after the socket reconnects, when the connection comes back and
+ * when a tab that sat in the background is shown again, so the page never needs a manual refresh.
+ */
+const notificationList = $('[data-infinite="notifications"]');
+const chatList = $('[data-chat-list]');
+let liveTimer = 0, liveInFlight = false, liveQueued = false, liveSyncedAt = Date.now();
+
+function scheduleLiveSync(delay = 400) {
+  window.clearTimeout(liveTimer);
+  liveTimer = window.setTimeout(() => void syncLive(), delay);
+}
+
+function paintLivePanel(name: string, html: unknown) {
+  const panel = $(`[data-live-panel="${name}"]`); if (!panel || typeof html !== 'string') return;
+  const scrollTop = $('ul', panel)?.scrollTop || 0;
+  panel.innerHTML = html;
+  const fresh = $('ul', panel); if (fresh) fresh.scrollTop = scrollTop;
+}
+
+/** Puts rows the list does not show yet on top, newest first, and leaves everything already shown alone. */
+function prependNewRows(list: HTMLElement, html: string) {
+  const known = new Set($$<HTMLElement>(':scope > [data-key]', list).map((row) => row.dataset.key));
+  const fragment = document.createDocumentFragment();
+  htmlNodes(html).forEach((node) => { if (node instanceof HTMLElement && node.dataset.key && !known.has(node.dataset.key)) fragment.appendChild(node); });
+  if (!fragment.childNodes.length) return;
+  initDynamic(fragment); list.prepend(fragment);
+  $('[data-notifications-empty]')?.classList.add('hidden');
+}
+
+/** The newest chats move to the top in the server's order, replacing their stale rows. */
+function mergeChatRows(list: HTMLElement, html: string) {
+  const rows = htmlNodes(html).filter((node): node is HTMLElement => node instanceof HTMLElement && !!node.dataset.chatId);
+  for (const row of rows.reverse()) {
+    $(`[data-chat-id="${CSS.escape(row.dataset.chatId!)}"]`, list)?.remove();
+    list.prepend(row);
+  }
+  if (rows.length) { list.classList.remove('hidden'); $('[data-chats-empty]')?.classList.add('hidden'); }
+  $('[data-chat-filter]')?.dispatchEvent(new Event('input'));
+}
+
+/** Fills in messages the open chat missed (sent while the socket was down or the tab was asleep). */
+function appendMissedMessages(messages: any[]) {
+  if (!messageList) return;
+  const missed = messages.filter((message) => !$(`[data-key="${CSS.escape(String(message._id))}"]`, messageList));
+  missed.forEach((message) => appendMessage(message));
+  if (missed.length && missed.some((message) => senderIdOf(message) !== me.id)) markActiveRead();
+}
+
+async function catchUpMiniChats() {
+  await Promise.all($$<HTMLElement>('[data-mini-conversation]').map(async (panel) => {
+    const list = $('[data-mini-message-list]', panel); if (!list || $('[data-mini-loading]', list)) return;
+    try {
+      const result = await request(`/api/conversations/${panel.dataset.miniConversation}/preview`);
+      (result.messages as any[]).filter((message) => !$(`[data-key="${CSS.escape(String(message._id))}"]`, list)).forEach((message) => appendMiniMessage(panel, message));
+      setUnreadCounts(result);
+    } catch { /* the next sync tries again */ }
+  }));
+}
+
+/** Returns false when the session is gone (signed out elsewhere), so callers stop retrying. */
+async function syncLive(full = false): Promise<boolean> {
+  if (!me.id) return false;
+  if (liveInFlight) { liveQueued = true; return true; }
+  liveInFlight = true;
+  try {
+    const params = new URLSearchParams();
+    if (notificationList) {
+      const query = new URLSearchParams(notificationList.dataset.infiniteQuery || '');
+      params.set('notifications', query.get('opened') || String(Date.now())); params.set('filter', query.get('filter') || 'all');
+    }
+    if (chatList) params.set('chats', activeConversation);
+    if (activeConversation) params.set('conversation', activeConversation);
+    // A plain fetch so an expired session (401) can be told apart from a network error.
+    const response = await fetch(`/api/live?${params}`, { credentials: 'same-origin', headers: { 'x-csrf-token': csrf } });
+    if (response.status === 401) return false;
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.ok) return true;
+    const data = payload.data;
+    liveSyncedAt = Date.now();
+    paintLivePanel('chats', data.chatsHtml); paintLivePanel('notifications', data.notificationsHtml);
+    setUnread('messages', data.unreadMessages);
+    // The notifications page keeps everything read while it is open.
+    setUnread('notifications', notificationList ? 0 : data.unreadNotifications);
+    if (notificationList && typeof data.notificationRows === 'string') prependNewRows(notificationList, data.notificationRows);
+    if (chatList && typeof data.chatRows === 'string') mergeChatRows(chatList, data.chatRows);
+    if (Array.isArray(data.messages)) appendMissedMessages(data.messages);
+    if (full) await catchUpMiniChats();
+    return true;
+  } catch {
+    return true; // offline: the 'online' listener syncs again
+  } finally {
+    liveInFlight = false;
+    if (liveQueued) { liveQueued = false; scheduleLiveSync(); }
+  }
+}
+
+if (me.id) {
+  // Tabs that were hidden or offline may have missed events (or slept through a socket reconnect).
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - liveSyncedAt > 30_000) void syncLive(true); });
+  window.addEventListener('online', () => void syncLive(true));
+  window.addEventListener('pageshow', (event) => { if (event.persisted) void syncLive(true); }); // restored from the back/forward cache
+  // Socket delivery is immediate; this heartbeat is the safety net for silent proxy/adapter failures.
+  window.setInterval(() => { if (!document.hidden) void syncLive(); }, 30_000);
+}
+
+type LiveSocket = {
+  active: boolean;
+  connect: () => void;
+  on: (event: string, callback: (payload: any) => void) => void;
+};
+declare const io: undefined | ((options?: Record<string, unknown>) => LiveSocket);
+
 if (typeof io === 'function' && me.id) {
-  const socket = io();
+  const socket = io({ withCredentials: true });
+  let authRetry = 0, authTimer = 0;
+  socket.on('connect', () => {
+    authRetry = 0;
+    void syncLive(true); // also closes the race between server-rendering the page and the first socket connection
+  });
+  // The server refused the handshake (socket.active is false): the 15-minute access token expired.
+  // Any authenticated request renews it from the refresh token cookie, then the socket can connect again.
+  // Network errors keep socket.active true and socket.io retries those on its own.
+  socket.on('connect_error', () => {
+    if (socket.active || authTimer) return;
+    authTimer = window.setTimeout(async () => {
+      authTimer = 0;
+      if (!navigator.onLine) { window.addEventListener('online', () => socket.connect(), { once: true }); return; }
+      if (await syncLive(true)) socket.connect();
+    }, Math.min(30_000, 500 * 2 ** authRetry++));
+  });
+  socket.on('disconnect', (reason: string) => { if (reason === 'io server disconnect') socket.connect(); });
+
   socket.on('friendship:changed', (relation: any) => {
     syncFriendState(relation.userId, relation.state);
     syncFollowState(relation.userId, relation.following);
     if (window.location.pathname.startsWith('/messages')) window.location.assign('/messages');
+    else scheduleLiveSync();
   });
   socket.on('social:changed', (relation: any) => {
     if (socialActionPending) return;
@@ -2298,16 +2672,21 @@ if (typeof io === 'function' && me.id) {
   socket.on('notification:new', (notification: any) => {
     const isMessage = notification?.type === 'message';
     if (isMessage && String(notification.entityId) === activeConversation) return;
-    // Already looking at the notifications page: keep it read instead of bumping the badge.
-    if (window.location.pathname === '/notifications') void request('/api/notifications/read', { method: 'POST' }).catch(() => undefined);
-    else setUnread('notifications', unreadCounts.notifications + 1);
+    // Already looking at the notifications page: keep it read and show the new row at the top.
+    if (notificationList) void request('/api/notifications/read', { method: 'POST' }).catch(() => undefined).finally(() => scheduleLiveSync(0));
+    else {
+      setUnread('notifications', unreadCounts.notifications + 1);
+      if ($('details[data-read-on-open="notifications"][open]')) markMenuRead('notifications'); else scheduleLiveSync();
+    }
     if (isMessage) return; // message:new shows its own toast and plays its own sound
-    showToast('You have a new notification.');
+    const actor = notification.actorId && typeof notification.actorId === 'object' ? String(notification.actorId.displayName || '') : '';
+    showToast(actor ? `${actor} ${notification.text}` : 'You have a new notification.');
     playSound('notification');
-    flashTitle('New notification');
+    flashTitle(actor ? `${firstNameOf(actor)} ${notification.text}` : 'New notification');
   });
+  socket.on('live:sync', () => scheduleLiveSync(0));
   socket.on('message:new', (message: any) => {
-    if (senderIdOf(message) === me.id) return; // already rendered from the POST response
+    const mine = senderIdOf(message) === me.id;
     const name = senderOf(message)?.displayName || 'Someone';
     const inActiveChat = String(message.conversationId) === activeConversation;
     const openMini = miniChatPanel(String(message.conversationId));
@@ -2318,15 +2697,17 @@ if (typeof io === 'function' && me.id) {
     } else if (openMini) {
       appendMiniMessage(openMini, message); updateChatRow(message, false);
       void postJson(`/api/conversations/${message.conversationId}/read`, {})
-        .then((result) => setUnread('messages', result.unreadMessages))
+        .then(setUnreadCounts)
         .catch(() => undefined);
     } else {
-      updateChatRow(message, true);
+      updateChatRow(message, !mine);
       if (typeof message.unreadMessages === 'number') setUnread('messages', message.unreadMessages);
-      showToast(`${firstNameOf(name)}: ${String(message.content).slice(0, 80)}`);
+      if (!mine) showToast(`${firstNameOf(name)}: ${String(message.content).slice(0, 80)}`);
     }
-    if (!inActiveChat || document.hidden) playSound('message');
-    flashTitle(`${name} messaged you`);
+    if (!mine && (!inActiveChat || document.hidden)) playSound('message');
+    if (!mine) flashTitle(`${name} messaged you`);
+    if ($('details[data-read-on-open="messages"][open]')) markMenuRead('messages');
+    scheduleLiveSync(); // the chats popover shows the new preview
   });
 }
 

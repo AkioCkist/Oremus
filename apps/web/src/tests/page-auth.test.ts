@@ -37,6 +37,13 @@ describe('authentication boundaries', () => {
 
     expect(response.headers['content-security-policy']).not.toContain('upgrade-insecure-requests');
   });
+
+  it('loads the realtime client from the local Socket.IO server', async () => {
+    const response = await request(app).get('/login').set('Accept', 'text/html');
+
+    expect(response.text).toContain('src="/socket.io/socket.io.js"');
+    expect(response.text).not.toContain('cdn.socket.io/4.8.1/socket.io.min.js');
+  });
 });
 
 describe('validation responses', () => {

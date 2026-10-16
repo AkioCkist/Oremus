@@ -175,6 +175,8 @@
   </form>
 </dialog>
 
+<%- include('share-dialog') %>
+
 <%- include('profile-dialogs') %>
 
 <dialog id="story-dialog" class="max-h-[calc(100dvh-1rem)] w-[min(64rem,calc(100%-1rem))] overflow-hidden rounded-xl p-0 shadow-pop" aria-labelledby="story-dialog-title">
@@ -279,7 +281,8 @@
 <% } %>
 
 <%- include('mobile-nav') %>
-<script src="https://cdn.socket.io/4.8.1/socket.io.min.js" defer></script>
+<%# Served by the attached Socket.IO server so realtime never depends on a third-party CDN. %>
+<script src="/socket.io/socket.io.js" defer></script>
 <script type="module" src="/assets/app.js?v=<%= assetVersion %>"></script>
 </body>
 </html>

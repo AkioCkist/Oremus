@@ -2,9 +2,9 @@ import path from 'node:path';
 import ejs from 'ejs';
 import sanitizeHtml from 'sanitize-html';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Block, Conversation, Follow, Friendship, Message, User } from '../models/index.js';
+import { Block, Conversation, Follow, Friendship, Message, Notification, User } from '../models/index.js';
 import { changeFriendship } from '../services/friendship.service.js';
-import { createConversation, sendMessage } from '../services/message.service.js';
+import { createConversation, readAllConversations, sendMessage } from '../services/message.service.js';
 import { toggleFollow } from '../services/user.service.js';
 
 describe('friend controls HTML regression', () => {
@@ -42,5 +42,27 @@ describe('block authorization', () => {
     await expect(createConversation('actor', 'target')).rejects.toMatchObject({ code: 'FRIENDSHIP_REQUIRED' });
     await expect(sendMessage('actor', 'chat', 'blocked message')).rejects.toMatchObject({ code: 'FRIENDSHIP_REQUIRED' });
     expect(write).not.toHaveBeenCalled();
+  });
+});
+
+describe('chat read state', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('marks every received message and message notification read when Chats opens', async () => {
+    vi.spyOn(Conversation, 'find').mockReturnValue({ select: () => ({ lean: async () => [{ _id: 'chat-a' }, { _id: 'chat-b' }] }) } as any);
+    vi.spyOn(Block, 'find').mockReturnValue({ select: () => ({ lean: async () => [] }) } as any);
+    const messageWrite = vi.spyOn(Message, 'updateMany').mockResolvedValue({ acknowledged: true } as any);
+    const notificationWrite = vi.spyOn(Notification, 'updateMany').mockResolvedValue({ acknowledged: true } as any);
+    vi.spyOn(Notification, 'countDocuments').mockResolvedValue(0);
+
+    await expect(readAllConversations('me')).resolves.toEqual({ unreadMessages: 0, unreadNotifications: 0 });
+    expect(messageWrite).toHaveBeenCalledWith(
+      { conversationId: { $in: ['chat-a', 'chat-b'] }, senderId: { $ne: 'me' }, readBy: { $ne: 'me' }, deletedAt: null },
+      { $addToSet: { readBy: 'me' } }
+    );
+    expect(notificationWrite).toHaveBeenCalledWith(
+      { recipientId: 'me', type: 'message', readAt: null },
+      { readAt: expect.any(Date) }
+    );
   });
 });

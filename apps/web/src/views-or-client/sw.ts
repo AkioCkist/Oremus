@@ -18,7 +18,7 @@ const UPLOADS_CACHE = 'oremus-uploads';
 const UPLOADS_MAX_ENTRIES = 300;
 const OFFLINE_URL = '/offline';
 const PRECACHE = [OFFLINE_URL, `/assets/styles.css?v=${VERSION}`, '/assets/brand/logo.svg', '/assets/brand/favicon.svg'];
-const CDN_HOSTS = new Set(['fonts.googleapis.com', 'fonts.gstatic.com', 'cdn.socket.io']);
+const CDN_HOSTS = new Set(['fonts.googleapis.com', 'fonts.gstatic.com']);
 const CACHEABLE_UPLOAD = /\.(webp|jpe?g|png|gif|svg|avif)$/i;
 
 sw.addEventListener('install', (event) => {

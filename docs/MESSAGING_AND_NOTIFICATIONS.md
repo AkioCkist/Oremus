@@ -13,34 +13,50 @@ Main files:
 sequenceDiagram
   participant B as Browser
   participant IO as Socket.IO (web)
+  participant L as GET /api/live
   participant R as Redis adapter
   B->>IO: connect (cookies sent automatically)
   IO->>IO: read access_token cookie, verify JWT
-  alt invalid
-    IO-->>B: "Authentication required" (connection refused)
+  alt invalid or expired (access tokens last 15 minutes)
+    IO-->>B: connect_error "Authentication required"
+    B->>L: any signed-in request renews the cookies from refresh_token
+    B->>IO: connect again
   else valid
     IO->>IO: join room user:{userId}
-    IO->>IO: join conversation:{id} for each friend chat
   end
   Note over IO,R: Events go through Redis, so any web instance can reach the user
 ```
 
 Services never talk to Socket.IO directly. They call `emitUserEvent(userId, event, payload)`, which sends the event to the room `user:{userId}`.
 
+A refused handshake is not retried by socket.io itself, so before this was handled a tab that lost its connection
+after the access token expired (sleep, network change, server restart) silently stopped receiving events until it was reloaded.
+
+### Catching up: `GET /api/live`
+
+The socket only carries "something happened". `GET /api/live` ([`live.controller.ts`](../apps/web/src/controllers/live.controller.ts))
+returns the current state of everything that can change on its own, rendered with the same partials the page uses:
+
+| Field | Used for |
+|---|---|
+| `unreadNotifications`, `unreadMessages` | Header badges and the `(3) Home · Oremus` tab title |
+| `chatsHtml`, `notificationsHtml` | Bodies of the header popovers (`partials/header-chats.ejs`, `partials/header-notifications.ejs`) |
+| `notificationRows` (with `?notifications=<openedAt>&filter=`) | New rows prepended on `/notifications` |
+| `chatRows` (with `?chats=<active id>`) | Newest rows of the chat list on `/messages`, moved to the top |
+| `messages` (with `?conversation=<id>`) | Messages the open chat missed (appended if not shown yet) |
+
+The client calls it (debounced) after every socket event, after the socket reconnects, when the browser comes back online,
+when a tab hidden for more than 30 seconds is shown again and when a page is restored from the back/forward cache.
+Open mini chats catch up through `GET /api/conversations/:id/preview`. A visible tab also polls `/api/live` every 30 seconds as a safety net for silent proxy, adapter, or socket failures.
+
 ### Events sent to the browser
 
 | Event | When | What the client does |
 |---|---|---|
-| `notification:new` | A notification is created for you | Shows a toast and increases the bell badge (skipped for messages in the chat you have open) |
-| `message:new` | Someone sends you a message (or story reply) | Appends the message if that chat is open |
+| `notification:new` | A notification is created for you (payload includes the actor) | Shows "<name> <text>" as a toast, increases the bell badge and refreshes the popover; on `/notifications` the new row appears at the top (skipped for messages in the chat you have open) |
+| `message:new` | Someone sends you a message (or story reply); carries your `unreadMessages` count | Appends the message if that chat (or mini chat) is open, updates the chat list, badge and popover |
 | `friendship:changed` | A friendship action involving you | Updates friend and follow buttons; on the Messages page it reloads the inbox |
 | `social:changed` | Block or unblock involving you | Reloads the page (or the inbox) so hidden content disappears |
-
-### Events sent by the browser
-
-| Event | Purpose |
-|---|---|
-| `conversation:join` | Join a conversation room when opening a chat (only allowed if you are friends) |
 
 ## Messaging
 
@@ -72,7 +88,7 @@ sequenceDiagram
 ```
 
 - `/messages` lists conversations with friends, newest first, with the last message and an unread flag.
-- Opening `/messages/:conversationId` marks all messages as read (adds you to `readBy`).
+- Opening `/messages/:conversationId` (or a mini chat) marks all messages as read (adds you to `readBy`) and marks that chat's `message` notifications read, so the bell badge doesn't count a chat you have already seen.
 - The header badge counts conversations that have unread messages.
 - Story replies are sent as normal messages that start with "Replied to your story:".
 

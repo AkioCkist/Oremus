@@ -22,6 +22,8 @@ export async function notifyMany(inputs: NotificationInput[]): Promise<void> {
   const allowed = candidates.filter((input) => !blocked.has(pairKey(input.actorId, input.recipientId)));
   if (!allowed.length) return;
   const notifications = await Notification.insertMany(allowed);
+  // The actor is included so the client can say who did what without another request.
+  await Notification.populate(notifications, { path: 'actorId', select: 'username displayName profile.avatarUrl' });
   notifications.forEach((notification: any) => notifier(String(notification.recipientId), 'notification:new', notification.toObject()));
 }
 
