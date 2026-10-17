@@ -38,7 +38,7 @@
               <% friendsPreview.slice(0, 8).forEach(function (p) { %><a href="/profile/<%= p.username %>" title="<%= p.displayName %>"><%- include('partials/avatar', { person: p, size: 'size-8 text-2xs ring-2 ring-surface' }) %></a><% }) %>
             </div>
             <% } %>
-            <p class="hidden basis-full text-sm text-red-600" role="alert" data-profile-action-error></p>
+            <p class="hidden basis-full text-sm text-ios-red" role="alert" data-profile-action-error></p>
           </div>
           <div class="profile-actions flex flex-wrap justify-center gap-2 md:max-w-lg md:justify-end md:pb-3">
             <% if (isSelf) { %>
@@ -146,7 +146,7 @@
     <% } %>
   </div>
 </main>
-<dialog id="profile-search-dialog" class="w-[min(30rem,calc(100%-2rem))] rounded-xl p-0 shadow-pop" aria-labelledby="profile-search-title">
+<dialog id="profile-search-dialog" class="w-[min(30rem,calc(100%-2rem))] rounded-sheet p-0 shadow-pop" aria-labelledby="profile-search-title">
   <div class="flex items-center justify-between border-b border-line px-4 py-3"><h2 id="profile-search-title" class="text-balance text-xl font-bold">Search this profile</h2><button type="button" class="icon-btn" data-close-dialog="profile-search-dialog" aria-label="Close search"><svg class="icon"><use href="#i-x"/></svg></button></div>
   <form action="/profile/<%= profile.username %>" method="get" class="space-y-4 p-4">
     <label class="label" for="profile-search-query">Posts by <%= profile.displayName %></label>

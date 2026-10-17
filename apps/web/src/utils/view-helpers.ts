@@ -64,8 +64,8 @@ export function linkify(text: string): string {
 }
 
 export const REACTION_LABELS: Record<string, { label: string; color: string }> = {
-  like: { label: 'Like', color: 'text-[#0866ff]' },
-  love: { label: 'Love', color: 'text-[#f33e58]' },
+  like: { label: 'Like', color: 'text-[#0088ff]' },
+  love: { label: 'Love', color: 'text-[#ff2d55]' },
   haha: { label: 'Haha', color: 'text-[#e9a811]' },
   wow: { label: 'Wow', color: 'text-[#e9a811]' },
   sad: { label: 'Sad', color: 'text-[#e9a811]' },

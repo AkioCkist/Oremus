@@ -4,11 +4,11 @@
         <form class="mt-8 space-y-4" data-api-form action="/auth/login" method="post">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <div>
-            <label class="label" for="email">E-mail <span class="text-red-600" aria-hidden="true">*</span></label>
+            <label class="label" for="email">E-mail <span class="text-ios-red" aria-hidden="true">*</span></label>
             <div class="input-icon mt-1.5"><svg class="icon size-[1.125rem]"><use href="#i-mail"/></svg><input class="input w-full" id="email" name="email" type="email" autocomplete="email" placeholder="email@example.com" required></div>
           </div>
           <div class="relative">
-            <label class="label" for="password">Password <span class="text-red-600" aria-hidden="true">*</span></label>
+            <label class="label" for="password">Password <span class="text-ios-red" aria-hidden="true">*</span></label>
             <div class="input-icon relative mt-1.5">
               <svg class="icon size-[1.125rem]"><use href="#i-key"/></svg>
               <input class="input w-full pr-11" id="password" name="password" type="password" autocomplete="current-password" placeholder="••••••••••" required>

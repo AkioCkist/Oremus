@@ -8,10 +8,10 @@
     </button>
   </div>
   <div class="mt-2 flex border-t border-line pt-2">
-    <button type="button" class="composer-tool" data-open-composer data-pick-photo <% if (cg) { %>data-group-id="<%= cg._id %>" data-group-name="<%= cg.name %>"<% } %>><svg class="icon text-[#45bd62]"><use href="#i-image"/></svg><span class="hidden sm:inline">Photo/video</span><span class="sm:hidden">Photo</span></button>
+    <button type="button" class="composer-tool" data-open-composer data-pick-photo <% if (cg) { %>data-group-id="<%= cg._id %>" data-group-name="<%= cg.name %>"<% } %>><svg class="icon text-[#34c759]"><use href="#i-image"/></svg><span class="hidden sm:inline">Photo/video</span><span class="sm:hidden">Photo</span></button>
     <% if (!cg) { %>
-    <button type="button" class="composer-tool" data-open-story-composer><svg class="icon text-[#f02849]"><use href="#i-stories"/></svg>Story</button>
+    <button type="button" class="composer-tool" data-open-story-composer><svg class="icon text-[#ff383c]"><use href="#i-stories"/></svg>Story</button>
     <% } %>
-    <button type="button" class="composer-tool" data-open-composer data-feeling <% if (cg) { %>data-group-id="<%= cg._id %>" data-group-name="<%= cg.name %>"<% } %>><svg class="icon text-[#f7b928]"><use href="#i-smile"/></svg><span class="hidden sm:inline">Feeling/activity</span><span class="sm:hidden">Feeling</span></button>
+    <button type="button" class="composer-tool" data-open-composer data-feeling <% if (cg) { %>data-group-id="<%= cg._id %>" data-group-name="<%= cg.name %>"<% } %>><svg class="icon text-[#ff8d28]"><use href="#i-smile"/></svg><span class="hidden sm:inline">Feeling/activity</span><span class="sm:hidden">Feeling</span></button>
   </div>
 </section>

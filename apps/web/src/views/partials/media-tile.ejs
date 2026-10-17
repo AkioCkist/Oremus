@@ -5,7 +5,7 @@
     <% if (item.isVideo) { %>
       <% if (item.poster) { %><img class="size-full object-cover transition-transform hover:scale-105" src="<%= item.poster %>" alt="" loading="lazy"><% } else { %><video class="pointer-events-none size-full object-cover" src="<%= item.url %>#t=0.1" muted playsinline preload="metadata" tabindex="-1" aria-hidden="true"></video><% } %>
       <span class="pointer-events-none absolute inset-0 grid place-items-center"><span class="grid size-11 place-items-center rounded-full bg-black/55 text-white ring-2 ring-white/80"><svg class="icon size-5 translate-x-0.5 fill-current"><use href="#i-play"/></svg></span></span>
-      <% if (item.status === 'processing') { %><span class="pointer-events-none absolute bottom-1.5 left-1.5 rounded-full bg-black/65 px-2 py-0.5 text-2xs font-semibold text-white">Processing…</span><% } else if (item.status === 'failed') { %><span class="pointer-events-none absolute bottom-1.5 left-1.5 rounded-full bg-red-600 px-2 py-0.5 text-2xs font-semibold text-white">Failed</span><% } %>
+      <% if (item.status === 'processing') { %><span class="pointer-events-none absolute bottom-1.5 left-1.5 rounded-full bg-black/65 px-2 py-0.5 text-2xs font-semibold text-white">Processing…</span><% } else if (item.status === 'failed') { %><span class="pointer-events-none absolute bottom-1.5 left-1.5 rounded-full bg-ios-red px-2 py-0.5 text-2xs font-semibold text-white">Failed</span><% } %>
     <% } else { %>
       <img class="size-full object-cover transition-transform hover:scale-105" src="<%= item.url %>" alt="<%= item.alt || '' %>" loading="lazy">
     <% } %>

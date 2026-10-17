@@ -1,9 +1,9 @@
 <% if (typeof currentUser !== 'undefined' && currentUser && !locals.hideMobileNav) { const on = (href) => href === '/' ? path === '/' : path.startsWith(href); %>
-<nav aria-label="Mobile navigation" class="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-line bg-surface px-1 pb-[max(.375rem,env(safe-area-inset-bottom))] pt-1.5 md:hidden">
-  <a class="mobile-link <%= on('/') ? 'mobile-link-active' : '' %>" href="/"><svg class="icon size-6"><use href="#i-home"/></svg>Home</a>
-  <a class="mobile-link <%= on('/stories') ? 'mobile-link-active' : '' %>" href="/stories"><svg class="icon size-6"><use href="#i-stories"/></svg>Stories</a>
-  <a class="mobile-link <%= on('/groups') ? 'mobile-link-active' : '' %>" href="/groups"><svg class="icon size-6"><use href="#i-group"/></svg>Groups</a>
-  <a class="mobile-link <%= on('/messages') ? 'mobile-link-active' : '' %>" href="/messages" data-badge-link="messages" data-badge-class="right-[calc(50%-1.25rem)] top-0"><svg class="icon size-6"><use href="#i-chat"/></svg>Chats<% if (locals.unreadMessages) { %><span class="badge right-[calc(50%-1.25rem)] top-0" data-badge><%= unreadMessages > 9 ? '9+' : unreadMessages %></span><% } %></a>
-  <a class="mobile-link <%= on('/notifications') ? 'mobile-link-active' : '' %>" href="/notifications" data-badge-link="notifications" data-badge-class="right-[calc(50%-1.25rem)] top-0"><svg class="icon size-6"><use href="#i-bell"/></svg>Alerts<% if (locals.unreadNotifications) { %><span class="badge right-[calc(50%-1.25rem)] top-0" data-badge><%= unreadNotifications > 9 ? '9+' : unreadNotifications %></span><% } %></a>
+<nav aria-label="Mobile navigation" class="mobile-tabbar">
+  <a class="mobile-link <%= on('/') ? 'mobile-link-active' : '' %>" href="/"><svg class="icon size-6"><use href="#i-home<%= on('/') ? '-fill' : '' %>"/></svg>Home</a>
+  <a class="mobile-link <%= on('/stories') ? 'mobile-link-active' : '' %>" href="/stories"><svg class="icon size-6"><use href="#i-stories<%= on('/stories') ? '-fill' : '' %>"/></svg>Stories</a>
+  <a class="mobile-link <%= on('/groups') ? 'mobile-link-active' : '' %>" href="/groups"><svg class="icon size-6"><use href="#i-group<%= on('/groups') ? '-fill' : '' %>"/></svg>Groups</a>
+  <a class="mobile-link <%= on('/messages') ? 'mobile-link-active' : '' %>" href="/messages" data-badge-link="messages" data-badge-class="right-[calc(50%-1.375rem)] top-1"><svg class="icon size-6"><use href="#i-chat<%= on('/messages') ? '-fill' : '' %>"/></svg>Chats<% if (locals.unreadMessages) { %><span class="badge right-[calc(50%-1.375rem)] top-1" data-badge><%= unreadMessages > 9 ? '9+' : unreadMessages %></span><% } %></a>
+  <a class="mobile-link <%= on('/notifications') ? 'mobile-link-active' : '' %>" href="/notifications" data-badge-link="notifications" data-badge-class="right-[calc(50%-1.375rem)] top-1"><svg class="icon size-6"><use href="#i-bell<%= on('/notifications') ? '-fill' : '' %>"/></svg>Alerts<% if (locals.unreadNotifications) { %><span class="badge right-[calc(50%-1.375rem)] top-1" data-badge><%= unreadNotifications > 9 ? '9+' : unreadNotifications %></span><% } %></a>
 </nav>
 <% } %>

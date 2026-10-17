@@ -2,7 +2,7 @@
 <% const me = currentUser; const meInfo = me.profile || {}; const introHidden = new Set(meInfo.introHidden || []); const aboutLink = (section) => `/profile/${me.username}?tab=about&section=${section}`; -%>
 
 <!-- Edit profile -->
-<dialog id="edit-profile-dialog" class="w-[min(43.75rem,calc(100%-1.5rem))] rounded-xl p-0 shadow-pop" aria-labelledby="edit-profile-title">
+<dialog id="edit-profile-dialog" class="w-[min(43.75rem,calc(100%-1.5rem))] rounded-sheet p-0 shadow-pop" aria-labelledby="edit-profile-title">
   <div class="relative border-b border-line px-4 py-3 text-center"><h2 id="edit-profile-title" class="text-xl font-bold">Edit profile</h2><button type="button" class="icon-btn absolute right-3 top-2" data-close-dialog="edit-profile-dialog" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button></div>
   <div class="max-h-[78dvh] overflow-y-auto px-4 pb-4">
     <section class="border-b border-line py-4">
@@ -54,7 +54,7 @@
   </label>
 <% } %>
 <% function addLink(section, text) { %><a class="flex items-center gap-3 py-2 text-15 font-semibold text-brand-600 hover:underline" href="<%= aboutLink(section) %>"><svg class="icon"><use href="#i-plus"/></svg><%= text %></a><% } %>
-<dialog id="edit-details-dialog" class="w-[min(34rem,calc(100%-1.5rem))] rounded-xl p-0 shadow-pop" aria-labelledby="edit-details-title">
+<dialog id="edit-details-dialog" class="w-[min(34rem,calc(100%-1.5rem))] rounded-sheet p-0 shadow-pop" aria-labelledby="edit-details-title">
   <form data-api-form data-method="PATCH" data-reload action="/api/profile/details" method="post">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <div class="relative border-b border-line px-4 py-3 text-center"><h2 id="edit-details-title" class="text-xl font-bold">Edit details</h2><button type="button" class="icon-btn absolute right-3 top-2" data-close-dialog="edit-details-dialog" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button></div>
@@ -123,7 +123,7 @@
 </dialog>
 
 <!-- Choose profile picture / cover photo -->
-<dialog id="photo-picker-dialog" class="w-[min(43.75rem,calc(100%-1.5rem))] rounded-xl p-0 shadow-pop" aria-labelledby="photo-picker-title" data-photo-picker>
+<dialog id="photo-picker-dialog" class="w-[min(43.75rem,calc(100%-1.5rem))] rounded-sheet p-0 shadow-pop" aria-labelledby="photo-picker-title" data-photo-picker>
   <div class="relative border-b border-line px-4 py-3 text-center">
     <button type="button" class="icon-btn absolute left-3 top-2 hidden" data-picker-back aria-label="Back to photos"><svg class="icon"><use href="#i-arrow-left"/></svg></button>
     <h2 id="photo-picker-title" class="text-xl font-bold" data-picker-title>Choose profile picture</h2>

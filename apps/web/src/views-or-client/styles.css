@@ -1,30 +1,83 @@
-/* Theme tokens as RGB channels. data-theme on <html> is light | dark | system (follows the OS). */
+/* Theme tokens as RGB channels. data-theme on <html> is light | dark | system (follows the OS).
+   Values come from the iOS 27 UI kit (Figma variables: Colors / Light + Dark). Translucent kit fills
+   (Fills, Labels, Separators) are pre-blended onto their usual backdrop so Tailwind alpha modifiers keep working. */
 :root {
-  --c-surface: 255 255 255; --c-canvas: 240 242 245; --c-field: 240 242 245; --c-hover: 242 242 242; --c-line: 228 230 235;
-  --c-control: 228 230 235; --c-control-hover: 216 218 223; --c-rail-hover: 228 230 233; --c-strong: 204 208 213;
-  --c-ink: 5 5 5; --c-muted: 101 103 107; --c-subtle: 138 141 145; --c-primary-hover: 53 64 176;
-  --c-brand-50: 238 240 252; --c-brand-100: 221 225 249; --c-brand-200: 188 195 242; --c-brand-400: 108 120 224;
-  --c-brand-500: 79 91 213; --c-brand-600: 65 80 207; --c-brand-700: 53 64 176; --c-brand-800: 43 52 144;
-  --backdrop: rgba(244, 244, 244, 0.8);
+  /* Backgrounds (Grouped): primary = page, secondary = cards/cells, elevated = sheets */
+  --c-canvas: 242 242 247; --c-surface: 255 255 255;
+  /* Fills: tertiary = text fields, secondary = bordered buttons, quaternary = hover */
+  --c-field: 239 239 240; --c-hover: 244 244 245; --c-control: 233 233 235; --c-control-hover: 228 228 230; --c-rail-hover: 229 229 234;
+  /* Separators (non-opaque on white) and Gray 3 for strong strokes */
+  --c-line: 224 224 224; --c-strong: 199 199 204;
+  /* Labels: primary, secondary (60%), Gray for tertiary text */
+  --c-ink: 0 0 0; --c-muted: 138 138 142; --c-subtle: 142 142 147;
+  /* Tint = Accents/Blue, scale derived for tinted fills and pressed states */
+  --c-brand-50: 229 243 255; --c-brand-100: 204 231 255; --c-brand-200: 153 207 255; --c-brand-400: 77 172 255;
+  --c-brand-500: 0 136 255; --c-brand-600: 0 136 255; --c-brand-700: 0 112 214; --c-brand-800: 0 89 171; --c-primary-hover: 0 122 230;
+  /* Accents */
+  --c-red: 255 56 60; --c-orange: 255 141 40; --c-yellow: 255 204 0; --c-green: 52 199 89; --c-teal: 0 195 208;
+  --c-blue: 0 136 255; --c-indigo: 97 85 245; --c-purple: 203 48 224; --c-pink: 255 45 85;
+  /* Overlays / Default */
+  --backdrop: rgba(0, 0, 0, 0.2);
+  /* Liquid Glass (Materials page): Regular fill + hairline rim + soft lift */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-bg-strong: rgba(250, 250, 252, 0.92);
+  --glass-rim: rgba(219, 219, 219, 0.9);
+  --glass-highlight: rgba(255, 255, 255, 0.85);
+  --glass-shade: rgba(40, 40, 40, 0.06);
+  --bar-bg: rgba(255, 255, 255, 0.85); /* Scroll Edge Effect - Hard, Light */
+  --bar-rim: rgba(0, 0, 0, 0.05);
+  --tab-selection: 237 237 237; /* Fills - Vibrant / Tertiary */
+  --shadow-card: 0 0 0 0.5px rgba(0, 0, 0, 0.03);
+  --shadow-glass: 0 8px 48px rgba(0, 0, 0, 0.12), 0 0 0 0.5px var(--glass-rim), inset 0 1px 1px var(--glass-highlight), inset 0 -1px 1px var(--glass-shade);
+  --shadow-pop: 0 8px 48px rgba(0, 0, 0, 0.25), 0 0 0 0.5px var(--glass-rim);
+  --shadow-float: 0 8px 15px rgba(0, 0, 0, 0.06), 0 0 0 0.5px var(--glass-rim), inset 0 1px 1px var(--glass-highlight);
   color-scheme: light;
 }
 :root[data-theme="dark"] {
-  --c-surface: 36 37 38; --c-canvas: 24 25 26; --c-field: 58 59 60; --c-hover: 58 59 60; --c-line: 62 64 66;
-  --c-control: 58 59 60; --c-control-hover: 78 79 80; --c-rail-hover: 48 49 50; --c-strong: 78 80 82;
-  --c-ink: 228 230 235; --c-muted: 176 179 184; --c-subtle: 138 141 145; --c-primary-hover: 112 124 240;
-  --c-brand-50: 38 44 82; --c-brand-100: 47 56 110; --c-brand-200: 70 82 160; --c-brand-400: 140 150 245;
-  --c-brand-500: 120 132 240; --c-brand-600: 100 112 234; --c-brand-700: 170 180 255; --c-brand-800: 200 206 255;
-  --backdrop: rgba(0, 0, 0, 0.65);
+  --c-canvas: 0 0 0; --c-surface: 28 28 30;
+  --c-field: 50 50 54; --c-hover: 44 44 46; --c-control: 57 57 61; --c-control-hover: 60 60 65; --c-rail-hover: 28 28 30;
+  --c-line: 67 67 69; --c-strong: 72 72 74;
+  --c-ink: 255 255 255; --c-muted: 173 173 181; --c-subtle: 142 142 147;
+  --c-brand-50: 23 49 70; --c-brand-100: 20 63 97; --c-brand-200: 0 90 160; --c-brand-400: 64 170 255;
+  --c-brand-500: 0 145 255; --c-brand-600: 0 145 255; --c-brand-700: 100 180 255; --c-brand-800: 160 210 255; --c-primary-hover: 51 167 255;
+  --c-red: 255 66 69; --c-orange: 255 146 48; --c-yellow: 255 214 0; --c-green: 48 209 88; --c-teal: 0 210 224;
+  --c-blue: 0 145 255; --c-indigo: 109 124 255; --c-purple: 219 52 242; --c-pink: 255 55 95;
+  --backdrop: rgba(0, 0, 0, 0.48);
+  --glass-bg: rgba(26, 26, 26, 0.7);
+  --glass-bg-strong: rgba(30, 30, 32, 0.92);
+  --glass-rim: rgba(166, 166, 166, 0.35);
+  --glass-highlight: rgba(255, 255, 255, 0.1);
+  --glass-shade: rgba(0, 0, 0, 0.3);
+  --bar-bg: rgba(0, 0, 0, 0.55);
+  --bar-rim: rgba(255, 255, 255, 0.1);
+  --tab-selection: 255 255 255 / 0.14;
+  --shadow-card: 0 0 0 0.5px rgba(255, 255, 255, 0.04);
+  --shadow-pop: 0 8px 48px rgba(0, 0, 0, 0.45), 0 0 0 0.5px var(--glass-rim);
+  --shadow-float: 0 8px 15px rgba(0, 0, 0, 0.2), 0 0 0 0.5px var(--glass-rim), inset 0 1px 1px var(--glass-highlight);
   color-scheme: dark;
 }
 @media (prefers-color-scheme: dark) {
   :root[data-theme="system"] {
-    --c-surface: 36 37 38; --c-canvas: 24 25 26; --c-field: 58 59 60; --c-hover: 58 59 60; --c-line: 62 64 66;
-    --c-control: 58 59 60; --c-control-hover: 78 79 80; --c-rail-hover: 48 49 50; --c-strong: 78 80 82;
-    --c-ink: 228 230 235; --c-muted: 176 179 184; --c-subtle: 138 141 145; --c-primary-hover: 112 124 240;
-    --c-brand-50: 38 44 82; --c-brand-100: 47 56 110; --c-brand-200: 70 82 160; --c-brand-400: 140 150 245;
-    --c-brand-500: 120 132 240; --c-brand-600: 100 112 234; --c-brand-700: 170 180 255; --c-brand-800: 200 206 255;
-    --backdrop: rgba(0, 0, 0, 0.65);
+    --c-canvas: 0 0 0; --c-surface: 28 28 30;
+    --c-field: 50 50 54; --c-hover: 44 44 46; --c-control: 57 57 61; --c-control-hover: 60 60 65; --c-rail-hover: 28 28 30;
+    --c-line: 67 67 69; --c-strong: 72 72 74;
+    --c-ink: 255 255 255; --c-muted: 173 173 181; --c-subtle: 142 142 147;
+    --c-brand-50: 23 49 70; --c-brand-100: 20 63 97; --c-brand-200: 0 90 160; --c-brand-400: 64 170 255;
+    --c-brand-500: 0 145 255; --c-brand-600: 0 145 255; --c-brand-700: 100 180 255; --c-brand-800: 160 210 255; --c-primary-hover: 51 167 255;
+    --c-red: 255 66 69; --c-orange: 255 146 48; --c-yellow: 255 214 0; --c-green: 48 209 88; --c-teal: 0 210 224;
+    --c-blue: 0 145 255; --c-indigo: 109 124 255; --c-purple: 219 52 242; --c-pink: 255 55 95;
+    --backdrop: rgba(0, 0, 0, 0.48);
+    --glass-bg: rgba(26, 26, 26, 0.7);
+    --glass-bg-strong: rgba(30, 30, 32, 0.92);
+    --glass-rim: rgba(166, 166, 166, 0.35);
+    --glass-highlight: rgba(255, 255, 255, 0.1);
+    --glass-shade: rgba(0, 0, 0, 0.3);
+    --bar-bg: rgba(0, 0, 0, 0.55);
+    --bar-rim: rgba(255, 255, 255, 0.1);
+    --tab-selection: 255 255 255 / 0.14;
+    --shadow-card: 0 0 0 0.5px rgba(255, 255, 255, 0.04);
+    --shadow-pop: 0 8px 48px rgba(0, 0, 0, 0.45), 0 0 0 0.5px var(--glass-rim);
+    --shadow-float: 0 8px 15px rgba(0, 0, 0, 0.2), 0 0 0 0.5px var(--glass-rim), inset 0 1px 1px var(--glass-highlight);
     color-scheme: dark;
   }
 }
@@ -35,140 +88,157 @@
 
 @layer base {
   * { @apply border-line; }
-  html { -webkit-tap-highlight-color: transparent; }
+  html { -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased; }
   body { @apply bg-canvas font-sans text-15 text-ink selection:bg-brand-100 selection:text-brand-800; }
   h1, h2, h3 { @apply font-display; }
   :focus-visible { @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-surface; }
   /* Text fields must not retain the global ring's white offset when their own ring is disabled. */
   :is(input, textarea):focus-visible { @apply ring-offset-0; }
   summary::-webkit-details-marker { display: none; }
-  dialog::backdrop { background: var(--backdrop); }
+  dialog::backdrop { background: var(--backdrop); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
   dialog { @apply bg-surface text-ink; }
   .dialog-dark::backdrop { background: rgba(0, 0, 0, 0.75); }
 }
 
 @layer components {
-  /* Icons */
-  .icon { @apply inline-block size-5 shrink-0 fill-none stroke-current; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  /* Icons — line glyphs drawn on a 24pt grid, weighted to sit next to SF Pro Regular/Medium text. */
+  .icon { @apply inline-block size-5 shrink-0 fill-none stroke-current; stroke-width: 1.85; stroke-linecap: round; stroke-linejoin: round; }
   .icon-fill { @apply inline-block size-5 shrink-0 fill-current; }
 
-  /* Surfaces */
-  .skip-link { @apply fixed left-3 top-3 z-50 -translate-y-20 rounded-md bg-surface px-4 py-2 font-semibold shadow-md focus:translate-y-0; }
-  .card { @apply rounded-xl bg-surface shadow-card; }
-  .card-title { @apply font-display text-[1.0625rem] font-bold text-ink; }
+  /* Liquid Glass materials (Figma: Materials). glass = Regular for controls, glass-strong = Thick for menus
+     and popovers, glass-bar = hard scroll-edge effect behind navigation. Opaque fallback without backdrop-filter. */
+  .glass { background: var(--glass-bg); -webkit-backdrop-filter: blur(16px) saturate(180%); backdrop-filter: blur(16px) saturate(180%); box-shadow: var(--shadow-glass); }
+  .glass-strong { background: var(--glass-bg-strong); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); box-shadow: var(--shadow-pop); }
+  .glass-bar { background: var(--bar-bg); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%); box-shadow: 0 0.5px 0 var(--bar-rim); }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .glass, .glass-strong, .glass-bar { @apply bg-surface; }
+  }
+
+  /* Surfaces — inset grouped cells: no drop shadow, large continuous corners. */
+  .skip-link { @apply fixed left-3 top-3 z-50 -translate-y-20 rounded-full bg-surface px-4 py-2 font-semibold shadow-pop focus:translate-y-0; }
+  .card { @apply rounded-2xl bg-surface shadow-card; }
+  .card-title { @apply font-display text-title3 font-semibold text-ink; }
   .divider { @apply my-2 border-t border-line; }
-  .empty-state { @apply rounded-xl bg-surface p-8 text-center shadow-card; }
+  .empty-state { @apply rounded-2xl bg-surface p-8 text-center shadow-card; }
   .empty-icon { @apply mx-auto grid size-14 place-items-center rounded-full bg-brand-50 text-brand-600; }
 
-  /* Forms */
-  .label { @apply text-[0.8125rem] font-semibold text-ink; }
-  .helper { @apply mt-1.5 text-xs text-muted; }
-  .input { @apply h-11 rounded-lg border border-strong bg-surface px-3.5 text-15 text-ink placeholder:text-subtle focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100; }
+  /* Forms — iOS text fields: filled, borderless, rounded; focus shows the tint ring. */
+  .label { @apply text-footnote font-semibold text-muted; }
+  .helper { @apply mt-1.5 text-footnote text-muted; }
+  .input { @apply h-11 rounded-xl border-0 bg-field px-4 text-body text-ink placeholder:text-subtle focus:bg-surface focus:outline-none focus:ring-2 focus:ring-brand-500; }
   textarea.input { @apply h-auto py-2.5; }
   /* Borderless writing areas (composer, inline tag input): the surrounding dialog already shows focus,
      so no ring and a real `outline: none` — a transparent outline still paints in some browsers and contrast modes. */
   .field-bare, .field-bare:focus, .field-bare:focus-visible { @apply border-0 bg-transparent; outline: none !important; box-shadow: none !important; }
   select.input { @apply pr-8; }
   .input-icon { @apply relative; }
-  .input-icon > .icon { @apply pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted; }
+  .input-icon > .icon { @apply pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-subtle; }
   .input-icon > .input { @apply pl-11; }
-  .pill-input { @apply h-10 w-full rounded-full bg-field px-4 text-15 text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand-100; }
-  .form-error { @apply rounded-lg bg-red-500/10 p-3 text-sm font-medium text-red-600; }
-  .form-success { @apply rounded-lg bg-brand-50 p-3 text-sm font-medium text-brand-700; }
-  .file-input { @apply block w-full text-sm text-muted file:mr-3 file:rounded-md file:border-0 file:bg-field file:px-3 file:py-2 file:font-semibold file:text-ink hover:file:bg-line; }
-  .check { @apply size-4 rounded border-strong text-brand-600 accent-brand-600; }
+  /* Search field */
+  .pill-input { @apply h-9 w-full rounded-full bg-field px-4 text-body text-ink placeholder:text-subtle focus:outline-none focus:ring-2 focus:ring-brand-500; }
+  .form-error { @apply rounded-xl bg-ios-red/10 p-3 text-subheadline font-medium text-ios-red; }
+  .form-success { @apply rounded-xl bg-ios-green/10 p-3 text-subheadline font-medium text-ios-green; }
+  .file-input { @apply block w-full text-subheadline text-muted file:mr-3 file:rounded-full file:border-0 file:bg-control file:px-3.5 file:py-1.5 file:font-medium file:text-brand-600 hover:file:bg-control-hover; }
+  .check { @apply size-[1.125rem] rounded-full border-strong text-brand-600 accent-brand-600; }
+  /* Toggle - Switch: 64×28 track, 38×24 knob, green when on. */
+  .switch { @apply relative h-7 w-16 shrink-0 rounded-full bg-strong transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-6 after:w-[2.375rem] after:rounded-full after:bg-white after:shadow-[0_3px_8px_rgba(0,0,0,0.15),0_1px_1px_rgba(0,0,0,0.06)] after:transition-transform; }
+  .switch-on { @apply bg-online after:translate-x-[1.375rem]; }
 
-  /* Buttons */
-  .btn { @apply inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 text-15 font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50; }
-  .btn-lg { @apply h-11 px-4 text-base; }
-  .btn-sm { @apply h-8 px-2.5 text-sm; }
+  /* Buttons (Figma: Buttons). Capsules; Small 28pt, Medium 34pt, Large 50pt.
+     primary = Bordered Prominent, secondary = Bordered (gray fill), soft = Bordered tinted label,
+     outline = Liquid Glass, ghost = Borderless, danger = destructive prominent, destructive = destructive bordered. */
+  .btn { @apply inline-flex h-[2.125rem] items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-15 font-medium transition-[background-color,filter,transform] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40; }
+  .btn-lg { @apply h-[3.125rem] px-5 text-body; }
+  .btn-sm { @apply h-7 gap-1 px-2.5 text-15; }
   .btn-primary { @apply btn bg-brand-600 text-white hover:bg-primary-hover active:brightness-95; }
   .btn-secondary { @apply btn bg-control text-ink hover:bg-control-hover; }
-  .btn-soft { @apply btn bg-brand-50 text-brand-700 hover:bg-brand-100; }
-  .btn-ghost { @apply btn text-muted hover:bg-hover hover:text-ink; }
-  .btn-outline { @apply btn border border-strong bg-surface text-ink hover:bg-hover; }
-  .btn-danger { @apply btn bg-red-600 text-white hover:bg-red-700; }
-  .profile-actions .btn-primary { @apply bg-[#0866ff] text-white hover:bg-[#075ce5]; }
+  .btn-soft { @apply btn bg-control text-brand-600 hover:bg-control-hover; }
+  .btn-ghost { @apply btn text-brand-600 hover:bg-hover; }
+  .btn-outline { @apply btn glass text-ink hover:brightness-[0.98]; }
+  .btn-danger { @apply btn bg-ios-red text-white hover:brightness-95; }
+  .btn-destructive { @apply btn bg-ios-red/15 text-ios-red hover:bg-ios-red/20; }
+  .profile-actions .btn-primary { @apply bg-brand-600 text-white hover:bg-primary-hover; }
   .button-primary { @apply btn-primary; }
   .button-secondary { @apply btn-secondary; }
+  /* Symbol buttons: filled circle, borderless circle, and Liquid Glass symbol button. */
   .icon-btn { @apply grid size-10 shrink-0 place-items-center rounded-full bg-control text-ink transition-colors hover:bg-control-hover; }
   .icon-btn-ghost { @apply grid size-9 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-hover hover:text-ink; }
-  .icon-btn-float { @apply grid size-11 shrink-0 place-items-center rounded-full bg-surface text-ink shadow-float transition-transform hover:scale-105; }
-  .chip { @apply inline-flex h-8 items-center gap-1.5 rounded-full border border-strong bg-surface px-3.5 text-sm font-semibold text-ink hover:bg-hover; }
-  .chip-active { @apply border-brand-100 bg-brand-50 text-brand-700; }
-  .badge { @apply absolute -right-1 -top-1 grid h-[1.15rem] min-w-[1.15rem] place-items-center rounded-full bg-[#e41e3f] px-1 text-2xs font-bold text-white ring-2 ring-surface; }
+  .icon-btn-float { @apply glass grid size-11 shrink-0 place-items-center rounded-full text-ink transition-transform hover:scale-105; }
+  .chip { @apply inline-flex h-8 items-center gap-1.5 rounded-full bg-control px-3.5 text-subheadline font-medium text-ink hover:bg-control-hover; }
+  .chip-active { @apply bg-brand-600 text-white hover:bg-primary-hover; }
+  .badge { @apply absolute -right-1 -top-1 grid h-[1.125rem] min-w-[1.125rem] place-items-center rounded-full bg-ios-red px-1 text-2xs font-semibold text-white ring-2 ring-surface; }
 
   /* Avatar */
-  .avatar { @apply relative grid shrink-0 place-items-center overflow-hidden rounded-full font-display font-bold text-white; }
+  .avatar { @apply relative grid shrink-0 place-items-center overflow-hidden rounded-full font-display font-semibold text-white; }
   .avatar img { @apply size-full object-cover; }
-  .avatar-ring { @apply rounded-full p-[3px] ring-[3px] ring-brand-600; }
+  .avatar-ring { @apply rounded-full p-[3px] ring-[2.5px] ring-brand-600; }
   .avatar-ring-seen { @apply ring-strong; }
   .online-dot { @apply absolute bottom-0 right-0 size-3 rounded-full bg-online ring-2 ring-surface; }
-  .tone-0 { background: linear-gradient(135deg, #6c78e0, #4150cf); }
-  .tone-1 { background: linear-gradient(135deg, #f7926b, #e8604c); }
-  .tone-2 { background: linear-gradient(135deg, #4cc59a, #1f9a6f); }
-  .tone-3 { background: linear-gradient(135deg, #f6c453, #e59b16); }
-  .tone-4 { background: linear-gradient(135deg, #c287ee, #8e4ed1); }
-  .tone-5 { background: linear-gradient(135deg, #5ec8f2, #1d8fd0); }
-  .tone-6 { background: linear-gradient(135deg, #f58bb4, #d9467f); }
-  .tone-7 { background: linear-gradient(135deg, #8fa3b8, #5a6e84); }
+  /* Monogram tones use the kit accents. */
+  .tone-0 { background: linear-gradient(180deg, #4dacff, #0088ff); }
+  .tone-1 { background: linear-gradient(180deg, #ffad5e, #ff8d28); }
+  .tone-2 { background: linear-gradient(180deg, #5fd97e, #34c759); }
+  .tone-3 { background: linear-gradient(180deg, #ffd84d, #f5b800); }
+  .tone-4 { background: linear-gradient(180deg, #dc6dee, #cb30e0); }
+  .tone-5 { background: linear-gradient(180deg, #4dd8e2, #00c3d0); }
+  .tone-6 { background: linear-gradient(180deg, #ff6b88, #ff2d55); }
+  .tone-7 { background: linear-gradient(180deg, #a5abb8, #858994); }
 
-  /* Header */
-  .header-primary { @apply max-w-[50rem]; }
-  .header-action { @apply size-11; }
-  .header-action > .icon { @apply size-6; }
-  .header-popover { @apply absolute right-0 top-12 z-40 w-[22.5rem] max-w-[calc(100vw-1rem)] overflow-hidden rounded-xl bg-surface shadow-pop; }
+  /* Header — hard scroll-edge glass bar; Liquid Glass symbol buttons and tab capsule. */
+  .header-primary { @apply max-w-[30rem]; }
+  .header-action { @apply glass size-11; }
+  .header-action:hover { @apply brightness-[0.97]; }
+  .header-action > .icon { @apply size-[1.375rem]; }
+  .header-popover { @apply glass-strong absolute right-0 top-[3.25rem] z-40 w-[22.5rem] max-w-[calc(100vw-1rem)] overflow-hidden rounded-popover; }
   .mini-chat-dock { position: fixed; right: max(1rem, env(safe-area-inset-right)); bottom: max(0rem, env(safe-area-inset-bottom)); z-index: 50; }
-  .top-tab { @apply relative grid h-14 w-full max-w-[10rem] place-items-center text-muted; }
-  .top-tab > span { @apply grid h-12 w-full place-items-center rounded-lg transition-colors; }
-  .top-tab:hover > span { @apply bg-hover; }
-  .top-tab-active { @apply text-brand-600; }
-  .top-tab-active::after { content: ''; @apply absolute inset-x-1 bottom-0 h-[3px] rounded-t bg-brand-600; }
-  .top-tab-active:hover > span { @apply bg-transparent; }
+  /* Tab Bar - iPad: glass capsule, 36pt items; the selected item sits on a vibrant fill and takes the tint. */
+  .tab-capsule { @apply glass flex items-center gap-0.5 rounded-full p-1; }
+  .top-tab { @apply relative grid h-9 min-w-[4.5rem] flex-1 place-items-center rounded-full px-4 text-ink transition-colors hover:bg-ink/[0.05]; }
+  .top-tab-active { @apply text-brand-600 hover:bg-transparent; background: rgb(var(--tab-selection)); }
 
   /* Keep the primary navigation on the viewport axis even when the two header sides
      have different visual widths (brand/search on the left, account actions on the right). */
   @media (min-width: 1280px) {
     .header-primary {
       position: absolute;
-      top: 0;
+      top: 50%;
       left: 50%;
-      width: min(50rem, calc(100% - 56rem));
-      transform: translateX(-50%);
+      width: min(26rem, calc(100% - 56rem));
+      transform: translate(-50%, -50%);
     }
   }
 
-  /* Side navigation */
-  .side-link { @apply flex min-h-[2.75rem] items-center gap-3 rounded-lg px-2 py-1.5 text-15 font-medium text-ink transition-colors hover:bg-rail-hover; }
-  .side-link-active { @apply bg-surface shadow-card; }
-  .side-icon { @apply grid size-9 shrink-0 place-items-center text-ink; }
-  .side-heading { @apply px-2 pb-1 pt-3 font-display text-[1.0625rem] font-bold text-ink; }
-  .rail-link { @apply flex items-center gap-3 rounded-lg p-2 text-15 font-medium text-ink transition-colors hover:bg-hover; }
+  /* Sidebar (Figma: Sidebars) — 44pt rows, rounded selection, tinted symbols. */
+  .side-link { @apply flex min-h-[2.75rem] items-center gap-3 rounded-xl px-2 py-1.5 text-body text-ink transition-colors hover:bg-rail-hover; }
+  .side-link-active { @apply bg-surface font-semibold shadow-card; }
+  .side-icon { @apply grid size-9 shrink-0 place-items-center text-brand-600; }
+  .side-heading { @apply px-2 pb-1 pt-4 font-display text-title3 font-bold text-ink; }
+  .rail-link { @apply flex items-center gap-3 rounded-xl p-2 text-body text-ink transition-colors hover:bg-hover; }
 
-  /* Menus */
-  .menu { @apply absolute z-40 min-w-[14rem] origin-top-right animate-pop-in rounded-xl bg-surface p-2 shadow-pop; }
+  /* Menus (Figma: Menus) — Thick glass, 40pt capsule rows, 17pt Regular labels, bare symbols. */
+  .menu { @apply glass-strong absolute z-40 min-w-[15rem] origin-top-right animate-pop-in rounded-popover p-2; }
   .profile-actions .menu { @apply bottom-full top-auto mb-2 mt-0 md:bottom-auto md:top-full md:mb-0 md:mt-2; }
-  .menu-item { @apply flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-15 font-medium text-ink hover:bg-hover; }
-  .menu-item .menu-icon { @apply grid size-9 place-items-center rounded-full bg-control; }
-  /* Share dialog: round "Share to" targets and selectable friends (Facebook layout). */
-  .share-target { @apply flex w-[5.25rem] shrink-0 flex-col items-center gap-1.5 rounded-lg px-1 py-2 text-center text-[0.8125rem] font-medium leading-tight text-ink hover:bg-hover; }
+  .menu-item { @apply flex min-h-10 w-full items-center gap-2 rounded-full px-3 py-2 text-left text-body text-ink hover:bg-ink/[0.06]; }
+  .menu-item .menu-icon { @apply grid size-7 shrink-0 place-items-center text-ink; }
+  /* Share dialog: round "Share to" targets and selectable friends (Activity View layout). */
+  .share-target { @apply flex w-[5.25rem] shrink-0 flex-col items-center gap-1.5 rounded-xl px-1 py-2 text-center text-caption1 font-medium text-ink hover:bg-hover; }
   .share-target-icon { @apply grid size-14 place-items-center rounded-full bg-control; }
   .share-target-icon > .icon { @apply size-6; }
-  .share-friend { @apply relative flex w-[4.75rem] shrink-0 snap-start flex-col items-center gap-1.5 rounded-lg px-1 py-2 text-center text-[0.8125rem] leading-tight text-ink hover:bg-hover; }
+  .share-friend { @apply relative flex w-[4.75rem] shrink-0 snap-start flex-col items-center gap-1.5 rounded-xl px-1 py-2 text-center text-caption1 text-ink hover:bg-hover; }
   .share-friend[aria-pressed="true"] .avatar { @apply ring-2 ring-brand-600 ring-offset-2 ring-offset-surface; }
   .share-friend-check { @apply absolute right-2.5 top-1.5 hidden size-5 place-items-center rounded-full bg-brand-600 text-white ring-2 ring-surface; }
   .share-friend[aria-pressed="true"] .share-friend-check { @apply grid; }
 
   /* Feed */
-  .action-button { @apply flex h-9 flex-1 items-center justify-center gap-2 rounded-md text-15 font-semibold text-muted transition-colors hover:bg-hover; }
-  .composer-tool { @apply flex h-10 flex-1 items-center justify-center gap-2 rounded-lg text-15 font-semibold text-muted hover:bg-hover; }
-  .reaction-bar { @apply absolute bottom-full left-0 z-30 mb-2 hidden animate-pop-in items-center gap-1 rounded-full bg-surface p-1.5 shadow-pop; }
+  .action-button { @apply flex h-9 flex-1 items-center justify-center gap-2 rounded-full text-15 font-medium text-muted transition-colors hover:bg-hover; }
+  .composer-tool { @apply flex h-10 flex-1 items-center justify-center gap-2 rounded-full text-15 font-medium text-muted hover:bg-hover; }
+  .reaction-bar { @apply glass-strong absolute bottom-full left-0 z-30 mb-2 hidden animate-pop-in items-center gap-1 rounded-full p-1.5; }
   .reaction-bar::after { content: ''; @apply absolute inset-x-0 top-full h-3; } /* hover bridge over the gap */
   .reaction-wrap:hover .reaction-bar, .reaction-wrap:focus-within .reaction-bar, .reaction-bar.is-open { @apply flex; }
   .reaction-wrap.reaction-done .reaction-bar { @apply !hidden; }
   .reaction-choice { @apply grid size-10 place-items-center rounded-full transition-transform duration-150 hover:-translate-y-1.5 hover:scale-125 focus-visible:-translate-y-1.5 focus-visible:scale-125; }
   .reaction-choice svg { @apply size-9; }
-  .comment-bubble { @apply inline-block max-w-full rounded-2xl bg-field px-3 py-2; }
+  .comment-bubble { @apply inline-block max-w-full rounded-[1.125rem] bg-field px-3 py-2; }
   .media-grid { @apply grid gap-0.5 bg-surface; }
   .media-grid img { @apply size-full cursor-zoom-in bg-field object-cover; }
   .media-grid video { @apply pointer-events-none size-full bg-black object-cover; }
@@ -179,12 +249,12 @@
   .story-card:hover img.story-thumb { @apply scale-[1.03]; }
   .story-card::after { content: ''; @apply pointer-events-none absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60; }
   .story-progress { @apply h-[3px] flex-1 overflow-hidden rounded-full bg-white/35; }
-  .story-progress > span { @apply block h-full w-0 rounded-full bg-surface; }
+  .story-progress > span { @apply block h-full w-0 rounded-full bg-white; }
   .story-side { @apply relative hidden aspect-[9/16] h-[52%] max-h-[22rem] shrink-0 overflow-hidden rounded-xl bg-stage opacity-60 transition-opacity hover:opacity-90 lg:block; }
-  .story-react { @apply grid size-12 place-items-center rounded-full bg-surface shadow-float transition-transform hover:-translate-y-1 hover:scale-110 disabled:opacity-60 sm:size-14; }
+  .story-react { @apply glass grid size-12 place-items-center rounded-full transition-transform hover:-translate-y-1 hover:scale-110 disabled:opacity-60 sm:size-14; }
   .story-react svg { @apply size-8 sm:size-9; }
   .story-react[aria-pressed="true"] { @apply ring-4 ring-brand-200; }
-  .story-row { @apply flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-hover; }
+  .story-row { @apply flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-hover; }
   .story-row-active { @apply bg-control hover:bg-control; }
   .bg-story-sunset { background: linear-gradient(160deg, #ff8a5c, #e8467c 55%, #7a3cc4); }
   .bg-story-ocean { background: linear-gradient(160deg, #3fd0e0, #2f7de1 55%, #3540b0); }
@@ -199,32 +269,35 @@
   .bg-story-charcoal { background: #18191a; }
   .bg-story-paper { background: #f5f1e8; }
   /* Story composer controls (radio inputs styled as pills / swatches) */
-  .story-pill { @apply inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-[0.875rem] font-semibold text-ink transition-colors hover:bg-hover peer-checked:border-brand-600 peer-checked:bg-brand-50 peer-checked:text-brand-600 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-600; }
+  .story-pill { @apply inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-control px-3 text-subheadline font-medium text-ink transition-colors hover:bg-control-hover peer-checked:bg-brand-600 peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-brand-600; }
   .story-swatch { @apply block size-8 cursor-pointer rounded-full border border-black/15 ring-offset-2 ring-offset-surface transition-transform hover:scale-110 peer-checked:ring-2 peer-checked:ring-brand-600 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-400; }
 
   /* Messenger */
-  .chat-row { @apply flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-hover; }
+  .chat-row { @apply flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-hover; }
   .chat-row-active { @apply bg-brand-50 hover:bg-brand-50; }
   .bubble { @apply max-w-[75%] whitespace-pre-wrap break-words rounded-[1.125rem] px-3 py-2 text-15 leading-snug; }
-  .bubble-me { @apply bg-brand-600 text-white; }
+  .bubble-me { @apply bg-ios-blue text-white; }
   .bubble-them { @apply bg-control text-ink; }
-  .msg-rail-link { @apply grid size-11 place-items-center rounded-xl text-muted transition-colors hover:bg-hover hover:text-ink; }
+  .msg-rail-link { @apply grid size-11 place-items-center rounded-full text-muted transition-colors hover:bg-hover hover:text-ink; }
   .msg-rail-active { @apply bg-brand-50 text-brand-600 hover:bg-brand-50 hover:text-brand-600; }
 
-  /* Mobile */
-  .mobile-link { @apply relative flex flex-col items-center gap-0.5 rounded-lg py-1 text-[0.6875rem] font-semibold text-muted; }
-  .mobile-link-active { @apply text-brand-600; }
+  /* Tab Bar - iPhone: floating glass capsule; 54pt items, 10pt Semibold labels, selection on a vibrant fill. */
+  .mobile-tabbar { @apply glass fixed inset-x-4 z-40 grid grid-cols-5 gap-0.5 rounded-full p-1 md:hidden; bottom: max(1rem, env(safe-area-inset-bottom)); }
+  .mobile-link { @apply relative flex h-[3.375rem] flex-col items-center justify-center gap-px rounded-full text-[0.625rem] font-semibold leading-3 text-ink; }
+  .mobile-link-active { @apply text-brand-600; background: rgb(var(--tab-selection)); }
 
-  /* Tabs */
-  .tab { @apply relative flex h-14 items-center px-4 text-15 font-semibold text-muted hover:text-ink; }
-  .tab-active { @apply text-brand-600 hover:text-brand-600; }
-  .tab-active::after { content: ''; @apply absolute inset-x-2 bottom-0 h-[3px] rounded-t bg-brand-600; }
+  /* Tabs — segmented-control look (Figma: Segmented Controls): the selected segment is a capsule. */
+  .tab { @apply relative isolate flex h-14 items-center px-4 text-subheadline font-medium text-muted hover:text-ink; }
+  .tab::after { content: ''; @apply absolute inset-x-0.5 top-1/2 -z-10 h-8 -translate-y-1/2 rounded-full transition-colors; }
+  .tab:hover::after { @apply bg-hover; }
+  .tab-active { @apply font-semibold text-ink hover:text-ink; }
+  .tab-active::after, .tab-active:hover::after { @apply bg-control; }
 
   /* Layout */
-  .app-shell { @apply mx-auto grid w-full max-w-[90rem] grid-cols-1 gap-4 px-0 pb-24 pt-4 sm:px-4 md:pb-8 lg:grid-cols-[17.5rem_minmax(0,1fr)] xl:grid-cols-[18.5rem_minmax(0,1fr)_18.5rem] xl:gap-8; }
+  .app-shell { @apply mx-auto grid w-full max-w-[90rem] grid-cols-1 gap-4 px-0 pb-28 pt-4 sm:px-4 md:pb-8 lg:grid-cols-[17.5rem_minmax(0,1fr)] xl:grid-cols-[18.5rem_minmax(0,1fr)_18.5rem] xl:gap-8; }
   .app-grid { @apply app-shell; }
   .rail-sticky { @apply sticky top-[4.5rem] max-h-[calc(100dvh-4.5rem)] overflow-y-auto overscroll-contain pb-6; scrollbar-width: thin; }
-  .eyebrow { @apply text-xs font-bold uppercase tracking-wide text-brand-600; }
+  .eyebrow { @apply text-footnote font-semibold uppercase text-muted; }
 }
 
 @layer utilities {

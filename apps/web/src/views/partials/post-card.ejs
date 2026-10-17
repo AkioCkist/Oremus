@@ -85,7 +85,7 @@
   <% if (item.place && !media.length) { %>
   <a class="block border-y border-line" href="<%= mapLink %>" target="_blank" rel="noopener noreferrer" aria-label="Open <%= item.place.name %> on the map">
     <div class="relative h-52 overflow-hidden bg-field" data-map data-lat="<%= item.place.lat %>" data-lon="<%= item.place.lon %>"></div>
-    <div class="flex items-center gap-3 bg-canvas px-4 py-3"><span class="icon-btn shrink-0 bg-surface text-[#f5533d]"><svg class="icon"><use href="#i-pin"/></svg></span><span class="min-w-0"><span class="block truncate font-semibold"><%= item.place.name %></span><span class="block truncate text-[0.8125rem] text-muted"><%= item.place.address %></span></span></div>
+    <div class="flex items-center gap-3 bg-canvas px-4 py-3"><span class="icon-btn shrink-0 bg-surface text-[#ff383c]"><svg class="icon"><use href="#i-pin"/></svg></span><span class="min-w-0"><span class="block truncate font-semibold"><%= item.place.name %></span><span class="block truncate text-[0.8125rem] text-muted"><%= item.place.address %></span></span></div>
   </a>
   <% } %>
   <div class="mx-4 flex min-h-[2.5rem] items-center justify-between gap-3 text-15 text-muted">

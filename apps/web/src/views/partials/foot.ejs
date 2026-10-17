@@ -2,7 +2,7 @@
 <div class="mini-chat-dock hidden items-end gap-3 lg:flex" data-mini-chat-dock aria-label="Open mini chats"></div>
 <% if (currentUser) { %><%- include('break-dialog') %><% } %>
 
-<dialog id="confirm-dialog" class="w-[min(30rem,calc(100%-2rem))] rounded-xl p-0 shadow-pop" role="alertdialog" aria-labelledby="confirm-title" aria-describedby="confirm-description">
+<dialog id="confirm-dialog" class="w-[min(30rem,calc(100%-2rem))] rounded-sheet p-0 shadow-pop" role="alertdialog" aria-labelledby="confirm-title" aria-describedby="confirm-description">
   <div class="flex items-center justify-between border-b border-line px-4 py-3"><h2 id="confirm-title" class="mx-auto pl-9 text-xl font-bold">Move to trash?</h2><button class="icon-btn" value="cancel" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button></div>
   <p id="confirm-description" class="px-4 py-4 text-15 text-ink">This can't be undone.</p>
   <div class="flex justify-end gap-2 px-4 pb-4"><button class="btn text-brand-600 hover:bg-hover" value="cancel">Cancel</button><button class="btn-primary px-6" value="confirm" data-confirm-label>Delete</button></div>
@@ -73,7 +73,7 @@
 </dialog>
 
 <% if (typeof currentUser !== 'undefined' && currentUser) { %>
-<dialog id="composer-dialog" class="w-[min(31.25rem,calc(100%-1.5rem))] rounded-xl p-0 shadow-pop" aria-labelledby="composer-title">
+<dialog id="composer-dialog" class="w-[min(31.25rem,calc(100%-1.5rem))] rounded-sheet p-0 shadow-pop" aria-labelledby="composer-title">
   <form data-api-form data-reload action="/api/posts" method="post" enctype="multipart/form-data" data-composer-form>
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <input type="hidden" name="groupId" value="" data-composer-group disabled>
@@ -111,9 +111,9 @@
         <div class="flex items-center justify-between rounded-lg border border-strong px-4 py-2">
           <span class="text-15 font-semibold">Add to your post</span>
           <div class="flex items-center gap-1">
-            <label class="icon-btn-ghost cursor-pointer text-[#45bd62]" title="Photo/video"><svg class="icon size-6"><use href="#i-image"/></svg><span class="sr-only">Add photos or videos</span><input class="sr-only" name="images" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" multiple data-composer-files></label>
-            <button type="button" class="icon-btn-ghost text-[#f7b928]" title="Feeling/activity" data-composer-open="feeling"><svg class="icon size-6"><use href="#i-smile"/></svg><span class="sr-only">Feeling or activity</span></button>
-            <button type="button" class="icon-btn-ghost text-[#f5533d]" title="Check in" data-composer-open="place"><svg class="icon size-6"><use href="#i-pin"/></svg><span class="sr-only">Check in</span></button>
+            <label class="icon-btn-ghost cursor-pointer text-[#34c759]" title="Photo/video"><svg class="icon size-6"><use href="#i-image"/></svg><span class="sr-only">Add photos or videos</span><input class="sr-only" name="images" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" multiple data-composer-files></label>
+            <button type="button" class="icon-btn-ghost text-[#ff8d28]" title="Feeling/activity" data-composer-open="feeling"><svg class="icon size-6"><use href="#i-smile"/></svg><span class="sr-only">Feeling or activity</span></button>
+            <button type="button" class="icon-btn-ghost text-[#ff383c]" title="Check in" data-composer-open="place"><svg class="icon size-6"><use href="#i-pin"/></svg><span class="sr-only">Check in</span></button>
           </div>
         </div>
         <button class="btn-primary mt-3 w-full" type="submit">Post</button>
@@ -124,7 +124,7 @@
   </form>
 </dialog>
 
-<dialog id="edit-post-dialog" class="w-[min(31.25rem,calc(100%-1.5rem))] rounded-xl p-0 shadow-pop" aria-labelledby="edit-post-title">
+<dialog id="edit-post-dialog" class="w-[min(31.25rem,calc(100%-1.5rem))] rounded-sheet p-0 shadow-pop" aria-labelledby="edit-post-title">
   <form id="edit-post-form" method="post" data-edit-post-form>
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <input type="hidden" value="" data-composer-feeling-input>
@@ -162,9 +162,9 @@
         <div class="flex items-center justify-between rounded-lg border border-strong px-4 py-2">
           <span class="text-15 font-semibold">Add to your post</span>
           <div class="flex items-center gap-1">
-            <button type="button" class="icon-btn-ghost text-[#45bd62]" title="Photo/video" data-edit-add-media><svg class="icon size-6"><use href="#i-image"/></svg><span class="sr-only">Add photos or videos</span></button>
-            <button type="button" class="icon-btn-ghost text-[#f7b928]" title="Feeling/activity" data-composer-open="feeling"><svg class="icon size-6"><use href="#i-smile"/></svg><span class="sr-only">Feeling or activity</span></button>
-            <button type="button" class="icon-btn-ghost text-[#f5533d]" title="Check in" data-composer-open="place"><svg class="icon size-6"><use href="#i-pin"/></svg><span class="sr-only">Check in</span></button>
+            <button type="button" class="icon-btn-ghost text-[#34c759]" title="Photo/video" data-edit-add-media><svg class="icon size-6"><use href="#i-image"/></svg><span class="sr-only">Add photos or videos</span></button>
+            <button type="button" class="icon-btn-ghost text-[#ff8d28]" title="Feeling/activity" data-composer-open="feeling"><svg class="icon size-6"><use href="#i-smile"/></svg><span class="sr-only">Feeling or activity</span></button>
+            <button type="button" class="icon-btn-ghost text-[#ff383c]" title="Check in" data-composer-open="place"><svg class="icon size-6"><use href="#i-pin"/></svg><span class="sr-only">Check in</span></button>
           </div>
         </div>
         <button class="btn-primary mt-3 w-full" type="submit">Save</button>
@@ -179,7 +179,7 @@
 
 <%- include('profile-dialogs') %>
 
-<dialog id="story-dialog" class="max-h-[calc(100dvh-1rem)] w-[min(64rem,calc(100%-1rem))] overflow-hidden rounded-xl p-0 shadow-pop" aria-labelledby="story-dialog-title">
+<dialog id="story-dialog" class="max-h-[calc(100dvh-1rem)] w-[min(64rem,calc(100%-1rem))] overflow-hidden rounded-sheet p-0 shadow-pop" aria-labelledby="story-dialog-title">
   <form data-api-form action="/api/stories" method="post" enctype="multipart/form-data" data-story-form class="grid max-h-[calc(100dvh-1rem)] grid-cols-[minmax(0,1fr)] overflow-y-auto md:grid-cols-[23rem_minmax(0,1fr)] md:overflow-hidden">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <input type="hidden" name="textX" value="50" data-story-x>
@@ -211,7 +211,7 @@
             <% STORY_COLORS.forEach(function (color, i) { %>
             <label class="relative"><input class="peer sr-only" type="radio" name="textColor" value="<%= color %>" <%= i === 0 ? 'checked' : '' %> aria-label="Color <%= color %>"><span class="story-swatch" data-story-style="background:<%= color %>"></span></label>
             <% }) %>
-            <label class="relative" title="Custom color"><input class="peer sr-only" type="radio" name="textColor" value="#ff7a00" data-story-custom-radio aria-label="Custom color"><span class="story-swatch bg-[conic-gradient(red,yellow,lime,cyan,blue,magenta,red)]" data-story-custom-swatch></span><input type="color" value="#ff7a00" class="absolute inset-0 size-8 cursor-pointer opacity-0" data-story-custom-color tabindex="-1" aria-hidden="true"></label>
+            <label class="relative" title="Custom color"><input class="peer sr-only" type="radio" name="textColor" value="#ff8d28" data-story-custom-radio aria-label="Custom color"><span class="story-swatch bg-[conic-gradient(red,yellow,lime,cyan,blue,magenta,red)]" data-story-custom-swatch></span><input type="color" value="#ff8d28" class="absolute inset-0 size-8 cursor-pointer opacity-0" data-story-custom-color tabindex="-1" aria-hidden="true"></label>
           </div>
         </fieldset>
         <fieldset>

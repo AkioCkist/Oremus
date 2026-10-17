@@ -21,7 +21,7 @@ function showToast(message: string, tone: 'success' | 'error' = 'success') {
   const region = $('#toast-region');
   if (!region) return;
   const toast = document.createElement('div');
-  toast.className = `pointer-events-auto flex max-w-sm animate-pop-in items-center gap-3 rounded-lg px-4 py-3 text-15 font-medium text-white shadow-pop ${tone === 'success' ? 'bg-[#242526]' : 'bg-red-600'}`;
+  toast.className = `pointer-events-auto flex max-w-sm animate-pop-in items-center gap-3 rounded-full px-5 py-3 text-15 font-medium text-white shadow-pop ${tone === 'success' ? 'glass-strong !text-ink' : 'bg-ios-red'}`;
   toast.textContent = message; region.appendChild(toast); window.setTimeout(() => toast.remove(), 4000);
 }
 
@@ -88,7 +88,7 @@ function syncThemeControls() {
   $$<HTMLButtonElement>('[data-theme-toggle]').forEach((button) => {
     button.setAttribute('aria-checked', String(dark));
     const track = $('[data-theme-switch]', button);
-    track?.classList.toggle('bg-brand-600', dark); track?.classList.toggle('bg-strong', !dark); track?.classList.toggle('after:translate-x-5', dark);
+    track?.classList.toggle('switch-on', dark);
   });
   $$<HTMLInputElement>('[data-theme-choice]').forEach((input) => { input.checked = input.value === currentTheme(); });
 }
@@ -199,7 +199,7 @@ function paintFriendControls(container: HTMLElement, state: FriendState) {
     container.append(friendButton('request', 'Add friend', 'i-user-plus', true, compact, full, soft));
   }
   const error = document.createElement('p');
-  error.className = 'hidden basis-full text-sm text-red-600'; error.dataset.friendError = ''; error.setAttribute('role', 'alert');
+  error.className = 'hidden basis-full text-sm text-ios-red'; error.dataset.friendError = ''; error.setAttribute('role', 'alert');
   container.appendChild(error);
   container.removeAttribute('aria-busy');
 }
@@ -270,7 +270,7 @@ document.addEventListener('keydown', (event) => {
 /* ---------- Reactions ---------- */
 
 const REACTION_STYLE: Record<string, { label: string; color: string }> = {
-  like: { label: 'Like', color: 'text-[#0866ff]' }, love: { label: 'Love', color: 'text-[#f33e58]' }, haha: { label: 'Haha', color: 'text-[#e9a811]' },
+  like: { label: 'Like', color: 'text-[#0088ff]' }, love: { label: 'Love', color: 'text-[#ff2d55]' }, haha: { label: 'Haha', color: 'text-[#e9a811]' },
   wow: { label: 'Wow', color: 'text-[#e9a811]' }, sad: { label: 'Sad', color: 'text-[#e9a811]' }, angry: { label: 'Angry', color: 'text-[#e9710f]' }
 };
 
@@ -340,7 +340,7 @@ function renderMap(container: HTMLElement, lat: number, lon: number, zoom = 15) 
       tiles.appendChild(img);
     }
   }
-  const pin = svgUse('i-pin', 'absolute left-1/2 top-1/2 size-9 -translate-x-1/2 -translate-y-full fill-[#f5533d] stroke-white drop-shadow');
+  const pin = svgUse('i-pin', 'absolute left-1/2 top-1/2 size-9 -translate-x-1/2 -translate-y-full fill-[#ff383c] stroke-white drop-shadow');
   pin.setAttribute('stroke-width', '1.5');
   const credit = Object.assign(document.createElement('span'), { className: 'absolute bottom-1 right-1 rounded bg-surface/80 px-1 text-2xs text-muted', textContent: '© OpenStreetMap' });
   container.replaceChildren(tiles, pin, credit);
@@ -515,7 +515,7 @@ function initPostExtras(root: HTMLDialogElement) {
       }));
     feelingGrid.replaceChildren(...(buttons.length ? buttons : [Object.assign(document.createElement('p'), { className: 'col-span-2 py-8 text-center text-muted', textContent: 'No matches' })]));
     if (current) {
-      const clear = Object.assign(document.createElement('button'), { type: 'button', className: 'col-span-2 mt-1 rounded-lg p-2 text-15 font-semibold text-red-600 hover:bg-red-500/10', textContent: 'Remove feeling/activity' });
+      const clear = Object.assign(document.createElement('button'), { type: 'button', className: 'col-span-2 mt-1 rounded-lg p-2 text-15 font-semibold text-ios-red hover:bg-ios-red/10', textContent: 'Remove feeling/activity' });
       clear.addEventListener('click', () => { composerState.feeling = null; paintComposerMeta(); showView('main'); });
       feelingGrid.appendChild(clear);
     }
@@ -549,7 +549,7 @@ function initPostExtras(root: HTMLDialogElement) {
       const item = document.createElement('li');
       const button = document.createElement('button'); button.type = 'button';
       button.className = `flex w-full items-center gap-3 rounded-lg p-2 text-left hover:bg-hover ${composerState.place?.id === place.id ? 'bg-brand-50' : ''}`;
-      const icon = document.createElement('span'); icon.className = 'icon-btn shrink-0 text-[#f5533d]'; icon.appendChild(svgUse('i-pin', 'icon'));
+      const icon = document.createElement('span'); icon.className = 'icon-btn shrink-0 text-[#ff383c]'; icon.appendChild(svgUse('i-pin', 'icon'));
       const text = document.createElement('span'); text.className = 'min-w-0';
       text.append(Object.assign(document.createElement('span'), { className: 'block truncate font-semibold', textContent: place.name }), Object.assign(document.createElement('span'), { className: 'block truncate text-[0.8125rem] text-muted', textContent: place.address }));
       button.append(icon, text);
@@ -937,7 +937,7 @@ async function openPhotoPicker(kind: PickerKind, target: ((result: PickerResult)
     const filled = groups.filter(([, urls]) => urls.length);
     sections.replaceChildren(...(filled.length ? filled.map(([title, urls]) => pickerSection(title, urls, title !== 'Artwork')) : [Object.assign(document.createElement('p'), { className: 'py-10 text-center text-muted', textContent: 'No photos yet. Upload one to get started.' })]));
   } catch (caught) {
-    sections.replaceChildren(Object.assign(document.createElement('p'), { className: 'py-8 text-center text-red-600', textContent: caught instanceof Error ? caught.message : 'Could not load photos.' }));
+    sections.replaceChildren(Object.assign(document.createElement('p'), { className: 'py-8 text-center text-ios-red', textContent: caught instanceof Error ? caught.message : 'Could not load photos.' }));
   }
 }
 
@@ -1037,7 +1037,7 @@ function openPhotoMenu(anchor: HTMLElement, items: PhotoMenuItem[]) {
   menu.setAttribute('role', 'menu');
   items.forEach((item) => {
     const button = document.createElement('button'); button.type = 'button'; button.setAttribute('role', 'menuitem');
-    button.className = `menu-item ${item.danger ? 'text-red-600' : ''}`;
+    button.className = `menu-item ${item.danger ? 'text-ios-red' : ''}`;
     const icon = document.createElement('span'); icon.className = 'menu-icon'; icon.appendChild(svgUse(item.icon, 'icon'));
     button.append(icon, item.label);
     button.addEventListener('click', () => { closePhotoMenu(); void item.run(); });
@@ -2332,7 +2332,7 @@ async function openMiniChat(link: HTMLAnchorElement) {
     });
   } catch (caught) {
     const list = $('[data-mini-message-list]', panel)!; list.replaceChildren();
-    const error = document.createElement('p'); error.className = 'm-auto px-5 text-pretty text-center text-sm text-red-600'; error.setAttribute('role', 'alert'); error.textContent = caught instanceof Error ? caught.message : 'Could not open this chat.'; list.appendChild(error);
+    const error = document.createElement('p'); error.className = 'm-auto px-5 text-pretty text-center text-sm text-ios-red'; error.setAttribute('role', 'alert'); error.textContent = caught instanceof Error ? caught.message : 'Could not open this chat.'; list.appendChild(error);
   }
 }
 
@@ -2931,7 +2931,7 @@ if (viewer && storyData && Number(viewer.dataset.activeIndex) >= 0) {
         if (viewerItem.reaction) link.appendChild(svgUse(`r-${viewerItem.reaction}`, 'size-6'));
         row.appendChild(link); return row;
       }));
-    } catch (caught) { list.replaceChildren(Object.assign(document.createElement('li'), { className: 'p-4 text-center text-red-600', textContent: caught instanceof Error ? caught.message : 'Could not load viewers.' })); }
+    } catch (caught) { list.replaceChildren(Object.assign(document.createElement('li'), { className: 'p-4 text-center text-ios-red', textContent: caught instanceof Error ? caught.message : 'Could not load viewers.' })); }
   });
 
   deleteButton.addEventListener('click', async () => {

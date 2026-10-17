@@ -3,11 +3,11 @@
         <p class="mt-2 text-center text-15 text-muted">To continue, fill out your personal info</p>
         <form class="mt-8 space-y-4" data-api-form action="/auth/register" method="post">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <div><label class="label" for="displayName">Full name <span class="text-red-600" aria-hidden="true">*</span></label><input class="input mt-1.5 w-full" id="displayName" name="displayName" autocomplete="name" placeholder="Name Surname" required minlength="2" maxlength="60"></div>
-          <div><label class="label" for="username">Username <span class="text-red-600" aria-hidden="true">*</span></label><input class="input mt-1.5 w-full" id="username" name="username" autocomplete="username" placeholder="best_wizard421" required pattern="[a-zA-Z0-9_]{3,24}" aria-describedby="username-help"><p id="username-help" class="helper">3–24 letters, numbers or underscores.</p></div>
-          <div><label class="label" for="email">E-mail <span class="text-red-600" aria-hidden="true">*</span></label><input class="input mt-1.5 w-full" id="email" name="email" type="email" autocomplete="email" placeholder="email@email.com" required></div>
+          <div><label class="label" for="displayName">Full name <span class="text-ios-red" aria-hidden="true">*</span></label><input class="input mt-1.5 w-full" id="displayName" name="displayName" autocomplete="name" placeholder="Name Surname" required minlength="2" maxlength="60"></div>
+          <div><label class="label" for="username">Username <span class="text-ios-red" aria-hidden="true">*</span></label><input class="input mt-1.5 w-full" id="username" name="username" autocomplete="username" placeholder="best_wizard421" required pattern="[a-zA-Z0-9_]{3,24}" aria-describedby="username-help"><p id="username-help" class="helper">3–24 letters, numbers or underscores.</p></div>
+          <div><label class="label" for="email">E-mail <span class="text-ios-red" aria-hidden="true">*</span></label><input class="input mt-1.5 w-full" id="email" name="email" type="email" autocomplete="email" placeholder="email@email.com" required></div>
           <div>
-            <label class="label" for="password">Password <span class="text-red-600" aria-hidden="true">*</span></label>
+            <label class="label" for="password">Password <span class="text-ios-red" aria-hidden="true">*</span></label>
             <div class="input-icon relative mt-1.5">
               <svg class="icon size-[1.125rem]"><use href="#i-key"/></svg>
               <input class="input w-full pr-11" id="password" name="password" type="password" autocomplete="new-password" placeholder="••••••••••" required minlength="10" maxlength="128" pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{10,128}" title="Use at least 10 characters, including an uppercase letter, a lowercase letter, and a number." aria-describedby="password-help" data-password-source>
@@ -16,7 +16,7 @@
             <p id="password-help" class="helper">At least 10 characters with upper- and lowercase letters and a number.</p>
           </div>
           <div>
-            <label class="label" for="password-repeat">Repeat password <span class="text-red-600" aria-hidden="true">*</span></label>
+            <label class="label" for="password-repeat">Repeat password <span class="text-ios-red" aria-hidden="true">*</span></label>
             <div class="input-icon relative mt-1.5">
               <svg class="icon size-[1.125rem]"><use href="#i-key"/></svg>
               <input class="input w-full pr-11" id="password-repeat" type="password" autocomplete="new-password" placeholder="••••••••••" required data-password-repeat>
