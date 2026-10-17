@@ -196,17 +196,24 @@
 
   /* App shell (Figma: Opportunities web — sidebar · content · inspector).
      Phones/tablets: glass top bar + floating tab bar. lg+: the same <header> becomes a full-height sidebar. */
-  .app-sidebar { @apply glass-bar sticky top-0 z-40 flex h-14 flex-col justify-center px-3 sm:px-4; }
-  .app-sidebar-top { @apply flex items-center gap-2; }
+  /* The sidebar's and the toolbar's glass is painted by a ::before layer, not the element itself: an element with
+     backdrop-filter becomes the backdrop root of everything inside it, so the Messages / Notifications popovers
+     (which hang outside both) would only blur the sidebar and show the page behind them unblurred. */
+  .app-sidebar { @apply sticky top-0 z-40 flex h-14 flex-col justify-center px-3 sm:px-4; box-shadow: 0 0.5px 0 var(--bar-rim); }
+  .app-sidebar::before { content: ''; @apply pointer-events-none absolute inset-0 -z-10 rounded-[inherit]; background: var(--bar-bg); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%); }
+  /* Above the search field and nav rows that follow it, so its popovers aren't covered by them. */
+  .app-sidebar-top { @apply relative z-10 flex items-center gap-2; }
   .app-sidebar-search, .app-sidebar-body, .app-sidebar-account { @apply hidden; }
   .header-action { @apply glass size-11; }
   .header-action > .icon { @apply size-[1.375rem]; }
   /* Toolbar - Glass Group: one capsule holding several 22pt symbols. */
-  .toolbar-group { @apply glass flex h-11 items-center gap-0.5 rounded-full px-1 lg:h-10; }
+  .toolbar-group { @apply relative isolate flex h-11 items-center gap-0.5 rounded-full px-1 lg:h-10; }
+  .toolbar-group::before { content: ''; @apply glass pointer-events-none absolute inset-0 -z-10 rounded-full; }
   .toolbar-btn { @apply relative grid size-9 cursor-pointer list-none place-items-center rounded-full text-ink transition-colors hover:bg-ink/[0.06] lg:size-8; }
   .toolbar-btn > .icon { @apply size-[1.375rem] lg:size-5; }
   .compose-btn { @apply grid size-11 shrink-0 place-items-center rounded-full bg-brand-600 text-white shadow-float transition-[filter,transform] hover:brightness-105 active:scale-95; }
-  .header-popover { @apply glass-strong absolute right-0 top-[3.25rem] z-40 w-[22.5rem] max-w-[calc(100vw-1rem)] overflow-hidden rounded-popover; }
+  /* Phones: spans the screen under the top bar (anchored to its button it would run off the left edge). */
+  .header-popover { @apply glass-strong fixed inset-x-2 top-[3.75rem] z-40 overflow-hidden rounded-popover sm:absolute sm:inset-x-auto sm:right-0 sm:top-[3.25rem] sm:w-[22.5rem] sm:max-w-[calc(100vw-1rem)]; }
   .mini-chat-dock { position: fixed; right: max(1rem, env(safe-area-inset-right)); bottom: max(0rem, env(safe-area-inset-bottom)); z-index: 50; }
 
   /* lg+: the sidebar is a floating Thick-glass panel parked off-canvas (Zen browser style). It slides in over the
@@ -221,12 +228,11 @@
     .sidebar-hotzone:hover::after { @apply bg-ink/40; }
     .app-sidebar {
       @apply fixed inset-y-2 left-2 z-50 h-auto w-[20.5rem] justify-start rounded-[1.375rem] px-4 pb-3 pt-2.5;
-      background: var(--glass-bg-strong);
-      -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);
       box-shadow: var(--shadow-pop);
       transform: translateX(calc(-100% - 1.5rem));
       transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1) 0.15s;
     }
+    .app-sidebar::before { background: var(--glass-bg-strong); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); }
     .sidebar-hotzone:hover + .app-sidebar,
     .app-sidebar:hover,
     .app-sidebar:focus-within,
@@ -237,6 +243,9 @@
     .app-sidebar-body { @apply -mx-1 block min-h-0 flex-1 overflow-y-auto px-1 pb-4; scrollbar-width: none; }
     .app-sidebar-account { @apply mt-2 flex shrink-0 items-center gap-2.5 rounded-xl bg-field px-3 py-2 transition-colors hover:bg-control; }
     .app-sidebar .header-popover { @apply left-0 right-auto; }
+  }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .app-sidebar::before { @apply bg-surface; }
   }
   @media (prefers-reduced-motion: reduce) { .app-sidebar { transition: none !important; } }
 
