@@ -5,10 +5,10 @@
   const sharedLinks = messages.flatMap(function (m) { return extractLinks(m.content).map(function (url) { return { url, at: m.createdAt }; }); }).reverse().slice(0, 6);
   const gap = 20 * 60 * 1000;
 -%>
-<main id="main" class="mx-auto h-[calc(100dvh-3.5rem)] max-w-[100rem] pb-[3.75rem] md:p-4 md:pb-4">
-  <section class="relative flex h-full overflow-hidden bg-surface md:rounded-2xl md:shadow-card">
+<main id="main" class="mx-auto h-[calc(100dvh-var(--header-h))] max-w-[100rem] pb-[5.5rem] md:p-4 md:pb-[5.5rem] lg:p-0">
+  <section class="relative flex h-full overflow-hidden bg-surface md:rounded-2xl md:shadow-card lg:rounded-none lg:shadow-none">
     <!-- Icon rail -->
-    <nav aria-label="Chat sections" class="hidden w-[4.5rem] shrink-0 flex-col items-center gap-2 border-r border-line py-4 lg:flex">
+    <nav aria-label="Chat sections" class="hidden">
       <a href="/" class="msg-rail-link" aria-label="Back to home"><svg class="icon size-6"><use href="#i-arrow-left"/></svg></a>
       <div class="my-1 h-px w-8 bg-line"></div>
       <a href="/messages" class="msg-rail-link msg-rail-active" aria-label="Chats" aria-current="page"><svg class="icon size-6"><use href="#i-chat"/></svg></a>
@@ -21,8 +21,8 @@
     <!-- Conversation list -->
     <aside class="w-full shrink-0 flex-col border-r border-line md:w-[22rem] <%= activeConversation ? 'hidden md:flex' : 'flex' %>" aria-label="Conversations">
       <div class="px-4 pb-2 pt-4">
-        <p class="font-display text-xl font-extrabold text-brand-600">Oremus</p>
-        <div class="mt-1 flex items-center justify-between"><h1 class="font-display text-[2rem] font-extrabold">Chats</h1><a href="/search?kind=user" class="icon-btn-ghost text-brand-600" aria-label="New message"><svg class="icon"><use href="#i-compose"/></svg></a></div>
+        <p class="text-footnote font-medium uppercase text-muted lg:hidden">Oremus</p>
+        <div class="mt-1 flex items-center justify-between"><h1 class="font-display text-large-title font-bold">Chats</h1><a href="/search?kind=user" class="icon-btn-ghost text-brand-600" aria-label="New message"><svg class="icon"><use href="#i-compose"/></svg></a></div>
         <div class="relative mt-2">
           <label class="sr-only" for="chat-filter">Search in chats</label>
           <svg class="icon pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"><use href="#i-search"/></svg>

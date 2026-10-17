@@ -31,7 +31,7 @@
             <% if (isSelf) { %><button type="button" class="icon-btn absolute bottom-2 right-2" data-photo-menu="avatar" data-url="<%= info.avatarUrl || '' %>" aria-label="Update profile picture"><svg class="icon"><use href="#i-camera"/></svg></button><% } %>
           </div>
           <div class="min-w-0 flex-1 text-center md:pb-3 md:text-left">
-            <h1 class="text-balance font-display text-[2rem] font-extrabold leading-tight"><%= profile.displayName %></h1>
+            <h1 class="text-balance font-display text-large-title font-bold leading-tight"><%= profile.displayName %></h1>
             <p class="mt-1 font-semibold text-muted"><span data-profile-friends><%= plural(profile.friends, 'friend') %></span> · <span data-profile-followers data-count="<%= profile.followers %>"><%= plural(profile.followers, 'follower') %></span> · <%= compact(profile.following) %> following</p>
             <% if (friendsPreview.length) { %>
             <div class="mt-2 flex justify-center -space-x-2 md:justify-start">

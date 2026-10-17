@@ -1,6 +1,6 @@
 <%- include('_shell-top') %>
         <a href="/login" class="btn-ghost -ml-3 self-start"><svg class="icon"><use href="#i-arrow-left"/></svg>Back to log in</a>
-        <h1 class="mt-4 text-center font-display text-[2rem] font-extrabold leading-tight"><%= token ? 'Choose a new password' : 'Find your account' %></h1>
+        <h1 class="mt-4 text-center font-display text-large-title font-bold leading-tight"><%= token ? 'Choose a new password' : 'Find your account' %></h1>
         <p class="mt-2 text-center text-15 text-muted"><%= token ? 'Make it strong — you will use it to log in from now on.' : "Enter your email and we'll prepare a reset link." %></p>
         <form class="mt-8 space-y-4" data-api-form action="<%= token ? '/auth/password/reset-confirm' : '/auth/password/reset-request' %>" method="post">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">

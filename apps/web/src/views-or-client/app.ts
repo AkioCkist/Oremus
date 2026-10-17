@@ -104,6 +104,7 @@ $$('[data-theme-toggle]').forEach((button) => button.addEventListener('click', (
 darkQuery.addEventListener('change', syncThemeControls);
 syncThemeControls();
 
+
 /* ---------- API forms ---------- */
 
 $$<HTMLFormElement>('[data-api-form]').forEach((form) => {

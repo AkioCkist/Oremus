@@ -1,16 +1,16 @@
 <%- include('partials/head') %><%- include('partials/nav') %>
 <% const kinds = [['all', 'All', 'i-search'], ['user', 'People', 'i-users'], ['post', 'Posts', 'i-feed'], ['group', 'Groups', 'i-group']]; const link = (k) => `/search?${q ? 'q=' + encodeURIComponent(q) + '&' : ''}kind=${k}`; -%>
-<main id="main" class="grid min-h-[calc(100dvh-3.5rem)] grid-cols-1 lg:grid-cols-[22.5rem_minmax(0,1fr)]">
-  <aside class="min-w-0 border-b border-line bg-surface lg:sticky lg:top-14 lg:h-[calc(100dvh-3.5rem)] lg:border-b-0 lg:border-r" aria-label="Search filters">
+<main id="main" class="grid min-h-[calc(100dvh-var(--header-h))] grid-cols-1 lg:grid-cols-[22.5rem_minmax(0,1fr)]">
+  <aside class="min-w-0 border-b border-line bg-surface lg:sticky lg:top-[var(--header-h)] lg:h-[calc(100dvh-var(--header-h))] lg:border-b-0 lg:border-r" aria-label="Search filters">
     <div class="p-4">
       <p class="text-[0.8125rem] text-muted">Search results</p>
-      <h1 class="font-display text-2xl font-extrabold"><%= q ? `“${q}”` : 'Search' %></h1>
+      <h1 class="page-title"><%= q ? `“${q}”` : 'Search' %></h1>
       <%- include('partials/search-box', { boxId: 'search-page-input', formClass: 'mt-3', panelClass: 'w-full', placeholder: 'Search people, posts, groups', value: q, keepKind: kind }) %>
       <div class="divider mt-4"></div>
       <h2 class="pb-1 pt-2 text-[1.0625rem] font-bold">Filters</h2>
       <nav class="flex gap-1 overflow-x-auto lg:flex-col" aria-label="Result type">
         <% kinds.forEach(function (k) { const on = kind === k[0]; %>
-        <a class="side-link shrink-0 <%= on ? 'bg-brand-50 text-brand-700 hover:bg-brand-50' : '' %>" href="<%= link(k[0]) %>" <%= on ? 'aria-current=page' : '' %>><span class="grid size-9 place-items-center rounded-full <%= on ? 'bg-brand-600 text-white' : 'bg-control' %>"><svg class="icon"><use href="#<%= k[2] %>"/></svg></span><%= k[1] %></a>
+        <a class="side-link shrink-0 <%= on ? 'side-link-active' : '' %>" href="<%= link(k[0]) %>" <%= on ? 'aria-current=page' : '' %>><span class="tile-icon <%= on ? 'bg-white/20' : ({ all: 'bg-ios-blue', user: 'bg-ios-teal', post: 'bg-ios-orange', group: 'bg-ios-green' })[k[0]] %>"><svg class="icon"><use href="#<%= k[2] %>"/></svg></span><%= k[1] %></a>
         <% }) %>
       </nav>
     </div>

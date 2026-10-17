@@ -1,11 +1,13 @@
 <%- include('partials/head') %><%- include('partials/nav') %>
 <main id="main" class="app-shell">
-  <%- include('partials/sidebar') %>
 
   <section class="mx-auto w-full max-w-feed space-y-4" aria-label="Home feed">
+    <header class="page-header">
+      <h1 class="page-title">Home</h1>
+      <p class="page-subtitle">Stories, posts and updates from people you follow</p>
+    </header>
     <%- include('partials/story-tray') %>
     <div class="px-0 sm:px-0"><%- include('partials/composer') %></div>
-    <h1 class="sr-only">News feed</h1>
     <% if (posts.length) { %>
       <div class="space-y-4" data-infinite="feed" data-infinite-next="<%= next || '' %>">
         <%- include('partials/chunks/feed', { items: posts }) %>
@@ -21,62 +23,59 @@
     <% } %>
   </section>
 
-  <aside class="hidden xl:block" aria-label="Contacts and suggestions">
-    <div class="rail-sticky space-y-1 pr-2">
-      <% if (suggestions.length) { %>
-      <section class="pb-2" data-suggestions>
-        <div class="flex items-center justify-between px-2 pb-1 pt-1"><h2 class="font-display text-[1.0625rem] font-bold text-muted">People you may know</h2><a class="rounded-md px-1.5 py-0.5 text-15 text-brand-600 hover:bg-rail-hover" href="/search?kind=user">See all</a></div>
-        <ul class="space-y-0.5">
-          <% suggestions.forEach(function (person) { %>
-          <li class="group/suggestion relative flex gap-3 rounded-xl p-2 transition-colors hover:bg-rail-hover" data-suggestion="<%= person._id %>">
-            <a href="/profile/<%= person.username %>" class="shrink-0" tabindex="-1" aria-hidden="true"><%- include('partials/avatar', { person, size: 'size-12 text-base' }) %></a>
-            <div class="min-w-0 flex-1">
-              <a href="/profile/<%= person.username %>" class="block truncate pr-6 text-15 font-semibold leading-tight hover:underline"><%= person.displayName %></a>
-              <p class="mt-0.5 truncate text-[0.8125rem] text-muted">
-                <% if (person.mutualFriends) { %><svg class="icon -mt-0.5 mr-0.5 inline size-3.5"><use href="#i-users"/></svg><%= plural(person.mutualFriends, 'mutual friend') %><% } else { %>@<%= person.username %><% } %>
-              </p>
-              <%# Buttons share one row; icons are hidden here so both labels fit the narrow rail. -%>
-              <div class="mt-2 grid grid-cols-2 gap-1.5 [&_button>svg]:hidden [&_button]:px-2 [&_button]:text-[0.8125rem] [&_summary>svg]:hidden [&_summary]:px-2 [&_summary]:text-[0.8125rem]">
-                <%- include('partials/friend-controls', { person, state: person.friendState, compact: true, full: true, soft: true }) %>
-                <%- include('partials/follow-button', { person, following: person.isFollowing, compact: true, full: true }) %>
-              </div>
+  <aside class="inspector hidden xl:block" aria-label="Contacts and suggestions">
+    <% if (suggestions.length) { %>
+    <section data-suggestions>
+      <div class="inspector-heading !pt-14"><h2>People you may know</h2><a class="normal-case text-subheadline font-normal text-brand-600 hover:underline" href="/search?kind=user">See all</a></div>
+      <ul class="inset-group">
+        <% suggestions.forEach(function (person) { %>
+        <li class="inset-row group/suggestion items-start py-3" data-suggestion="<%= person._id %>">
+          <a href="/profile/<%= person.username %>" class="shrink-0" tabindex="-1" aria-hidden="true"><%- include('partials/avatar', { person, size: 'size-11 text-sm' }) %></a>
+          <div class="min-w-0 flex-1">
+            <a href="/profile/<%= person.username %>" class="block truncate pr-6 text-callout font-semibold leading-tight hover:underline"><%= person.displayName %></a>
+            <p class="mt-0.5 truncate text-footnote text-muted">
+              <% if (person.mutualFriends) { %><%= plural(person.mutualFriends, 'mutual friend') %><% } else { %>@<%= person.username %><% } %>
+            </p>
+            <%# Buttons share one row; icons are hidden here so both labels fit the narrow column. -%>
+            <div class="mt-2 grid grid-cols-2 gap-1.5 [&_button>svg]:hidden [&_button]:h-7 [&_button]:px-2 [&_button]:text-footnote [&_summary>svg]:hidden [&_summary]:h-7 [&_summary]:px-2 [&_summary]:text-footnote">
+              <%- include('partials/friend-controls', { person, state: person.friendState, compact: true, full: true, soft: true }) %>
+              <%- include('partials/follow-button', { person, following: person.isFollowing, compact: true, full: true }) %>
             </div>
-            <button type="button" class="absolute right-1.5 top-1.5 grid size-7 place-items-center rounded-full text-muted transition-opacity hover:bg-control focus-visible:opacity-100 group-hover/suggestion:opacity-100 xl:opacity-0" data-dismiss-suggestion="<%= person._id %>" aria-label="Remove <%= person.displayName %> from suggestions" title="Remove"><svg class="icon size-4"><use href="#i-x"/></svg></button>
-          </li>
-          <% }) %>
-        </ul>
-      </section>
-      <div class="divider mx-2" data-suggestions-divider></div>
-      <% } %>
+          </div>
+          <button type="button" class="absolute right-2 top-2 grid size-7 place-items-center rounded-full text-subtle transition-opacity hover:bg-control focus-visible:opacity-100 group-hover/suggestion:opacity-100 xl:opacity-0" data-dismiss-suggestion="<%= person._id %>" aria-label="Remove <%= person.displayName %> from suggestions" title="Remove"><svg class="icon size-4"><use href="#i-x"/></svg></button>
+        </li>
+        <% }) %>
+      </ul>
+    </section>
+    <div class="hidden" data-suggestions-divider></div>
+    <% } %>
 
-      <% if (groups.length) { %>
-      <section class="pb-2">
-        <h2 class="px-2 pb-1 pt-2 font-display text-[1.0625rem] font-bold text-muted">Group chats</h2>
-        <ul>
-          <% groups.slice(0, 5).forEach(function (g) { %>
-          <li><a class="rail-link hover:bg-rail-hover" href="/groups/<%= g.slug %>">
-            <span class="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full <%= g.coverUrl ? 'bg-field' : toneOf(g.name) %>"><% if (g.coverUrl) { %><img class="size-full object-cover" src="<%= g.coverUrl %>" alt=""><% } else { %><span class="font-display text-sm font-bold text-white"><%= initials(g.name) %></span><% } %></span>
-            <span class="truncate"><%= g.name %></span>
-          </a></li>
-          <% }) %>
-        </ul>
-      </section>
-      <div class="divider mx-2"></div>
-      <% } %>
+    <% if (groups.length) { %>
+    <section>
+      <h2 class="inspector-heading">Group chats</h2>
+      <ul class="inset-group">
+        <% groups.slice(0, 5).forEach(function (g) { %>
+        <li class="inset-row p-0"><a class="flex w-full items-center gap-3 px-4 py-2 text-callout hover:bg-ink/[0.03]" href="/groups/<%= g.slug %>">
+          <span class="grid size-8 shrink-0 place-items-center overflow-hidden rounded-[0.5rem] <%= g.coverUrl ? 'bg-field' : toneOf(g.name) %>"><% if (g.coverUrl) { %><img class="size-full object-cover" src="<%= g.coverUrl %>" alt=""><% } else { %><span class="text-xs font-bold text-white"><%= initials(g.name) %></span><% } %></span>
+          <span class="flex-1 truncate"><%= g.name %></span><svg class="icon size-4 text-subtle"><use href="#i-chevron-right"/></svg>
+        </a></li>
+        <% }) %>
+      </ul>
+    </section>
+    <% } %>
 
-      <section>
-        <div class="flex items-center justify-between px-2 pb-1 pt-2"><h2 class="font-display text-[1.0625rem] font-bold text-muted">Contacts</h2><a href="/messages" class="icon-btn-ghost" aria-label="Open chats"><svg class="icon"><use href="#i-search"/></svg></a></div>
-        <% if (contacts.length) { %>
-        <ul>
-          <% contacts.forEach(function (person) { %>
-          <li><button type="button" class="rail-link w-full hover:bg-rail-hover" data-message-user="<%= person._id %>" aria-label="Message <%= person.displayName %>">
-            <%- include('partials/avatar', { person, size: 'size-9 text-xs' }) %><span class="truncate"><%= person.displayName %></span>
-          </button></li>
-          <% }) %>
-        </ul>
-        <% } else { %><p class="px-2 py-2 text-sm text-muted">People you follow will show up here so you can message them quickly.</p><% } %>
-      </section>
-    </div>
+    <section>
+      <div class="inspector-heading"><h2>Contacts</h2><a href="/messages" class="normal-case text-subheadline font-normal text-brand-600 hover:underline">Open chats</a></div>
+      <% if (contacts.length) { %>
+      <ul class="inset-group">
+        <% contacts.forEach(function (person) { %>
+        <li class="inset-row p-0"><button type="button" class="flex w-full items-center gap-3 px-4 py-2 text-left text-callout hover:bg-ink/[0.03]" data-message-user="<%= person._id %>" aria-label="Message <%= person.displayName %>">
+          <%- include('partials/avatar', { person, size: 'size-8 text-xs' }) %><span class="flex-1 truncate"><%= person.displayName %></span><svg class="icon size-4 text-ios-blue"><use href="#i-chat"/></svg>
+        </button></li>
+        <% }) %>
+      </ul>
+      <% } else { %><p class="inset-group px-4 py-3 text-subheadline text-muted">People you follow will show up here so you can message them quickly.</p><% } %>
+    </section>
   </aside>
 </main>
 <%- include('partials/foot') %>

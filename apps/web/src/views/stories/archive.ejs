@@ -1,11 +1,10 @@
 <%- include('../partials/head') %><%- include('../partials/nav') %>
-<main id="main" class="app-shell xl:grid-cols-[18.5rem_minmax(0,1fr)]">
-  <%- include('../partials/sidebar') %>
+<main id="main" class="app-shell !max-w-5xl">
   <section class="mx-auto w-full max-w-5xl space-y-4">
-    <div class="card flex flex-wrap items-center justify-between gap-3 p-4">
+    <div class="page-header flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 class="font-display text-2xl font-extrabold">Story archive</h1>
-        <p class="text-15 text-muted">Only you can see your archive. Active stories disappear from your profile after 24 hours but stay here.</p>
+        <h1 class="page-title">Story archive</h1>
+        <p class="page-subtitle max-w-xl">Only you can see your archive. Active stories disappear from your profile after 24 hours but stay here.</p>
       </div>
       <div class="flex gap-2"><a class="btn-secondary" href="/stories">View stories</a><button class="btn-primary" type="button" data-open-story-composer><svg class="icon"><use href="#i-plus"/></svg>Create story</button></div>
     </div>

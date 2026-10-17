@@ -16,6 +16,8 @@ export default {
         subtle: themed('subtle'),
         canvas: themed('canvas'),
         surface: themed('surface'),
+        grouped: themed('grouped'),
+        elevated: themed('elevated'),
         field: themed('field'),
         hover: themed('hover'),
         line: themed('line'),
@@ -35,9 +37,9 @@ export default {
       },
       fontFamily: {
         // SF Pro is the iOS 27 kit face. It is licensed for Apple platforms only, so it is never bundled:
-        // Apple devices render it through the system stack, everything else falls back to Be Vietnam Pro.
-        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"Be Vietnam Pro"', '"Segoe UI"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        display: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"Be Vietnam Pro"', '"Segoe UI"', 'ui-sans-serif', 'system-ui', 'sans-serif']
+        // Apple devices render it through the system stack, everything else falls back to Inter (the kit's stand-in, full Vietnamese support).
+        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', 'Inter', '"Be Vietnam Pro"', '"Segoe UI"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', 'Inter', '"Be Vietnam Pro"', '"Segoe UI"', 'ui-sans-serif', 'system-ui', 'sans-serif']
       },
       // iOS 27 text styles (Figma: Text Styles and Dynamic Type, Large size).
       fontSize: {

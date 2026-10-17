@@ -1,71 +1,81 @@
 <%
   const unreadN = locals.unreadNotifications || 0, unreadM = locals.unreadMessages || 0;
 -%>
-<header class="glass-bar sticky top-0 z-40 h-14">
-  <div class="flex h-full items-center gap-2 px-3 sm:px-4 xl:gap-3">
-    <!-- Brand + search -->
-    <div class="flex min-w-0 items-center gap-2 xl:w-[28rem] xl:gap-3">
-      <a href="/" class="flex shrink-0 items-center gap-2" aria-label="Oremus home">
-        <img src="/assets/brand/logo.svg" alt="" class="size-10">
-        <span class="hidden font-display text-title2 font-bold text-ink sm:inline lg:hidden xl:inline">Oremus</span>
-      </a>
-      <% if (currentUser) { %>
-      <%- include('search-box', { boxId: 'site-search', formClass: 'hidden md:block', inputClass: 'w-[15rem] xl:w-[17.5rem]', iconClass: 'size-5', value: typeof q !== 'undefined' ? q : '' }) %>
-      <a href="/search" class="icon-btn header-action md:hidden" aria-label="Search"><svg class="icon"><use href="#i-search"/></svg></a>
-      <% } %>
-    </div>
+<% if (currentUser) { %>
+<%# One element, two layouts: a glass top bar on phones/tablets and, from lg up, the full-height app sidebar
+    (brand + toolbar, search, navigation rows, account) — the macOS / iPadOS split-view layout. -%>
+<%# From lg up the sidebar hides off-canvas and slides in over the page from this left-edge hot zone (Zen-style). -%>
+<div class="sidebar-hotzone" aria-hidden="true"></div>
+<header class="app-sidebar">
+  <div class="app-sidebar-top">
+    <a href="/" class="flex shrink-0 items-center gap-2" aria-label="Oremus home">
+      <img src="/assets/brand/logo.svg" alt="" class="size-9 lg:size-7">
+      <span class="hidden text-headline font-semibold text-ink sm:inline">Oremus</span>
+    </a>
+    <a href="/search" class="icon-btn header-action ml-1 lg:hidden" aria-label="Search"><svg class="icon"><use href="#i-search"/></svg></a>
 
-    <% if (currentUser) { %>
-    <!-- Centre tabs -->
-    <nav aria-label="Primary" class="header-primary tab-capsule mx-auto hidden flex-1 md:flex">
-      <a class="top-tab <%= path === '/' ? 'top-tab-active' : '' %>" href="/" aria-label="Home" <%= path === '/' ? 'aria-current=page' : '' %>><span><svg class="icon size-[1.375rem]"><use href="#i-home<%= path === '/' ? '-fill' : '' %>"/></svg></span></a>
-      <a class="top-tab <%= path.startsWith('/stories') ? 'top-tab-active' : '' %>" href="/stories" aria-label="Stories" <%= path.startsWith('/stories') ? 'aria-current=page' : '' %>><span><svg class="icon size-[1.375rem]"><use href="#i-stories<%= path.startsWith('/stories') ? '-fill' : '' %>"/></svg></span></a>
-      <a class="top-tab <%= path.startsWith('/groups') ? 'top-tab-active' : '' %>" href="/groups" aria-label="Groups" <%= path.startsWith('/groups') ? 'aria-current=page' : '' %>><span><svg class="icon size-[1.375rem]"><use href="#i-group<%= path.startsWith('/groups') ? '-fill' : '' %>"/></svg></span></a>
-      <a class="top-tab <%= path.startsWith('/profile/' + currentUser.username) ? 'top-tab-active' : '' %>" href="/profile/<%= currentUser.username %>" aria-label="Your profile"><span><svg class="icon size-[1.375rem]"><use href="#i-user<%= path.startsWith('/profile/' + currentUser.username) ? '-fill' : '' %>"/></svg></span></a>
-    </nav>
-
-    <!-- Right actions -->
-    <div class="ml-auto flex items-center justify-end gap-2 xl:w-[28rem] xl:gap-3">
-      <details class="group/menu relative" data-menu data-read-on-open="messages">
-        <summary class="icon-btn header-action relative <%= path.startsWith('/messages') ? '!text-brand-600' : '' %> group-open/menu:text-brand-600" aria-label="Messages<%= unreadM ? `, ${unreadM} unread` : '' %>" data-badge-link="messages" data-badge-label="Messages">
-          <svg class="icon"><use href="#i-chat"/></svg>
-          <% if (unreadM) { %><span class="badge" data-badge><%= unreadM > 9 ? '9+' : unreadM %></span><% } %>
-        </summary>
-        <section class="header-popover" aria-label="Recent chats" data-live-panel="chats">
-          <%- include('header-chats') %>
-        </section>
-      </details>
-      <details class="group/menu relative" data-menu data-read-on-open="notifications">
-        <summary class="icon-btn header-action relative <%= path === '/notifications' ? '!text-brand-600' : '' %> group-open/menu:text-brand-600" aria-label="Notifications<%= unreadN ? `, ${unreadN} unread` : '' %>" data-badge-link="notifications" data-badge-label="Notifications">
-          <svg class="icon"><use href="#i-bell"/></svg>
-          <% if (unreadN) { %><span class="badge" data-badge><%= unreadN > 9 ? '9+' : unreadN %></span><% } %>
-        </summary>
-        <section class="header-popover" aria-label="Recent notifications" data-live-panel="notifications">
-          <%- include('header-notifications') %>
-        </section>
-      </details>
+    <div class="ml-auto flex items-center gap-2">
+      <!-- Toolbar: grouped Liquid Glass symbol buttons -->
+      <div class="toolbar-group">
+        <details class="group/menu relative" data-menu data-read-on-open="messages">
+          <summary class="toolbar-btn <%= path.startsWith('/messages') ? '!text-brand-600' : '' %> group-open/menu:text-brand-600" aria-label="Messages<%= unreadM ? `, ${unreadM} unread` : '' %>" data-badge-link="messages" data-badge-label="Messages">
+            <svg class="icon"><use href="#i-chat"/></svg>
+            <% if (unreadM) { %><span class="badge" data-badge><%= unreadM > 9 ? '9+' : unreadM %></span><% } %>
+          </summary>
+          <section class="header-popover" aria-label="Recent chats" data-live-panel="chats">
+            <%- include('header-chats') %>
+          </section>
+        </details>
+        <details class="group/menu relative" data-menu data-read-on-open="notifications">
+          <summary class="toolbar-btn <%= path === '/notifications' ? '!text-brand-600' : '' %> group-open/menu:text-brand-600" aria-label="Notifications<%= unreadN ? `, ${unreadN} unread` : '' %>" data-badge-link="notifications" data-badge-label="Notifications">
+            <svg class="icon"><use href="#i-bell"/></svg>
+            <% if (unreadN) { %><span class="badge" data-badge><%= unreadN > 9 ? '9+' : unreadN %></span><% } %>
+          </summary>
+          <section class="header-popover" aria-label="Recent notifications" data-live-panel="notifications">
+            <%- include('header-notifications') %>
+          </section>
+        </details>
+      </div>
       <details class="relative" data-menu>
-        <summary class="glass flex cursor-pointer list-none items-center gap-2 rounded-full p-0.5 lg:pr-3.5" aria-label="Account menu">
-          <%- include('avatar', { person: currentUser, size: 'size-11 text-sm' }) %>
-          <span class="hidden max-w-[8rem] truncate text-15 font-semibold lg:inline"><%= firstName(currentUser.displayName) %></span>
+        <summary class="glass grid size-11 cursor-pointer list-none place-items-center rounded-full p-[3px] lg:size-10" aria-label="Account menu">
+          <%- include('avatar', { person: currentUser, size: 'size-full text-sm' }) %>
         </summary>
-        <div class="menu right-0 top-[3.25rem] w-[22rem] max-w-[calc(100vw-1.5rem)]">
+        <div class="menu right-0 top-[3.25rem] w-[20rem] max-w-[calc(100vw-1.5rem)] lg:left-0 lg:right-auto lg:origin-top-left">
           <a href="/profile/<%= currentUser.username %>" class="flex items-center gap-3 rounded-[1.25rem] bg-ink/[0.04] p-2 hover:bg-ink/[0.07]">
             <%- include('avatar', { person: currentUser, size: 'size-10 text-sm' }) %>
-            <span class="min-w-0"><span class="block truncate font-semibold"><%= currentUser.displayName %></span><span class="block text-sm text-muted">See your profile</span></span>
+            <span class="min-w-0"><span class="block truncate font-semibold"><%= currentUser.displayName %></span><span class="block text-footnote text-muted">See your profile</span></span>
           </a>
           <div class="divider"></div>
           <button type="button" class="menu-item" data-open-dialog="edit-profile-dialog"><span class="menu-icon"><svg class="icon"><use href="#i-edit"/></svg></span>Edit profile</button>
           <button type="button" class="menu-item" role="switch" aria-checked="false" data-theme-toggle><span class="menu-icon"><svg class="icon"><use href="#i-moon"/></svg></span><span class="flex-1">Dark mode</span><span class="switch" data-theme-switch aria-hidden="true"></span></button>
           <a class="menu-item" href="/settings"><span class="menu-icon"><svg class="icon"><use href="#i-settings"/></svg></span>Settings &amp; privacy</a>
           <a class="menu-item" href="/stories/archive"><span class="menu-icon"><svg class="icon"><use href="#i-archive"/></svg></span>Story archive</a>
-          <a class="menu-item" href="/notifications"><span class="menu-icon"><svg class="icon"><use href="#i-bell"/></svg></span>Notifications</a>
-          <button class="menu-item" type="button" data-logout><span class="menu-icon"><svg class="icon"><use href="#i-logout"/></svg></span>Log out</button>
+          <div class="divider"></div>
+          <button class="menu-item text-ios-red" type="button" data-logout><span class="menu-icon text-ios-red"><svg class="icon"><use href="#i-logout"/></svg></span>Log out</button>
         </div>
       </details>
     </div>
-    <% } else { %>
-    <div class="ml-auto flex items-center gap-2"><a class="btn-secondary" href="/login">Log in</a><a class="btn-primary" href="/register">Sign up</a></div>
-    <% } %>
   </div>
+
+  <!-- Sidebar search field + compose (lg and up) -->
+  <div class="app-sidebar-search">
+    <%- include('search-box', { boxId: 'site-search', formClass: 'min-w-0 flex-1', inputClass: 'w-full', iconClass: 'size-5', value: typeof q !== 'undefined' ? q : '' }) %>
+    <button type="button" class="compose-btn" data-open-composer aria-label="Create post" title="Create post"><svg class="icon size-[1.375rem]"><use href="#i-compose"/></svg></button>
+  </div>
+
+  <div class="app-sidebar-body">
+    <%- include('sidebar') %>
+  </div>
+
+  <a href="/profile/<%= currentUser.username %>" class="app-sidebar-account">
+    <%- include('avatar', { person: currentUser, size: 'size-8 text-xs' }) %>
+    <span class="min-w-0 flex-1"><span class="block truncate text-subheadline font-semibold"><%= currentUser.displayName %></span><span class="block truncate text-footnote text-muted">@<%= currentUser.username %></span></span>
+    <svg class="icon size-4 text-subtle"><use href="#i-chevron-right"/></svg>
+  </a>
 </header>
+<% } else { %>
+<header class="glass-bar sticky top-0 z-40 flex h-14 items-center gap-2 px-3 sm:px-4">
+  <a href="/" class="flex shrink-0 items-center gap-2" aria-label="Oremus home"><img src="/assets/brand/logo.svg" alt="" class="size-9"><span class="text-headline font-semibold text-ink">Oremus</span></a>
+  <div class="ml-auto flex items-center gap-2"><a class="btn-secondary" href="/login">Log in</a><a class="btn-primary" href="/register">Sign up</a></div>
+</header>
+<% } %>

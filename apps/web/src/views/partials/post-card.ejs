@@ -53,7 +53,7 @@
     </details>
   </header>
 
-  <% if (item.content) { %><p class="whitespace-pre-wrap break-words px-4 pb-3 pt-2.5 <%= bigText && !isShare ? 'font-display text-2xl leading-snug' : 'text-15 leading-[1.4]' %>" data-post-content><%= item.content %></p><% } else { %><div class="h-3"></div><% } %>
+  <% if (item.content) { %><p class="whitespace-pre-wrap break-words px-4 pb-3 pt-2.5 <%= bigText && !isShare ? 'font-display text-title2 font-medium' : 'text-body' %>" data-post-content><%= item.content %></p><% } else { %><div class="h-3"></div><% } %>
 
   <% if (isShare) { %><%- include('shared-post', { shared: item.shared }) %><% } %>
 

@@ -1,21 +1,21 @@
 <%- include('partials/head') %><%- include('partials/nav') %>
 <% const info = currentUser.profile || {}; -%>
-<main id="main" class="grid min-h-[calc(100dvh-3.5rem)] grid-cols-1 lg:grid-cols-[22.5rem_minmax(0,1fr)]">
-  <aside class="border-b border-line bg-surface lg:sticky lg:top-14 lg:h-[calc(100dvh-3.5rem)] lg:border-b-0 lg:border-r" aria-label="Settings sections">
+<main id="main" class="grid min-h-[calc(100dvh-var(--header-h))] grid-cols-1 lg:grid-cols-[22.5rem_minmax(0,1fr)]">
+  <aside class="border-b border-line bg-surface lg:sticky lg:top-[var(--header-h)] lg:h-[calc(100dvh-var(--header-h))] lg:border-b-0 lg:border-r" aria-label="Settings sections">
     <div class="p-4">
-      <h1 class="font-display text-2xl font-extrabold">Settings</h1>
+      <h1 class="page-title">Settings</h1>
       <nav class="mt-3 flex gap-1 overflow-x-auto lg:flex-col" aria-label="Settings">
-        <a class="side-link shrink-0" href="#profile"><span class="icon-btn size-9"><svg class="icon"><use href="#i-user"/></svg></span>Profile</a>
-        <a class="side-link shrink-0" href="#photos"><span class="icon-btn size-9"><svg class="icon"><use href="#i-camera"/></svg></span>Photos</a>
-        <a class="side-link shrink-0" href="#privacy"><span class="icon-btn size-9"><svg class="icon"><use href="#i-shield"/></svg></span>Privacy</a>
-        <a class="side-link shrink-0" href="#display"><span class="icon-btn size-9"><svg class="icon"><use href="#i-moon"/></svg></span>Display</a>
-        <a class="side-link shrink-0" href="#stories"><span class="icon-btn size-9"><svg class="icon"><use href="#i-stories"/></svg></span>Stories</a>
-        <a class="side-link shrink-0" href="#session"><span class="icon-btn size-9"><svg class="icon"><use href="#i-key"/></svg></span>Session</a>
+        <a class="side-link shrink-0" href="#profile"><span class="tile-icon bg-ios-blue"><svg class="icon"><use href="#i-user"/></svg></span>Profile</a>
+        <a class="side-link shrink-0" href="#photos"><span class="tile-icon bg-ios-orange"><svg class="icon"><use href="#i-camera"/></svg></span>Photos</a>
+        <a class="side-link shrink-0" href="#privacy"><span class="tile-icon bg-subtle"><svg class="icon"><use href="#i-shield"/></svg></span>Privacy</a>
+        <a class="side-link shrink-0" href="#display"><span class="tile-icon bg-ios-indigo"><svg class="icon"><use href="#i-moon"/></svg></span>Display</a>
+        <a class="side-link shrink-0" href="#stories"><span class="tile-icon bg-ios-pink"><svg class="icon"><use href="#i-stories"/></svg></span>Stories</a>
+        <a class="side-link shrink-0" href="#session"><span class="tile-icon bg-ios-teal"><svg class="icon"><use href="#i-key"/></svg></span>Session</a>
       </nav>
     </div>
   </aside>
 
-  <section class="px-3 py-5 pb-24 sm:px-6">
+  <section class="bg-grouped px-3 py-5 pb-24 sm:px-6 lg:py-10">
     <div class="mx-auto max-w-2xl space-y-4">
       <section id="profile" class="card scroll-mt-20 overflow-hidden">
         <div class="relative aspect-[16/5] bg-field"><img class="size-full object-cover" src="<%= info.coverUrl || '/assets/img/default-cover.svg' %>" alt=""><button type="button" class="btn absolute bottom-3 right-3 bg-surface text-ink shadow-card hover:bg-hover" data-pick-photo-kind="cover"><svg class="icon"><use href="#i-camera"/></svg><span class="hidden sm:inline">Edit cover photo</span></button></div>

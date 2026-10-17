@@ -1,21 +1,21 @@
 <%- include('../partials/head') %><%- include('../partials/nav') %>
-<main id="main" <%= locals.openCreate ? 'data-open-create-group' : '' %> class="grid min-h-[calc(100dvh-3.5rem)] lg:grid-cols-[22.5rem_minmax(0,1fr)]">
+<main id="main" <%= locals.openCreate ? 'data-open-create-group' : '' %> class="grid min-h-[calc(100dvh-var(--header-h))] lg:grid-cols-[22.5rem_minmax(0,1fr)]">
   <!-- Groups sidebar -->
-  <aside class="border-r border-line bg-surface lg:sticky lg:top-14 lg:h-[calc(100dvh-3.5rem)] lg:overflow-y-auto" aria-label="Groups navigation">
+  <aside class="border-r border-line bg-surface lg:sticky lg:top-[var(--header-h)] lg:h-[calc(100dvh-var(--header-h))] lg:overflow-y-auto" aria-label="Groups navigation">
     <div class="p-4">
-      <h1 class="font-display text-2xl font-extrabold">Groups</h1>
+      <h1 class="page-title">Groups</h1>
       <div class="relative mt-3">
         <label class="sr-only" for="group-filter">Search groups</label>
         <svg class="icon pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"><use href="#i-search"/></svg>
         <input id="group-filter" type="search" class="pill-input pl-9" placeholder="Search groups" data-group-filter autocomplete="off">
       </div>
       <nav class="mt-3 space-y-0.5" aria-label="Group views">
-        <a class="side-link bg-brand-50 text-brand-700 hover:bg-brand-50" href="/groups" aria-current="page"><span class="grid size-9 place-items-center rounded-full bg-brand-600 text-white"><svg class="icon"><use href="#i-feed"/></svg></span>Discover</a>
+        <a class="side-link side-link-active" href="/groups" aria-current="page"><span class="tile-icon bg-white/20"><svg class="icon"><use href="#i-feed"/></svg></span>Discover</a>
       </nav>
       <% if (currentUser) { %><button class="btn-soft mt-3 w-full" type="button" data-open-group-dialog><svg class="icon"><use href="#i-plus"/></svg>Create new group</button><% } %>
       <% if (myGroups.length) { %>
       <div class="divider mt-4"></div>
-      <h2 class="pb-1 pt-2 text-[1.0625rem] font-bold">Groups you've joined</h2>
+      <h2 class="px-1 pb-1.5 pt-3 text-footnote font-semibold text-muted">Groups you've joined</h2>
       <ul class="space-y-0.5">
         <% myGroups.forEach(function (g) { %>
         <li><a class="side-link" href="/groups/<%= g.slug %>">

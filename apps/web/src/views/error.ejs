@@ -2,7 +2,7 @@
 <main id="main" class="grid min-h-dvh place-items-center bg-canvas p-6 text-center">
   <div class="max-w-md">
     <img src="/assets/brand/logo.svg" alt="" class="mx-auto size-16">
-    <p class="mt-6 font-display text-6xl font-extrabold text-brand-600"><%= status %></p>
+    <p class="mt-6 font-display text-6xl font-bold text-brand-600"><%= status %></p>
     <h1 class="mt-3 text-balance text-2xl font-bold"><%= status === 404 ? "This content isn't available right now" : title %></h1>
     <p class="mt-2 text-pretty text-muted"><%= status === 404 ? "When this happens, it's usually because the owner changed who can see it, or it's been deleted." : message %></p>
     <div class="mt-6 flex justify-center gap-2"><a class="btn-primary btn-lg" href="/">Go to feed</a><% if (status === 401) { %><a class="btn-secondary btn-lg" href="/login">Log in</a><% } %></div>

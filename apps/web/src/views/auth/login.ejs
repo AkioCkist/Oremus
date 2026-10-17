@@ -1,5 +1,5 @@
 <%- include('_shell-top') %>
-        <h1 class="text-center font-display text-[2rem] font-extrabold leading-tight">Welcome back</h1>
+        <h1 class="text-center font-display text-large-title font-bold leading-tight">Welcome back</h1>
         <p class="mt-2 text-center text-15 text-muted">Log in to pick up where you left off</p>
         <form class="mt-8 space-y-4" data-api-form action="/auth/login" method="post">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">

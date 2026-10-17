@@ -5,7 +5,7 @@
   const chatPartner = function (conversation) { return conversation.memberIds.find(function (member) { return String(member._id) !== meId; }) || conversation.memberIds[0]; };
 -%>
 <div class="flex items-center justify-between px-4 pb-2 pt-4">
-  <h2 class="text-balance font-display text-2xl font-extrabold">Chats</h2>
+  <h2 class="text-balance page-title">Chats</h2>
   <a href="/search?kind=user" class="icon-btn-ghost" aria-label="New message"><svg class="icon size-6"><use href="#i-compose"/></svg></a>
 </div>
 <% if (headerChats.length) { %>
