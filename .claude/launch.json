@@ -29,6 +29,21 @@
       },
       "port": 3002,
       "autoPort": false
+    },
+    {
+      "name": "oremus-web-recs",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "tsx",
+        "src/server.ts"
+      ],
+      "cwd": "apps/web",
+      "env": {
+        "WEB_PORT": "3004",
+        "APP_ORIGIN": "http://localhost:3004"
+      },
+      "port": 3004,
+      "autoPort": false
     }
   ]
 }

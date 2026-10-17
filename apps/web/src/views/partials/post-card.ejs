@@ -108,7 +108,7 @@
       </button>
       <div class="reaction-bar" role="toolbar" aria-label="Reactions">
         <% Object.keys(REACTION_LABELS).forEach(function (type) { %>
-        <button type="button" class="reaction-choice" data-react="<%= type %>" data-post="<%= item._id %>" aria-label="<%= REACTION_LABELS[type].label %>" title="<%= REACTION_LABELS[type].label %>"><svg><use href="#r-<%= type %>"/></svg></button>
+        <button type="button" class="reaction-choice" data-react="<%= type %>" data-post="<%= item._id %>" aria-label="<%= REACTION_LABELS[type].label %>"><svg><use href="#r-<%= type %>"/></svg></button>
         <% }) %>
       </div>
     </div>

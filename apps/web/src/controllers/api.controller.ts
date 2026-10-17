@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { Follow, Notification } from '../models/index.js';
-import { profileSchema, profileDetailsSchema, profileListItemSchemas, type ProfileList, searchRecordSchema, profilePhotoSchema, postSchema, postEditSchema, reactionSchema, commentSchema, commentEditSchema, groupSchema, decisionSchema, friendActionSchema, breakSchema, blockActionSchema, conversationSchema, messageSchema, groupJoinSchema, groupInviteSchema, placeNearbySchema, placeSearchSchema, photoDeleteSchema, shareSchema, shareSendSchema } from '../validators/index.js';
+import { activitySchema, profileSchema, profileDetailsSchema, profileListItemSchemas, type ProfileList, searchRecordSchema, profilePhotoSchema, postSchema, postEditSchema, reactionSchema, commentSchema, commentEditSchema, groupSchema, decisionSchema, friendActionSchema, breakSchema, blockActionSchema, conversationSchema, messageSchema, groupJoinSchema, groupInviteSchema, placeNearbySchema, placeSearchSchema, photoDeleteSchema, shareSchema, shareSendSchema } from '../validators/index.js';
 import { AppError } from '../utils/errors.js';
 import * as users from '../services/user.service.js';
 import * as posts from '../services/post.service.js';
@@ -15,11 +15,17 @@ import { cacheStats } from '../services/cache.service.js';
 import { nearbyPlaces, searchPlaces } from '../services/places.service.js';
 import { searchAll } from '../services/feed.service.js';
 import { audit } from '../services/audit.service.js';
+import { clearSignals, recordClientEvents, trackSignal } from '../services/activity.service.js';
+import { getRecommendations } from '../services/recommendation.service.js';
 
 const id = (req: Request) => req.user!.id;
 const param = (req: Request, name: string) => String(req.params[name]);
 export async function updateProfile(req: Request, res: Response) { const user = await users.updateProfile(id(req), profileSchema.parse(req.body), req.files as any); res.json({ ok: true, data: { user, redirect: `/profile/${user.username}` } }); }
-export async function toggleFollow(req: Request, res: Response) { res.json({ ok: true, data: await users.toggleFollow(id(req), param(req, 'userId')) }); }
+export async function toggleFollow(req: Request, res: Response) {
+  const result = await users.toggleFollow(id(req), param(req, 'userId'));
+  if (result.following) trackSignal(id(req), { type: 'follow', targetType: 'user', targetId: param(req, 'userId') });
+  res.json({ ok: true, data: result });
+}
 export async function changeFriendship(req: Request, res: Response) {
   const { action } = friendActionSchema.parse(req.body), actorId = id(req), targetId = param(req, 'userId');
   const result = await changeFriendshipState(actorId, targetId, action);
@@ -38,14 +44,23 @@ export async function updatePost(req: Request, res: Response) { res.json({ ok: t
 export async function replacePostMedia(req: Request, res: Response) { res.json({ ok: true, data: { ...(await posts.replacePostMedia(id(req), param(req, 'postId'), param(req, 'mediaId'), req.file)), message: 'Media replaced.' } }); }
 export async function removePostMedia(req: Request, res: Response) { const result = await posts.removePostMedia(id(req), param(req, 'postId'), param(req, 'mediaId')); res.json({ ok: true, data: { ...result, message: result.postDeleted ? 'Removed from post. The empty post was moved to trash.' : 'Removed from post.' } }); }
 export async function deletePost(req: Request, res: Response) { const postId = param(req, 'postId'); await posts.deletePost(id(req), postId); await audit('post.delete', id(req), 'Post', postId, {}, req.ip); res.json({ ok: true, data: { deleted: true } }); }
-export async function react(req: Request, res: Response) { const { type } = reactionSchema.parse(req.body); res.json({ ok: true, data: await posts.react(id(req), param(req, 'postId'), type) }); }
+export async function react(req: Request, res: Response) {
+  const { type } = reactionSchema.parse(req.body);
+  const result = await posts.react(id(req), param(req, 'postId'), type);
+  if (result.active) trackSignal(id(req), { type: 'react', targetType: 'post', targetId: param(req, 'postId') });
+  res.json({ ok: true, data: result });
+}
 export async function editComment(req: Request, res: Response) { const comment = await posts.editComment(id(req), param(req, 'commentId'), commentEditSchema.parse(req.body).content); res.json({ ok: true, data: { comment, message: 'Comment updated.' } }); }
 export async function deleteComment(req: Request, res: Response) {
   const result = await posts.deleteComment(id(req), param(req, 'commentId'));
   if (result.byModerator) await audit('comment.delete', id(req), 'Comment', param(req, 'commentId'), { postId: result.postId, removed: result.removed.length }, req.ip);
   res.json({ ok: true, data: { ...result, message: 'Comment deleted.' } });
 }
-export async function comment(req: Request, res: Response) { const item = await posts.addComment(id(req), param(req, 'postId'), commentSchema.parse(req.body)); res.status(201).json({ ok: true, data: { comment: item } }); }
+export async function comment(req: Request, res: Response) {
+  const item = await posts.addComment(id(req), param(req, 'postId'), commentSchema.parse(req.body));
+  trackSignal(id(req), { type: 'comment', targetType: 'post', targetId: param(req, 'postId') });
+  res.status(201).json({ ok: true, data: { comment: item } });
+}
 // Group forms are multipart (optional cover file) with the structured fields in a JSON `payload`.
 function groupPayload(req: Request) {
   try { return groupSchema.parse(typeof req.body.payload === 'string' ? JSON.parse(req.body.payload) : req.body); }
@@ -53,7 +68,7 @@ function groupPayload(req: Request) {
 }
 export async function createGroup(req: Request, res: Response) { const group = await groups.createGroup(id(req), groupPayload(req), req.file); res.status(201).json({ ok: true, data: { group, redirect: `/groups/${group.slug}` } }); }
 export async function updateGroup(req: Request, res: Response) { const group = await groups.updateGroup(id(req), param(req, 'groupId'), groupPayload(req), req.file); res.json({ ok: true, data: { group, redirect: `/groups/${group.slug}` } }); }
-export async function requestJoin(req: Request, res: Response) { const result = await groups.requestJoin(id(req), param(req, 'groupId'), groupJoinSchema.parse(req.body || {})); res.status(201).json({ ok: true, data: { ...result, message: result.status === 'joined' ? 'You joined the group.' : 'Request sent to the group admins.' } }); }
+export async function requestJoin(req: Request, res: Response) { const result = await groups.requestJoin(id(req), param(req, 'groupId'), groupJoinSchema.parse(req.body || {})); trackSignal(id(req), { type: 'join', targetType: 'group', targetId: param(req, 'groupId') }); res.status(201).json({ ok: true, data: { ...result, message: result.status === 'joined' ? 'You joined the group.' : 'Request sent to the group admins.' } }); }
 export async function leaveGroup(req: Request, res: Response) { await groups.leaveGroup(id(req), param(req, 'groupId')); res.json({ ok: true, data: { left: true } }); }
 export async function inviteToGroup(req: Request, res: Response) { const { userIds } = groupInviteSchema.parse(req.body); const result = await groups.inviteMembers(id(req), param(req, 'groupId'), userIds); res.json({ ok: true, data: { ...result, message: result.invited ? `Invited ${result.invited} ${result.invited === 1 ? 'person' : 'people'}.` : 'Everyone selected is already invited or a member.' } }); }
 export async function decideGroupPost(req: Request, res: Response) { const { decision } = decisionSchema.parse(req.body); res.json({ ok: true, data: await groups.decidePost(id(req), param(req, 'postId'), decision) }); }
@@ -74,6 +89,7 @@ async function deliverMessage(result: Awaited<ReturnType<typeof messages.sendMes
 export async function shareTargets(req: Request, res: Response) { res.json({ ok: true, data: await shares.shareTargets(id(req)) }); }
 export async function sharePost(req: Request, res: Response) {
   const result = await shares.sharePost(id(req), param(req, 'postId'), shareSchema.parse(req.body));
+  trackSignal(id(req), { type: 'share', targetType: 'post', targetId: param(req, 'postId') });
   res.status(201).json({ ok: true, data: { post: result.post, message: result.pending ? 'Shared. Your post is waiting for admin approval.' : 'Shared to your ' + (result.post.groupId ? 'group.' : 'feed.') } });
 }
 export async function sendPost(req: Request, res: Response) {
@@ -95,6 +111,9 @@ export async function recordSearch(req: Request, res: Response) {
   res.json({ ok: true, data: { saved: true } });
 }
 export async function removeRecentSearch(req: Request, res: Response) { await searches.removeRecent(id(req), req.params.entryId as string | undefined); res.json({ ok: true, data: { removed: true } }); }
+export async function recordActivity(req: Request, res: Response) { const { events } = activitySchema.parse(req.body); res.json({ ok: true, data: { stored: await recordClientEvents(id(req), events) } }); }
+export async function recommendations(req: Request, res: Response) { res.json({ ok: true, data: await getRecommendations(id(req)) }); }
+export async function clearActivity(req: Request, res: Response) { const removed = await clearSignals(id(req)); res.json({ ok: true, data: { removed, message: 'Activity history cleared. Suggestions start fresh.' } }); }
 export async function diagnostics(_req: Request, res: Response) { res.json({ ok: true, data: await cacheStats() }); }
 
 export async function photoLibrary(req: Request, res: Response) { res.json({ ok: true, data: await users.getPhotoLibrary(id(req)) }); }

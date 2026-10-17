@@ -1,0 +1,104 @@
+<%- include('partials/head') %><%- include('partials/nav') %>
+<% const rec = recommended; -%>
+<main id="main" class="app-shell space-y-6">
+  <header class="page-header !pb-0">
+    <h1 class="page-title">For you</h1>
+    <p class="page-subtitle">People, posts, groups and stories picked from what you search, read and open.</p>
+  </header>
+
+  <section class="card p-4" aria-labelledby="interests-title" data-interests>
+    <div class="flex items-start justify-between gap-3">
+      <div class="min-w-0">
+        <h2 id="interests-title" class="flex items-center gap-1.5 text-headline font-semibold"><svg class="icon size-[1.125rem] text-ios-purple"><use href="#i-sparkles"/></svg>Your interests</h2>
+        <p class="mt-0.5 text-footnote text-muted"><% if (rec.personalized) { %>Learned from your last <%= plural(rec.signalCount, 'activity', 'activities') %>. Newer activity counts more.<% } else { %>Nothing learned yet. Search, read posts and open profiles or groups you like, and suggestions adapt right away.<% } %></p>
+      </div>
+      <% if (rec.signalCount) { %><button type="button" class="btn-ghost btn-sm shrink-0 text-footnote" data-clear-activity><svg class="icon size-4"><use href="#i-trash"/></svg>Clear history</button><% } %>
+    </div>
+    <% if (rec.interests.length) { %>
+    <ul class="mt-3 flex flex-wrap gap-2" aria-label="Interests, strongest first">
+      <% rec.interests.forEach(function (interest) { %>
+      <li><a class="chip <%= interest.topic ? '!bg-ios-purple/10 !text-ios-purple' : '' %> <%= interest.weight >= 0.6 ? 'font-semibold' : '' %>" href="/search?q=<%= encodeURIComponent(interest.label) %>" title="Strength <%= Math.round(interest.weight * 100) %>%">
+        <% if (interest.topic) { %><svg class="icon size-3.5"><use href="#i-sparkles"/></svg><% } else { %><span class="text-muted" aria-hidden="true">#</span><% } %><%= interest.label %>
+        <span class="text-footnote font-normal opacity-60"><%= Math.round(interest.weight * 100) %>%</span>
+      </a></li>
+      <% }) %>
+    </ul>
+    <% } %>
+  </section>
+
+  <% if (rec.stories.length) { %>
+  <section aria-labelledby="stories-title" data-rail-wrap class="relative">
+    <h2 id="stories-title" class="px-4 pb-2 text-headline font-semibold sm:px-1">Stories for you</h2>
+    <div class="scrollbar-none flex snap-x scroll-px-4 gap-2 overflow-x-auto px-4 sm:scroll-px-0 sm:px-0" data-rail>
+      <% rec.stories.forEach(function (s) { %>
+      <a class="story-card snap-start" href="/stories/<%= s.author.username %>" aria-label="<%= s.author.displayName %>'s story. <%= s.reason.text %>" title="<%= s.reason.text %>">
+        <%- include('partials/story-thumb', { story: s.story }) %>
+        <span class="absolute left-3 top-3 z-10"><%- include('partials/avatar', { person: s.author, size: 'size-8 text-xs', ring: s.seen ? 'seen' : 'unseen' }) %></span>
+        <span class="text-shadow absolute inset-x-3 bottom-2.5 z-10 leading-tight text-white"><span class="line-clamp-1 text-[0.8125rem] font-semibold"><%= s.author.displayName %></span><span class="mt-0.5 line-clamp-2 text-[0.6875rem] text-white/85"><%= s.reason.text %></span></span>
+      </a>
+      <% }) %>
+    </div>
+    <% if (rec.stories.length > 3) { %><button type="button" class="icon-btn-float absolute right-3 top-1/2 z-10 hidden sm:grid" data-scroll-rail aria-label="More stories"><svg class="icon"><use href="#i-chevron-right"/></svg></button><% } %>
+  </section>
+  <% } %>
+
+  <% if (rec.people.length) { %>
+  <section id="people" aria-labelledby="people-title" data-suggestions>
+    <h2 id="people-title" class="px-4 pb-2 text-headline font-semibold sm:px-1">People you may know</h2>
+    <ul class="grid gap-3 px-3 sm:grid-cols-2 sm:px-0">
+      <% rec.people.forEach(function (person) { %>
+      <li class="card flex min-w-0 items-start gap-3 p-3" data-suggestion="<%= person._id %>">
+        <a href="/profile/<%= person.username %>" class="shrink-0" tabindex="-1" aria-hidden="true"><%- include('partials/avatar', { person, size: 'size-14 text-lg' }) %></a>
+        <div class="min-w-0 flex-1">
+          <a class="block truncate font-semibold hover:underline" href="/profile/<%= person.username %>"><%= person.displayName %></a>
+          <% if (person.profile.bio) { %><p class="truncate text-footnote text-muted"><%= person.profile.bio %></p><% } %>
+          <p class="mt-1 flex items-start gap-1 text-footnote font-medium text-ios-purple"><svg class="icon mt-px size-3.5 shrink-0"><use href="#i-sparkles"/></svg><span class="line-clamp-2"><%= person.reason.text %></span></p>
+          <div class="mt-2 grid grid-cols-2 gap-1.5 [&_button>svg]:hidden [&_button]:h-7 [&_button]:px-2 [&_button]:text-footnote [&_summary>svg]:hidden [&_summary]:h-7 [&_summary]:px-2 [&_summary]:text-footnote">
+            <%- include('partials/friend-controls', { person, state: person.friendState, compact: true, full: true, soft: true }) %>
+            <%- include('partials/follow-button', { person, following: person.isFollowing, compact: true, full: true }) %>
+          </div>
+        </div>
+      </li>
+      <% }) %>
+    </ul>
+  </section>
+  <% } %>
+
+  <% if (rec.groups.length) { %>
+  <section id="groups" aria-labelledby="groups-title">
+    <h2 id="groups-title" class="px-4 pb-2 text-headline font-semibold sm:px-1">Groups for you</h2>
+    <ul class="grid gap-3 px-3 sm:grid-cols-2 sm:px-0">
+      <% rec.groups.forEach(function (g) { %>
+      <li class="card flex min-w-0 flex-col overflow-hidden">
+        <a href="/groups/<%= g.slug %>" class="block aspect-[16/7] overflow-hidden bg-field"><img class="size-full object-cover" src="<%= g.coverUrl || '/assets/img/default-cover.svg' %>" alt="" loading="lazy"></a>
+        <div class="flex flex-1 flex-col p-3">
+          <h3 class="font-semibold leading-snug"><a class="hover:underline" href="/groups/<%= g.slug %>"><%= g.name %></a></h3>
+          <p class="mt-0.5 flex items-center gap-1 text-footnote text-muted"><svg class="icon size-3.5"><use href="#<%= g.privacy === 'private' ? 'i-lock' : 'i-globe' %>"/></svg><%= g.privacy === 'private' ? 'Private' : 'Public' %> group · <%= plural(g.memberCount, 'member') %></p>
+          <% if (g.description) { %><p class="mt-1.5 line-clamp-2 text-subheadline text-muted"><%= g.description %></p><% } %>
+          <p class="mt-2 flex items-start gap-1 text-footnote font-medium text-ios-purple"><svg class="icon mt-px size-3.5 shrink-0"><use href="#i-sparkles"/></svg><span class="line-clamp-2"><%= g.reason.text %></span></p>
+          <div class="mt-auto pt-3">
+            <% if (g.pending) { %><button type="button" class="btn-soft w-full" disabled>Request sent</button>
+            <% } else if (g.privacy === 'private') { %><a class="btn-soft w-full" href="/groups/<%= g.slug %>">Request to join</a>
+            <% } else { %><button type="button" class="btn-soft w-full" data-group-join="<%= g._id %>">Join group</button><% } %>
+          </div>
+        </div>
+      </li>
+      <% }) %>
+    </ul>
+  </section>
+  <% } %>
+
+  <% if (rec.posts.length) { %>
+  <section id="posts" aria-labelledby="posts-title">
+    <h2 id="posts-title" class="px-4 pb-2 text-headline font-semibold sm:px-1">Posts for you</h2>
+    <div class="grid gap-3 px-3 sm:grid-cols-2 sm:px-0">
+      <% rec.posts.forEach(function (post) { %><%- include('partials/rec-post-card', { post, fluid: true }) %><% }) %>
+    </div>
+  </section>
+  <% } %>
+
+  <% if (!rec.people.length && !rec.groups.length && !rec.posts.length && !rec.stories.length) { %>
+  <section class="empty-state"><div class="empty-icon"><svg class="icon size-7"><use href="#i-sparkles"/></svg></div><h2 class="mt-4 text-xl font-bold">Nothing to suggest yet</h2><p class="mx-auto mt-2 max-w-sm text-muted">You already follow everyone and joined every group we know about. Check back when new people arrive.</p></section>
+  <% } %>
+</main>
+<%- include('partials/foot') %>

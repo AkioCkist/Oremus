@@ -1,0 +1,26 @@
+<%# Suggested post from the recommender (home carousel, For you page). Locals: post (RecPost), fluid (fill the column instead of a fixed carousel width). -%>
+<% const p = locals.post; const fluid = !!locals.fluid; -%>
+<a href="/posts/<%= p._id %>" class="card group/rec flex <%= fluid ? 'w-full min-w-0' : 'w-[16.5rem] shrink-0 snap-start' %> flex-col overflow-hidden transition-colors hover:bg-hover" aria-label="Suggested post by <%= p.author.displayName %>">
+  <% if (p.media) { %>
+  <span class="relative block aspect-[16/10] overflow-hidden bg-field">
+    <% if (p.media.url) { %><img class="size-full object-cover transition-transform duration-300 group-hover/rec:scale-[1.03]" src="<%= p.media.url %>" alt="" loading="lazy" decoding="async"><% } else { %><span class="grid size-full place-items-center text-muted"><svg class="icon size-8"><use href="#i-video"/></svg></span><% } %>
+    <% if (p.media.video) { %><span class="pointer-events-none absolute inset-0 grid place-items-center"><span class="grid size-11 place-items-center rounded-full bg-black/55 text-white ring-2 ring-white/80"><svg class="icon size-5 translate-x-0.5 fill-current"><use href="#i-play"/></svg></span></span><% } %>
+    <% if (p.mediaCount > 1) { %><span class="absolute right-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-xs font-semibold text-white">+<%= p.mediaCount - 1 %></span><% } %>
+  </span>
+  <% } %>
+  <span class="flex flex-1 flex-col p-3">
+    <span class="flex min-w-0 items-center gap-2">
+      <%- include('avatar', { person: p.author, size: 'size-7 text-[0.625rem]' }) %>
+      <span class="min-w-0 flex-1 leading-tight">
+        <span class="block truncate text-subheadline font-semibold"><%= p.author.displayName %></span>
+        <span class="block truncate text-footnote text-muted"><% if (p.group) { %><%= p.group.name %> · <% } %><%= timeAgo(p.createdAt) %></span>
+      </span>
+    </span>
+    <% if (p.content) { %><span class="mt-2 whitespace-pre-line break-words text-15 <%= p.media ? 'line-clamp-2' : 'line-clamp-5' %>"><%= p.content %></span><% } %>
+    <span class="mt-auto flex items-center gap-3 pt-2.5 text-footnote text-muted">
+      <% if (p.reactionCount) { %><span class="flex items-center gap-1"><svg class="size-3.5"><use href="#r-like"/></svg><%= compact(p.reactionCount) %></span><% } %>
+      <% if (p.commentCount) { %><span class="flex items-center gap-1"><svg class="icon size-3.5"><use href="#i-comment"/></svg><%= compact(p.commentCount) %></span><% } %>
+    </span>
+    <span class="mt-2 flex items-start gap-1.5 border-t border-line pt-2 text-footnote font-medium text-ios-purple"><svg class="icon mt-px size-3.5 shrink-0"><use href="#i-sparkles"/></svg><span class="line-clamp-2"><%= p.reason.text %></span></span>
+  </span>
+</a>

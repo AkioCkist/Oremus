@@ -199,6 +199,10 @@ Types: `reaction`, `comment`, `follow`, `friend_request`, `friend_accept`, `grou
 
 See [Search and places](SEARCH_AND_PLACES.md#search-box-recent-searches-and-suggestions).
 
+### Interaction
+
+Behaviour signals for [recommendations](RECOMMENDATIONS.md): `userId`, `type` (`search`, `open`, `click`, `dwell`, `react`, `comment`, `share`, `follow`, `join`, `story_view`), `targetType` (`query`, `post`, `user`, `group`, `story`), `targetId`, `authorId` and `groupId` (for affinity), `label` (search text or a short title for reasons), `durationMs` (reading time) and `features` (`[{ t, w, s? }]`, the target's top 24 keywords when the signal happened). Indexes: `{ userId, createdAt }` and a TTL index that deletes rows after 120 days.
+
 ### AuditLog
 
 `actorId`, `action` (e.g. `auth.login`, `post.delete`), `targetType`, `targetId`, `metadata`, `ip`. Written for important actions.
@@ -206,5 +210,5 @@ See [Search and places](SEARCH_AND_PLACES.md#search-box-recent-searches-and-sugg
 ## Migrations and seed data
 
 - `npm run db:migrate` runs [`scripts/migrate.ts`](../apps/web/src/scripts/migrate.ts). It syncs the indexes of every model and runs pending data migrations from [`src/migrations/`](../apps/web/src/migrations/); the `migrations` collection records which ones already ran. See [Database setup and migrations](DATABASE.md).
-- `npm run seed` runs [`scripts/seed.ts`](../apps/web/src/scripts/seed.ts). It creates 20 sample people with full profiles and real photos, 5 groups, about 70 posts with reactions and comments, stories, chats and notifications. It is safe to run many times. The sample login is `maya@example.com` / `CircleSpace123`. See [Sample data](SCRIPTS.md#sample-data-seed).
+- `npm run seed` runs [`scripts/seed.ts`](../apps/web/src/scripts/seed.ts). It creates 38 sample people with full profiles and real photos, 17 groups, about 130 posts with reactions and comments, stories, chats, notifications and a short behaviour history for two accounts. It is safe to run many times. The sample login is `maya@example.com` / `CircleSpace123`. See [Sample data](SCRIPTS.md#sample-data-seed).
 

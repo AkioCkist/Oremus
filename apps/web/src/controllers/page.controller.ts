@@ -7,10 +7,12 @@ import { getPostDetail, withReactionSummary } from '../services/post.service.js'
 import { GROUP_ARTWORK, GROUP_TYPE_LABELS, getGroup, inviteCandidates, listGroups } from '../services/group.service.js';
 import { conversationChunk, countUnreadConversations, countUnreadNotifications, listConversations, listMessages, markConversationRead } from '../services/message.service.js';
 import { getStoryTray, listArchive } from '../services/story.service.js';
-import { getFriendshipStates, listFriends, mutualFriendCounts } from '../services/friendship.service.js';
+import { getFriendshipStates, listFriends } from '../services/friendship.service.js';
 import { blockedUserIds } from '../services/social.service.js';
 import { groupMembers, groupPosts, notificationChunk, profileMedia, profileMediaCounts, profilePosts, MEDIA_SORTS, MEDIA_TYPES } from '../services/lists.service.js';
 import { AppError } from '../utils/errors.js';
+import { trackSignal } from '../services/activity.service.js';
+import { getRecommendations } from '../services/recommendation.service.js';
 
 const base = (req: Request, title: string) => ({ title, path: req.path, csrfToken: resToken(req), currentUser: req.user?.toObject() ?? null });
 const resToken = (req: Request) => req.cookies?.csrf || '';
@@ -47,25 +49,20 @@ export function resetPage(req: Request, res: Response) { res.render('auth/reset'
 
 export async function home(req: Request, res: Response) {
   const userId = req.user!.id;
-  const blocked = await blockedUserIds(userId);
-  const [result, friends, groups, tray, people, follows] = await Promise.all([getFeed(userId), listFriends(userId, 40), myGroups(userId), getStoryTray(userId), User.find({ _id: { $nin: [userId, ...blocked] }, deletedAt: null }).sort({ createdAt: -1 }).limit(20).select(AUTHOR_FIELDS).lean(), Follow.find({ followerId: userId }).select('followingId').lean()]);
-  const followedIds = new Set(follows.map((row: any) => String(row.followingId)));
-  const friendStates = await getFriendshipStates(userId, people.map((person: any) => String(person._id)));
-  const mutual = await mutualFriendCounts(userId, people.map((person: any) => String(person._id)));
-  // People you share friends with come first (Facebook's main signal); otherwise newest members.
-  const suggestions = people
-    .map((person: any) => ({ ...person, friendState: friendStates.get(String(person._id)) || 'none', isFollowing: followedIds.has(String(person._id)), mutualFriends: mutual.get(String(person._id)) || 0 }))
-    .filter((person: any) => person.friendState !== 'friends')
-    .sort((a: any, b: any) => b.mutualFriends - a.mutualFriends)
-    .slice(0, 6);
+  const [result, friends, groups, tray, recommended] = await Promise.all([getFeed(userId), listFriends(userId, 40), myGroups(userId), getStoryTray(userId), recommendationsFor(req, userId)]);
+  // People, groups, posts and stories come from the recommender: what you search, read and open, plus mutual friends.
   const posts = await withReactionSummary(result.items, userId);
-  res.render('home', { ...base(req, 'Home'), posts, next: result.hasMore ? `o${FEED_PAGE_SIZE}` : null, suggestions, contacts: friends.slice(0, 12), groups, tray, cached: result.cached });
+  res.render('home', {
+    ...base(req, 'Home'), posts, next: result.hasMore ? `o${FEED_PAGE_SIZE}` : null, contacts: friends.slice(0, 12), groups, tray, cached: result.cached,
+    suggestions: recommended.people.slice(0, 6), suggestedGroups: recommended.groups.slice(0, 3), suggestedPosts: recommended.posts.slice(0, 6), suggestedStories: recommended.stories.slice(0, 6)
+  });
 }
 
 const ABOUT_SECTIONS = ['overview', 'work', 'places', 'contact', 'relationship', 'details', 'hobbies'];
 
 export async function profile(req: Request, res: Response) {
   const profile = await getProfile(param(req, 'username'), req.user?.id);
+  if (!profile.blockedByMe) trackSignal(req.user?.id, { type: 'open', targetType: 'user', targetId: String(profile._id) });
   if (profile.blockedByMe) return res.render('profile', { ...base(req, profile.displayName), profile, posts: [], postsNext: null, photos: [], photosNext: null, mediaCounts: { all: 0, photos: 0, videos: 0 }, mediaFilter: { type: 'all', sort: 'newest' }, hasStory: false, friendsPreview: [], tab: 'posts', profileQuery: '', aboutSection: 'overview' });
   const profileQuery = String(req.query.q || '').trim().slice(0, 80);
   const tab = profileQuery ? 'posts' : req.query.tab === 'about' ? 'about' : ['media', 'photos', 'videos'].includes(String(req.query.tab)) ? 'media' : 'posts';
@@ -90,6 +87,7 @@ export async function profile(req: Request, res: Response) {
 
 export async function post(req: Request, res: Response) {
   const detail = await getPostDetail(param(req, 'postId'), req.user?.id);
+  trackSignal(req.user?.id, { type: 'open', targetType: 'post', targetId: String((detail.post as any)._id) });
   const [withSummary] = await withReactionSummary([detail.post as any], req.user?.id);
   res.render('post', { ...base(req, `${(detail.post as any).authorId?.displayName || 'Post'}`), post: withSummary, comments: detail.comments, commentsNext: detail.commentsNext, canModerate: detail.canModerate });
 }
@@ -104,6 +102,7 @@ const GROUP_TABS = ['discussion', 'about', 'members', 'requests', 'pending'];
 export async function group(req: Request, res: Response) {
   const detail = await getGroup(param(req, 'slug'), req.user?.id);
   const groupId = detail.group._id;
+  trackSignal(req.user?.id, { type: 'open', targetType: 'group', targetId: String(groupId) });
   const canSee = detail.canSee;
   let tab = GROUP_TABS.includes(String(req.query.tab)) ? String(req.query.tab) : 'discussion';
   // Tabs the viewer has no access to fall back to the discussion.
@@ -175,6 +174,7 @@ export async function search(req: Request, res: Response) {
   const result = q.length >= 2 ? await searchAll(q, req.user!.id) : { items: [] };
   // A keyword search lands here (header, search page, typeahead), so this is where it's remembered.
   if (q.length >= 2) await recordQuery(req.user!.id, q).catch((error) => req.log?.warn({ error }, 'Could not save recent search'));
+  if (q.length >= 2) trackSignal(req.user!.id, { type: 'search', targetType: 'query', query: q });
   const rawResults = (result.items as any[]).filter((item) => (kind === 'all' || item.kind === kind) && !(item.kind === 'user' && String(item.id) === req.user!.id));
   const blocked = await blockedUserIds(req.user!.id);
   const people = q ? [] : await User.find({ _id: { $nin: [req.user!.id, ...blocked] }, deletedAt: null }).sort({ createdAt: -1 }).limit(24).select(`${AUTHOR_FIELDS} profile.bio`).lean();
@@ -185,6 +185,17 @@ export async function search(req: Request, res: Response) {
   const results = rawResults.map((item) => item.kind === 'user' ? { ...item, friendState: friendStates.get(String(item.id)) || 'none', isFollowing: followedIds.has(String(item.id)) } : item);
   const peopleWithState = people.map((person: any) => ({ ...person, friendState: friendStates.get(String(person._id)) || 'none', isFollowing: followedIds.has(String(person._id)) })).filter((person: any) => person.friendState !== 'friends');
   res.render('search', { ...base(req, 'Search'), q, kind, results, people: peopleWithState });
+}
+
+/** Suggestions never break a page: without them the page renders with empty "for you" sections. */
+async function recommendationsFor(req: Request, userId: string) {
+  try { return await getRecommendations(userId); }
+  catch (error) { req.log?.warn({ error }, 'Recommendations unavailable'); return { people: [], groups: [], posts: [], stories: [], interests: [], signalCount: 0, personalized: false }; }
+}
+
+export async function discover(req: Request, res: Response) {
+  const recommended = await recommendationsFor(req, req.user!.id);
+  res.render('discover', { ...base(req, 'For you'), recommended });
 }
 
 export function settings(req: Request, res: Response) { res.render('settings', base(req, 'Settings')); }

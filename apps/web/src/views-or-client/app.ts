@@ -4,6 +4,7 @@ import { EMOJI_CATEGORIES } from './emoji-data.js';
 import './search-box.js';
 import { optimizeFormUploads, optimizeUpload, runImageJob } from './workers.js';
 import { createInfiniteList, htmlNodes, initInfiniteLists, type InfiniteList } from './infinite.js';
+import { initActivityTracking } from './activity.js';
 
 const csrf = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content || '';
 const me = {
@@ -1384,7 +1385,7 @@ if (photoViewer) {
   // Reaction bar (built once).
   const bar = $('[data-viewer-reaction-bar]', photoViewer)!;
   Object.entries(REACTION_STYLE).forEach(([type, style]) => {
-    const button = Object.assign(document.createElement('button'), { type: 'button', className: 'reaction-choice', title: style.label });
+    const button = Object.assign(document.createElement('button'), { type: 'button', className: 'reaction-choice' });
     button.setAttribute('aria-label', style.label); button.appendChild(svgUse(`r-${type}`, '')); button.addEventListener('click', () => void react(type));
     bar.appendChild(button);
   });
@@ -1720,6 +1721,10 @@ document.addEventListener('click', async (event) => {
       return;
     }
     if (data.dismissSuggestion) { dismissSuggestion(data.dismissSuggestion); return; }
+    if (data.clearActivity !== undefined) {
+      if (!(await confirmAction('Clear activity history?', 'Suggestions will forget what you searched, read and opened. Your posts, reactions and follows stay.', 'Clear history'))) return;
+      const result = await request('/api/activity', { method: 'DELETE' }); showToast(result.message); window.setTimeout(() => window.location.reload(), 600); return;
+    }
     if (data.profileItemDelete) {
       if (!(await confirmAction('Remove from profile?', 'This detail will be removed from your About info.', 'Remove'))) return;
       await request(data.profileItemDelete, { method: 'DELETE' }); window.location.reload(); return;
@@ -1753,7 +1758,7 @@ document.addEventListener('click', async (event) => {
       if (field) { field.value += data.insertEmoji; field.focus(); } return;
     }
     if (data.focusComment) { $<HTMLInputElement>(`#comment-${data.focusComment}`)?.focus(); return; }
-    if (data.scrollRail !== undefined) { $('[data-story-rail]')?.scrollBy({ left: 360, behavior: 'smooth' }); return; }
+    if (data.scrollRail !== undefined) { (target.closest('[data-rail-wrap]')?.querySelector('[data-rail]') || $('[data-story-rail]'))?.scrollBy({ left: 360, behavior: 'smooth' }); return; }
     if (data.toggleDetails !== undefined) {
       const panel = $('[data-chat-details]'); if (!panel) return;
       const opening = getComputedStyle(panel).display === 'none';
@@ -2226,6 +2231,9 @@ initInfiniteLists(request, (name, fragment) => {
   if (name === 'messages') joinMessageDates(fragment);
   initDynamic(fragment);
 });
+
+// Reading time and in-post clicks feed "Suggested for you".
+initActivityTracking();
 
 /* ---------- Filters (chats, groups) ---------- */
 

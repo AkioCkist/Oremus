@@ -4,6 +4,7 @@
    const row = (href, active) => `side-link${active ? ' side-link-active' : ''}`; -%>
 <nav aria-label="Main" class="space-y-px">
   <a class="<%= row('/', isActive('/')) %>" href="/" <%= isActive('/') ? 'aria-current=page' : '' %>><svg class="side-icon text-ios-blue"><use href="#i-home"/></svg><span class="flex-1 truncate">Home</span></a>
+  <a class="<%= row('/discover', isActive('/discover')) %>" href="/discover" <%= isActive('/discover') ? 'aria-current=page' : '' %>><svg class="side-icon text-ios-purple"><use href="#i-sparkles"/></svg><span class="flex-1 truncate">For you</span></a>
   <a class="<%= row('/stories', isActive('/stories') && !isActive('/stories/archive')) %>" href="/stories"><svg class="side-icon text-ios-orange"><use href="#i-stories"/></svg><span class="flex-1 truncate">Stories</span></a>
   <a class="<%= row('/groups', isActive('/groups')) %>" href="/groups"><svg class="side-icon text-ios-green"><use href="#i-group"/></svg><span class="flex-1 truncate">Groups</span></a>
   <a class="<%= row('/messages', isActive('/messages')) %>" href="/messages" data-badge-link="messages" data-badge-class="side-count !static !ring-0"><svg class="side-icon text-ios-teal"><use href="#i-chat"/></svg><span class="flex-1 truncate">Messages</span><% if (locals.unreadMessages) { %><span class="badge side-count !static !ring-0" data-badge><%= unreadMessages > 9 ? '9+' : unreadMessages %></span><% } %></a>

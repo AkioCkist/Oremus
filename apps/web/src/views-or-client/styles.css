@@ -96,6 +96,9 @@
   /* Text fields must not retain the global ring's white offset when their own ring is disabled. */
   :is(input, textarea):focus-visible { @apply ring-offset-0; }
   summary::-webkit-details-marker { display: none; }
+  /* Pages with in-page section links (Settings) glide to the section instead of jumping. */
+  html:has(#main[data-smooth-scroll]) { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html:has(#main[data-smooth-scroll]) { scroll-behavior: auto; } }
   dialog::backdrop { background: var(--backdrop); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
   dialog { @apply bg-surface text-ink; }
   .dialog-dark::backdrop { background: rgba(0, 0, 0, 0.75); }
@@ -245,10 +248,21 @@
   .tile-icon > .icon { @apply size-[1.125rem]; }
 
   /* Inspector column (Figma W05): grouped gray, fixed to the right edge; cells are elevated cards. */
-  .inspector { @apply overflow-y-auto bg-grouped px-4 pb-8 pt-6; scrollbar-width: thin; }
-  @media (min-width: 1280px) { .inspector { position: fixed; top: 0; right: 0; bottom: 0; width: 22rem; } }
-  .inspector-heading { @apply flex items-center justify-between px-4 pb-1.5 pt-6 text-footnote font-medium uppercase text-muted; }
+  /* Inspector (Figma W05), restyled as a floating Thick-glass panel that matches the hover sidebar:
+     inset from the window edges, continuous corners, translucent cells instead of a flat gray column. */
+  .inspector { @apply overflow-y-auto px-3 pb-6 pt-3; scrollbar-width: none; }
+  @media (min-width: 1280px) {
+    .inspector {
+      @apply fixed bottom-2 right-2 top-2 z-30 w-[21rem] rounded-[1.375rem];
+      background: var(--glass-bg-strong);
+      -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);
+      box-shadow: var(--shadow-pop);
+    }
+  }
+  .inspector-heading { @apply flex items-center justify-between px-3 pb-1.5 pt-5 text-footnote font-medium uppercase text-muted; }
+  .inspector > section:first-child .inspector-heading { @apply pt-2; }
   .inset-group { @apply overflow-hidden rounded-2xl bg-elevated; }
+  .inspector .inset-group { @apply rounded-[1.125rem] bg-white/75 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-white/[0.06] dark:shadow-none; }
   .inset-row { @apply relative flex items-center gap-3 px-4 py-2.5 after:absolute after:bottom-0 after:left-4 after:right-0 after:h-px after:bg-line last:after:hidden; }
 
   /* Large title page header (Figma: 34pt Bold title + secondary subtitle). */
@@ -337,7 +351,7 @@
   /* Layout */
   .app-shell { @apply mx-auto w-full max-w-[42.5rem] px-0 pb-28 pt-2 sm:px-4 lg:pb-12; }
   @media (min-width: 1280px) {
-    .app-shell:has(> .inspector) { @apply max-w-none pr-[22rem]; }
+    .app-shell:has(> .inspector) { @apply max-w-none pr-[23rem]; }
     .app-shell:has(> .inspector) > :not(.inspector) { @apply mx-auto max-w-[42.5rem]; }
   }
   .app-grid { @apply app-shell; }
@@ -388,3 +402,52 @@
 @keyframes story-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9%); } }
 @keyframes story-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
 @media (prefers-reduced-motion: reduce) { [class*="story-anim-"] { animation: none !important; } }
+
+/* ---------- Animated reactions (Facebook-style) ----------
+   The emoji parts live inside <symbol>s, so they are styled here and reached through <use>: --rx-play inherits
+   into the use tree. It is "running" only inside an open reaction bar; elsewhere every part rests on frame 0. */
+.rx { transform-box: fill-box; transform-origin: center; animation-duration: 1.8s; animation-iteration-count: infinite; animation-timing-function: ease-in-out; animation-play-state: var(--rx-play, paused); }
+.reaction-bar { --rx-play: running; }
+.rx-like-thumb { transform-origin: 20% 90%; animation-name: rx-like; }
+.rx-love-heart { animation-name: rx-love; animation-duration: 1.2s; }
+.rx-haha-face { animation-name: rx-haha; animation-duration: 0.9s; }
+.rx-haha-mouth { transform-origin: 50% 0; animation-name: rx-haha-mouth; animation-duration: 0.45s; }
+.rx-wow-brows { animation-name: rx-wow-brows; }
+.rx-wow-eyes { animation-name: rx-wow-eyes; }
+.rx-wow-mouth { animation-name: rx-wow-mouth; }
+.rx-sad-face { animation-name: rx-sad-face; animation-duration: 2.2s; }
+.rx-sad-tear { transform-origin: 50% 0; animation-name: rx-sad-tear; animation-duration: 2.2s; animation-timing-function: ease-in; }
+.rx-angry-flush { opacity: 0; animation-name: rx-angry-flush; animation-duration: 2s; }
+.rx-angry-face { animation-name: rx-angry-face; animation-duration: 2s; }
+@keyframes rx-like { 0%, 100% { transform: none; } 20% { transform: rotate(-16deg) translateY(-1px); } 35% { transform: rotate(6deg); } 50% { transform: rotate(-10deg) translateY(-1px); } 65% { transform: none; } }
+@keyframes rx-love { 0%, 100% { transform: none; } 15% { transform: scale(1.22); } 30% { transform: scale(0.94); } 45% { transform: scale(1.14); } 60% { transform: none; } }
+@keyframes rx-haha { 0%, 100% { transform: none; } 25% { transform: translateY(-2.5px) rotate(-3deg); } 50% { transform: translateY(0.5px); } 75% { transform: translateY(-2px) rotate(3deg); } }
+@keyframes rx-haha-mouth { 0%, 100% { transform: none; } 50% { transform: scaleY(0.82); } }
+@keyframes rx-wow-brows { 0%, 100% { transform: none; } 30%, 60% { transform: translateY(-2.5px); } }
+@keyframes rx-wow-eyes { 0%, 100% { transform: none; } 30%, 60% { transform: scale(1.12, 1.2); } }
+@keyframes rx-wow-mouth { 0%, 100% { transform: none; } 30%, 60% { transform: scale(1.15, 1.28); } }
+@keyframes rx-sad-face { 0%, 100% { transform: none; } 40%, 80% { transform: translateY(1.2px); } }
+@keyframes rx-sad-tear { 0%, 35% { transform: none; opacity: 1; } 75% { transform: translateY(7px) scale(0.85); opacity: 0; } 76% { transform: none; opacity: 0; } 100% { transform: none; opacity: 1; } }
+@keyframes rx-angry-flush { 0%, 100% { opacity: 0; } 45%, 70% { opacity: 0.95; } }
+@keyframes rx-angry-face { 0%, 40%, 75%, 100% { transform: none; } 48% { transform: translateX(-1.2px); } 54% { transform: translateX(1.2px); } 60% { transform: translateX(-1px); } 66% { transform: translateX(1px); } }
+
+/* Bar entrance: the emoji pop in one after another, then the hovered one grows while its neighbours step back. */
+.reaction-bar .reaction-choice { position: relative; animation: rx-pop 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) backwards; transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), scale 0.18s ease; }
+.reaction-bar .reaction-choice:nth-child(2) { animation-delay: 0.03s; }
+.reaction-bar .reaction-choice:nth-child(3) { animation-delay: 0.06s; }
+.reaction-bar .reaction-choice:nth-child(4) { animation-delay: 0.09s; }
+.reaction-bar .reaction-choice:nth-child(5) { animation-delay: 0.12s; }
+.reaction-bar .reaction-choice:nth-child(6) { animation-delay: 0.15s; }
+.reaction-bar:hover .reaction-choice:not(:hover):not(:focus-visible) { scale: 0.92; }
+@keyframes rx-pop { from { opacity: 0; transform: translateY(14px) scale(0.3); } }
+/* Name label above the hovered emoji. */
+.reaction-bar .reaction-choice::after {
+  content: attr(aria-label); position: absolute; bottom: calc(100% + 0.5rem); left: 50%; translate: -50% 4px;
+  padding: 0.125rem 0.5rem; border-radius: 999px; background: rgb(0 0 0 / 0.75); color: #fff;
+  font-size: 0.6875rem; font-weight: 600; line-height: 1.1rem; white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: opacity 0.15s, translate 0.15s;
+}
+.reaction-bar .reaction-choice:hover::after, .reaction-bar .reaction-choice:focus-visible::after { opacity: 1; translate: -50% 0; }
+@media (prefers-reduced-motion: reduce) {
+  .rx, .reaction-bar .reaction-choice { animation: none !important; }
+}

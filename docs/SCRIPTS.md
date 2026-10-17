@@ -101,13 +101,14 @@ The scripts clean the server only. Browsers that visited the site still keep:
 
 | Data | Amount |
 |---|---|
-| People | 20, each with avatar, cover photo, bio, work, education, hometown, birthday, languages, hobbies and links |
-| Relationships | ~45 friendships, ~110 follows, 4 pending friend requests (3 waiting for Maya) |
-| Groups | 5 (public and private, one with post approval and a pending join request) |
-| Posts | ~70 with ~65 photos, feelings, check-ins, group posts and a followers-only post, spread over the last 30 days |
-| Reactions / comments | ~700 reactions, ~140 comments with replies |
-| Stories | 16 photo and text stories with styles, views and reactions, all inside the 24-hour window |
-| Chats | 10 conversations, ~40 messages (some unread) |
+| People | 38, each with avatar, cover photo, bio, work, education, hometown, birthday, languages, hobbies and links. 18 of them have one clear subject each (AI, specialty coffee, gaming, books, running, yoga, startups, fashion, diving, baking, film, pets, street photography, vegan food, fitness, jazz, data science, IELTS) and are not connected to Maya, for testing [recommendations](RECOMMENDATIONS.md) |
+| Relationships | ~75 friendships, ~170 follows, 4 pending friend requests (3 waiting for Maya) |
+| Groups | 17 (public and private, one with post approval and a pending join request; 12 topic groups) |
+| Posts | ~130 in English and Vietnamese with ~80 photos, feelings, check-ins, group posts and a followers-only post, spread over the last 30 days |
+| Reactions / comments | ~2,400 reactions, ~290 comments with replies |
+| Stories | 36 photo and text stories with styles, views and reactions, all inside the 24-hour window (topic stories are public) |
+| Chats | 11 conversations, ~40 messages (some unread) |
+| Behaviour signals | A short history for `mai@example.com` (AI, IELTS, gaming) and `olivia@example.com` (pets, baking). Maya starts with none |
 | Notifications | Generated from the activity above; the last 12 hours stay unread |
 
 Every sample account uses the password `CircleSpace123`. The demo account is **`maya@example.com`**: it has the most friends, chats, notifications and friend requests. Other accounts include `leo@example.com`, `anika@example.com`, `linh@example.com` and `khoa@example.com`. The full list is in [`seed-data.ts`](../apps/web/src/scripts/seed-data.ts).
@@ -117,6 +118,7 @@ Every sample account uses the password `CircleSpace123`. The demo account is **`
 | File | Role |
 |---|---|
 | [`seed-data.ts`](../apps/web/src/scripts/seed-data.ts) | The content: people, groups, posts, stories, chats, comment pools. Edit this file to change the sample |
+| [`seed-data-topics.ts`](../apps/web/src/scripts/seed-data-topics.ts) | Topic-focused people, groups, posts, stories and behaviour signals for testing recommendations |
 | [`seed-media.ts`](../apps/web/src/scripts/seed-media.ts) | Downloads and compresses photos |
 | [`seed.ts`](../apps/web/src/scripts/seed.ts) | Inserts everything, generates reactions, comments and notifications |
 

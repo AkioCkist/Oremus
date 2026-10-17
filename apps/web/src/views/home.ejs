@@ -6,11 +6,13 @@
       <h1 class="page-title">Home</h1>
       <p class="page-subtitle">Stories, posts and updates from people you follow</p>
     </header>
-    <%- include('partials/story-tray') %>
+    <%- include('partials/story-tray', { suggestedStories: locals.suggestedStories || [] }) %>
     <div class="px-0 sm:px-0"><%- include('partials/composer') %></div>
     <% if (posts.length) { %>
       <div class="space-y-4" data-infinite="feed" data-infinite-next="<%= next || '' %>">
-        <%- include('partials/chunks/feed', { items: posts }) %>
+        <%- include('partials/chunks/feed', { items: posts.slice(0, 2) }) %>
+        <%- include('partials/suggested-posts', { posts: locals.suggestedPosts }) %>
+        <%- include('partials/chunks/feed', { items: posts.slice(2) }) %>
       </div>
       <p class="<%= next ? 'hidden' : '' %> py-6 text-center text-sm text-muted" data-infinite-done="feed">You're all caught up · <a class="font-semibold text-brand-600 hover:underline" href="/groups">Discover groups</a></p>
     <% } else { %>
@@ -20,21 +22,22 @@
       <p class="mx-auto mt-2 max-w-sm text-muted">Follow people you know or share something to get the conversation started.</p>
       <div class="mt-5 flex justify-center gap-2"><a class="btn-primary" href="/search?kind=user">Find friends</a><button class="btn-secondary" type="button" data-open-composer>Create post</button></div>
     </section>
+    <%- include('partials/suggested-posts', { posts: locals.suggestedPosts }) %>
     <% } %>
   </section>
 
   <aside class="inspector hidden xl:block" aria-label="Contacts and suggestions">
     <% if (suggestions.length) { %>
     <section data-suggestions>
-      <div class="inspector-heading !pt-14"><h2>People you may know</h2><a class="normal-case text-subheadline font-normal text-brand-600 hover:underline" href="/search?kind=user">See all</a></div>
+      <div class="inspector-heading"><h2>People you may know</h2><a class="normal-case text-subheadline font-normal text-brand-600 hover:underline" href="/discover#people">See all</a></div>
       <ul class="inset-group">
         <% suggestions.forEach(function (person) { %>
         <li class="inset-row group/suggestion items-start py-3" data-suggestion="<%= person._id %>">
           <a href="/profile/<%= person.username %>" class="shrink-0" tabindex="-1" aria-hidden="true"><%- include('partials/avatar', { person, size: 'size-11 text-sm' }) %></a>
           <div class="min-w-0 flex-1">
             <a href="/profile/<%= person.username %>" class="block truncate pr-6 text-callout font-semibold leading-tight hover:underline"><%= person.displayName %></a>
-            <p class="mt-0.5 truncate text-footnote text-muted">
-              <% if (person.mutualFriends) { %><%= plural(person.mutualFriends, 'mutual friend') %><% } else { %>@<%= person.username %><% } %>
+            <p class="mt-0.5 line-clamp-2 text-footnote text-muted" title="<%= person.reason ? person.reason.text : '' %>">
+              <% if (person.reason) { %><%= person.reason.text %><% } else if (person.mutualFriends) { %><%= plural(person.mutualFriends, 'mutual friend') %><% } else { %>@<%= person.username %><% } %>
             </p>
             <%# Buttons share one row; icons are hidden here so both labels fit the narrow column. -%>
             <div class="mt-2 grid grid-cols-2 gap-1.5 [&_button>svg]:hidden [&_button]:h-7 [&_button]:px-2 [&_button]:text-footnote [&_summary>svg]:hidden [&_summary]:h-7 [&_summary]:px-2 [&_summary]:text-footnote">
@@ -48,6 +51,26 @@
       </ul>
     </section>
     <div class="hidden" data-suggestions-divider></div>
+    <% } %>
+
+    <% if (locals.suggestedGroups && suggestedGroups.length) { %>
+    <section data-suggested-groups>
+      <div class="inspector-heading"><h2>Groups for you</h2><a class="normal-case text-subheadline font-normal text-brand-600 hover:underline" href="/discover#groups">See all</a></div>
+      <ul class="inset-group">
+        <% suggestedGroups.forEach(function (g) { %>
+        <li class="inset-row items-start py-3">
+          <a href="/groups/<%= g.slug %>" class="shrink-0" tabindex="-1" aria-hidden="true"><span class="grid size-11 place-items-center overflow-hidden rounded-[0.625rem] <%= g.coverUrl ? 'bg-field' : toneOf(g.name) %>"><% if (g.coverUrl) { %><img class="size-full object-cover" src="<%= g.coverUrl %>" alt="" loading="lazy"><% } else { %><span class="text-xs font-bold text-white"><%= initials(g.name) %></span><% } %></span></a>
+          <div class="min-w-0 flex-1">
+            <a href="/groups/<%= g.slug %>" class="block truncate text-callout font-semibold leading-tight hover:underline"><%= g.name %></a>
+            <p class="mt-0.5 line-clamp-2 text-footnote text-muted" title="<%= g.reason.text %>"><%= g.reason.text %></p>
+            <% if (g.pending) { %><button type="button" class="btn-soft mt-2 h-7 w-full px-2 text-footnote" disabled>Request sent</button>
+            <% } else if (g.privacy === 'private') { %><a class="btn-soft mt-2 h-7 w-full px-2 text-footnote" href="/groups/<%= g.slug %>">Request to join</a>
+            <% } else { %><button type="button" class="btn-soft mt-2 h-7 w-full px-2 text-footnote" data-group-join="<%= g._id %>">Join group</button><% } %>
+          </div>
+        </li>
+        <% }) %>
+      </ul>
+    </section>
     <% } %>
 
     <% if (groups.length) { %>

@@ -2,17 +2,21 @@ import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 import { connectInfrastructure, disconnectInfrastructure } from '../config/database.js';
 import {
-  Comment, Conversation, Follow, Friendship, Group, GroupInvite, GroupJoinRequest, GroupMember, GroupPost, Message, Notification,
+  Comment, Conversation, Follow, Friendship, Group, GroupInvite, GroupJoinRequest, GroupMember, GroupPost, Interaction, Message, Notification,
   Post, Reaction, Story, StoryView, User, STORY_TTL_MS
 } from '../models/index.js';
+import { groupText, postText, queryText, userText } from '../recommender/documents.js';
+import { analyze, topFeatures } from '../recommender/text.js';
 import { invalidateByPrefix, invalidateFeedCaches } from '../services/cache.service.js';
-import { CHATS, COMMENTS, DEMO_ACCOUNT, EXTRA_FOLLOWS, FRIENDS, GROUPS, PENDING_REQUESTS, PEOPLE, POSTS, REPLIES, SEED_PASSWORD, STORIES, type SeedPhoto } from './seed-data.js';
+import { CHATS, COMMENTS, DEMO_ACCOUNT, EXTRA_FOLLOWS, FRIENDS, GROUPS, PENDING_REQUESTS, PEOPLE, POSTS, REPLIES, SEED_PASSWORD, SIGNALS, STORIES, type SeedPhoto, type SeedSignal } from './seed-data.js';
 import { avatar, isServedBy, photo, prepareSeedImages, type SeedImageRequest } from './seed-media.js';
 import { env } from '../config/env.js';
 
 /**
- * `npm run seed`: fills the app with 20 sample people (full profiles, real photos), 5 groups, ~70 posts with reactions
- * and comment threads, stories, chats and notifications, so every page looks like a lived-in social network.
+ * `npm run seed`: fills the app with 38 sample people (full profiles, real photos), 17 groups, ~140 posts with reactions
+ * and comment threads, ~36 stories, chats and notifications, so every page looks like a lived-in social network.
+ * Half of the people have one clear subject each (AI, coffee, gaming, books, running…) for testing recommendations,
+ * and two accounts (mai@, olivia@) get a short behaviour history so their "For you" page is already personalised.
  *
  * Safe to re-run: sample users keep their ids (so open sessions survive), everything they created is rebuilt
  * relative to "now" (stories stay inside the 24-hour window). Content made by other accounts is left alone.
@@ -280,8 +284,13 @@ async function seed() {
   await Notification.insertMany(notifications);
   console.log(`Notifications: ${notifications.length}`);
 
-  // 9. Cached feeds, profiles and searches would still show the old sample.
-  await Promise.all([invalidateFeedCaches(), invalidateByPrefix('profile:'), invalidateByPrefix('group:'), invalidateByPrefix('search:')]);
+  // 9. Behaviour history for the recommender. Keywords are captured exactly as the app does when it records a signal.
+  const interactions = SIGNALS.map((signal) => seedInteraction(signal, { id, postIds, groupIds }));
+  await Interaction.insertMany(interactions);
+  console.log(`Recommendation signals: ${interactions.length} (demo account starts with none)`);
+
+  // 10. Cached feeds, profiles, searches and suggestions would still show the old sample.
+  await Promise.all([invalidateFeedCaches(), invalidateByPrefix('profile:'), invalidateByPrefix('group:'), invalidateByPrefix('search:'), invalidateByPrefix('rec:')]);
 
   const sample = url(avatar(PEOPLE[0]!.avatar)) || url(coverRequest(PEOPLE[0]!.cover));
   const origin = env.APP_ORIGIN[0]!;
@@ -319,6 +328,7 @@ async function removePreviousSample(seedIds: Id[], groupIds: Id[]) {
     Message.deleteMany({ conversationId: { $in: conversations } }),
     Conversation.deleteMany({ _id: { $in: conversations } }),
     Notification.deleteMany({ $or: [{ recipientId: { $in: seedIds } }, { actorId: { $in: seedIds } }] }),
+    Interaction.deleteMany({ userId: { $in: seedIds } }),
     Follow.deleteMany(bothSeed('followerId', 'followingId')),
     Friendship.deleteMany(bothSeed('userAId', 'userBId')),
     GroupMember.deleteMany({ groupId: { $in: groupIds }, userId: { $in: seedIds } }),
@@ -326,6 +336,34 @@ async function removePreviousSample(seedIds: Id[], groupIds: Id[]) {
     GroupInvite.deleteMany({ groupId: { $in: groupIds }, userId: { $in: seedIds } })
   ]);
   await recountPosts(touched);
+}
+
+const snippet = (text: string) => (text.length > 80 ? `${text.slice(0, 79)}…` : text);
+
+/** One stored signal (see services/activity.service.ts) built from the sample data instead of the database. */
+function seedInteraction(signal: SeedSignal, refs: { id: (key: string) => Id; postIds: Map<string, Id>; groupIds: Map<string, Id> }) {
+  const createdAt = ago(signal.hoursAgo * HOUR);
+  const base = { userId: refs.id(signal.user), type: signal.type, durationMs: signal.durationMs || 0, authorId: null as Id | null, groupId: null as Id | null, createdAt };
+  if (signal.query) return { ...base, targetType: 'query', targetId: null, label: signal.query, features: topFeatures(analyze(queryText(signal.query))) };
+  if (signal.post) {
+    const post = POSTS.find((item) => item.key === signal.post);
+    if (!post) throw new Error(`Unknown seed post "${signal.post}" in a signal`);
+    const group = post.group ? GROUPS.find((item) => item.slug === post.group) : null;
+    return {
+      ...base, targetType: 'post', targetId: refs.postIds.get(post.key)!, authorId: refs.id(post.author), groupId: post.group ? refs.groupIds.get(post.group)! : null,
+      label: snippet(post.text), features: topFeatures(analyze(postText({ content: post.text, place: post.place, feeling: post.feeling }, group)))
+    };
+  }
+  if (signal.profile) {
+    const person = PEOPLE.find((item) => item.key === signal.profile);
+    if (!person) throw new Error(`Unknown seed person "${signal.profile}" in a signal`);
+    const texts = POSTS.filter((item) => item.author === person.key && !item.group && (item.visibility || 'public') === 'public').map((item) => item.text);
+    return { ...base, targetType: 'user', targetId: refs.id(person.key), authorId: refs.id(person.key), label: person.displayName, features: topFeatures(analyze(userText({ profile: { privacy: 'public', ...person.profile } }, texts))) };
+  }
+  const group = GROUPS.find((item) => item.slug === signal.group);
+  if (!group) throw new Error(`Unknown seed group "${signal.group}" in a signal`);
+  const texts = POSTS.filter((item) => item.group === group.slug).map((item) => item.text);
+  return { ...base, targetType: 'group', targetId: refs.groupIds.get(group.slug)!, groupId: refs.groupIds.get(group.slug)!, label: group.name, features: topFeatures(analyze(groupText(group, texts))) };
 }
 
 async function recountPosts(postIds: Id[]) {

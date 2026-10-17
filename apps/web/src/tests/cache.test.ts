@@ -73,6 +73,7 @@ describe('Redis invalidation', () => {
 
     expect(redis.incr).toHaveBeenCalledWith('cache:version:feed');
     expect(redis.del).toHaveBeenCalledWith(['profile:user-a', 'profile:user-b']);
+    expect(redis.del).toHaveBeenCalledWith(['rec:user-a', 'rec:user-b']);
     expect(redis.scan).not.toHaveBeenCalled();
   });
 

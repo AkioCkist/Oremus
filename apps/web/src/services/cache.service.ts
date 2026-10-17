@@ -52,6 +52,8 @@ export async function invalidateSocialCaches(userIds: string[] = [], options: { 
   await Promise.all([
     invalidateFeedCaches(),
     invalidateProfileCaches(userIds),
+    // Suggestions depend on who you follow, block and engage with (see recommendation.service.ts).
+    invalidateCacheKeys(userIds.map((id) => `rec:${id}`)),
     ...(options.search ? [invalidateSearchCaches()] : [])
   ]);
 }

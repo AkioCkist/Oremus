@@ -1,10 +1,14 @@
 /**
- * Sample content for `npm run seed`: 20 people with full profiles, groups, posts, stories and chats.
+ * Sample content for `npm run seed`: 38 people with full profiles, groups, posts, stories and chats
+ * (the topic-focused half lives in seed-data-topics.ts).
  * Photo numbers are Lorem Picsum ids (https://picsum.photos/id/<n>/info) chosen to match each caption;
  * avatar numbers are Pravatar ids (https://i.pravatar.cc/600?img=<n>). See seed-media.ts.
  */
 
-export type Topic = 'travel' | 'food' | 'coffee' | 'pets' | 'city' | 'work' | 'nature' | 'music' | 'study' | 'sport' | 'art' | 'general';
+import { TOPIC_CHATS, TOPIC_FOLLOWS, TOPIC_FRIENDS, TOPIC_GROUPS, TOPIC_PEOPLE, TOPIC_POSTS, TOPIC_SIGNALS, TOPIC_STORIES } from './seed-data-topics.js';
+
+export type Topic = 'travel' | 'food' | 'coffee' | 'pets' | 'city' | 'work' | 'nature' | 'music' | 'study' | 'sport' | 'art' | 'general'
+  | 'ai' | 'gaming' | 'books' | 'running' | 'fitness' | 'business' | 'fashion' | 'ocean' | 'baking' | 'film' | 'photography';
 
 export type SeedPerson = {
   key: string;
@@ -58,6 +62,9 @@ export type SeedStory = {
 
 export type SeedChat = { members: [string, string]; messages: Array<[from: 0 | 1, text: string, minutesAgo: number]> };
 
+/** A recorded behaviour signal for the recommender: one target (query, post key, profile key or group slug). */
+export type SeedSignal = { user: string; type: 'search' | 'open' | 'dwell' | 'react'; hoursAgo: number; query?: string; post?: string; profile?: string; group?: string; durationMs?: number };
+
 export const SEED_PASSWORD = 'CircleSpace123';
 export const DEMO_ACCOUNT = 'maya';
 
@@ -66,7 +73,7 @@ const work = (company: string, position: string, city: string, startYear: number
 const school = (name: string, concentration: string, startYear: number, endYear: number, degree = 'Bachelor') =>
   ({ school: name, level: 'college', concentration, degree, startYear, endYear, graduated: endYear <= 2026 });
 
-export const PEOPLE: SeedPerson[] = [
+const BASE_PEOPLE: SeedPerson[] = [
   { key: 'maya', email: 'maya@example.com', displayName: 'Maya Tran', avatar: 32, cover: 82, profile: {
     bio: 'Community gardener, weekend cyclist, and collector of good questions.', location: 'Da Nang, Vietnam', hometown: 'Hue, Vietnam',
     website: 'https://example.com/maya', storyAudience: 'followers', gender: 'female', pronouns: 'she/her', relationship: 'in_relationship',
@@ -180,7 +187,7 @@ export const PEOPLE: SeedPerson[] = [
     work: [work('North Loop Tours', 'Tour leader', 'Hanoi', 2020)], education: [school('Hanoi University', 'Tourism', 2012, 2016)] } }
 ];
 
-export const GROUPS: SeedGroup[] = [
+const BASE_GROUPS: SeedGroup[] = [
   { slug: 'city-gardeners', name: 'City Gardeners', description: 'Practical growing advice for balconies, rooftops, and small urban spaces.', cover: 400,
     privacy: 'public', groupType: 'hobbies', location: 'Da Nang, Vietnam', tags: ['gardening', 'balcony', 'urban'],
     rules: [{ title: 'Be kind and courteous', details: 'Everyone starts somewhere. Share advice, not judgement.' }, { title: 'No promotions or spam', details: 'Plant sales belong in the monthly swap thread.' }],
@@ -206,7 +213,7 @@ export const GROUPS: SeedGroup[] = [
 
 const place = (name: string, address: string, lat: number, lon: number) => ({ name, address, lat, lon });
 
-export const POSTS: SeedPost[] = [
+const BASE_POSTS: SeedPost[] = [
   // Maya (demo account)
   { key: 'seed-welcome', author: 'maya', topic: 'general', hoursAgo: 240, text: 'I started using Oremus to make online conversation feel a little more like sharing a table. What is one small thing your community taught you this week?',
     comments: [['leominh', 'This week I learned that asking for help early makes a project stronger, not weaker.'], ['thaole', 'That a neighbour will always lend you a ladder if you bring flowers 🌸', 'Ha! Flowers as currency, I love it.']] },
@@ -397,12 +404,23 @@ export const COMMENTS: Record<Topic, string[]> = {
   study: ['You got this! 💪', 'Good luck!', 'Adding these to my reading list.', 'Coffee and focus, you can do it.'],
   sport: ['Legend!', 'Well played 👏', 'Respect, that is a lot of kilometres.', 'Next time I am joining.'],
   art: ['Beautiful work.', 'The composition is so good.', 'This deserves to be printed.', 'Love the light here.'],
-  general: ['Haha love this 😄', 'Same here!', 'This made my day.', 'So true.', '❤️']
+  general: ['Haha love this 😄', 'Same here!', 'This made my day.', 'So true.', '❤️'],
+  ai: ['Is the code open source?', 'Which model did you use?', 'Fascinating results 🤖', 'How big was the dataset?', 'Would love a write-up on this.'],
+  gaming: ['GG!', 'Adding this to my wishlist 🎮', 'Co-op night soon?', 'That play was clean.', 'What rank are you?'],
+  books: ['Adding this to my reading list 📚', 'One of my all-time favourites.', 'Have you read the sequel?', 'Beautiful quote.'],
+  running: ['What pace were you running?', 'Incredible effort 🏃', 'See you at the next race!', 'Which shoes do you use?'],
+  fitness: ['Needed this today 🙏', 'Great tips!', 'Consistency is everything.', 'Trying this tomorrow morning.'],
+  business: ['Great lesson, thanks for sharing.', 'Saving this for my team.', 'How did your customers react?', 'Totally agree.'],
+  fashion: ['Obsessed with this look 😍', 'Where can I buy it?', 'The fabric looks amazing.', 'Vintage forever.'],
+  ocean: ['The water looks so clear 🌊', 'Bucket list!', 'Was it a good season for visibility?', 'Ocean goals.'],
+  baking: ['That crumb 😍', 'Recipe please!', 'Smells amazing through the screen.', 'Save me a slice.'],
+  film: ['Adding this to my watchlist 🎬', 'Where can I watch it?', 'Congrats on the festival!', 'Great list.'],
+  photography: ['The light in this is perfect 📷', 'Which lens?', 'This deserves a print.', 'Love the mood.']
 };
 
 export const REPLIES = ['Thank you! 😊', 'Haha, thanks!', 'Right? 😄', 'Appreciate it!', 'Let’s go together next time!', '🙏', 'Will do!'];
 
-export const STORIES: SeedStory[] = [
+const BASE_STORIES: SeedStory[] = [
   { author: 'ethanr', minutesAgo: 5, photo: 324, text: 'Morning run before the clouds roll in', style: { font: 'strong', effect: 'shadow', y: 78 } },
   { author: 'oliviah', minutesAgo: 20, photo: 63 },
   { author: 'oliviah', minutesAgo: 12, text: 'Lantern night in Hội An tonight. Who is coming? 🏮', background: 'sunset', style: { font: 'script', size: 1.3, animation: 'fade' } },
@@ -422,7 +440,7 @@ export const STORIES: SeedStory[] = [
 ];
 
 /** Accepted friendships. The demo account gets plenty so its feed, contacts and chats look lived-in. */
-export const FRIENDS: Array<[string, string]> = [
+const BASE_FRIENDS: Array<[string, string]> = [
   ['maya', 'leominh'], ['maya', 'anikar'], ['maya', 'ethanr'], ['maya', 'oliviah'], ['maya', 'linhng'], ['maya', 'thaole'], ['maya', 'sofiam'],
   ['maya', 'hanasato'], ['maya', 'jonahlee'], ['maya', 'priyas'], ['maya', 'khoapham'],
   ['leominh', 'jonahlee'], ['leominh', 'chloed'], ['leominh', 'priyas'], ['leominh', 'danielk'], ['anikar', 'marcor'], ['anikar', 'noahw'], ['anikar', 'sofiam'],
@@ -437,13 +455,13 @@ export const FRIENDS: Array<[string, string]> = [
 export const PENDING_REQUESTS: Array<[string, string]> = [['marcor', 'maya'], ['lucasb', 'maya'], ['maidang', 'maya'], ['maya', 'danielk']];
 
 /** One-way follows on top of friendships (friends always follow each other). */
-export const EXTRA_FOLLOWS: Array<[string, string]> = [
+const BASE_FOLLOWS: Array<[string, string]> = [
   ['marcor', 'maya'], ['lucasb', 'maya'], ['maidang', 'maya'], ['noahw', 'maya'], ['quangvo', 'maya'], ['chloed', 'maya'], ['tuanbui', 'maya'],
   ['maya', 'noahw'], ['maya', 'danielk'], ['maya', 'marcor'], ['maidang', 'khoapham'], ['maidang', 'jonahlee'], ['hanasato', 'anikar'], ['priyas', 'anikar'],
   ['khoapham', 'danielk'], ['oliviah', 'anikar'], ['sofiam', 'noahw'], ['chloed', 'anikar'], ['jonahlee', 'quangvo'], ['tuanbui', 'anikar']
 ];
 
-export const CHATS: SeedChat[] = [
+const BASE_CHATS: SeedChat[] = [
   { members: ['maya', 'leominh'], messages: [
     [1, 'The new community page feels thoughtful. Want to review it together tomorrow?', 1500], [0, 'Yes! My notes are here: https://example.com/maya/community-notes', 1490],
     [1, 'Perfect. 10am at your place or mine?', 1480], [0, 'Mine, I have fresh basil for the tea 🌿', 1475], [1, 'Sold.', 1470],
@@ -471,3 +489,14 @@ export const CHATS: SeedChat[] = [
   { members: ['lucasb', 'ethanr'], messages: [
     [0, 'Any spots left on the November trek?', 600], [1, 'Saving one for you, mate.', 590], [0, 'Legend.', 585] ] }
 ];
+
+/* ---------- Full sample: the original lived-in network plus topic-focused content for recommendations ---------- */
+
+export const PEOPLE: SeedPerson[] = [...BASE_PEOPLE, ...TOPIC_PEOPLE];
+export const GROUPS: SeedGroup[] = [...BASE_GROUPS, ...TOPIC_GROUPS];
+export const POSTS: SeedPost[] = [...BASE_POSTS, ...TOPIC_POSTS];
+export const STORIES: SeedStory[] = [...BASE_STORIES, ...TOPIC_STORIES];
+export const FRIENDS: Array<[string, string]> = [...BASE_FRIENDS, ...TOPIC_FRIENDS];
+export const EXTRA_FOLLOWS: Array<[string, string]> = [...BASE_FOLLOWS, ...TOPIC_FOLLOWS];
+export const CHATS: SeedChat[] = [...BASE_CHATS, ...TOPIC_CHATS];
+export const SIGNALS = TOPIC_SIGNALS;

@@ -47,6 +47,7 @@ Do not add `immutable` to an asset whose URL can serve different bytes later. Ei
 | Profile summary | `profile:{user}` | 120 s | Delete the exact affected profile keys |
 | Group details | `group:{group}` | 180 s | Delete the exact group key |
 | Search results | `search:{sha256(query)}:{limit}` | 30 s | Scan/delete only after searchable profile, group or post content changes |
+| Suggestions | `rec:{userId}` | 120 s | Deleted on every new behaviour signal and by `invalidateSocialCaches` for the users involved. See [Recommendations](RECOMMENDATIONS.md#caching-and-freshness) |
 | Place search | `places:v2:...` | 24 h | TTL only |
 
 All cached values are JSON. `cacheGet()` records hit/miss diagnostics asynchronously so metrics do not add another Redis round trip to the response path.

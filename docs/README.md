@@ -22,7 +22,7 @@ Then open the page for the feature you are working on.
 | [Performance and memory](PERFORMANCE.md) | N+1 prevention, query indexes, memory bounds and verification commands |
 | [Database setup and migrations](DATABASE.md) | One-command setup, reset, migration commands and how to add a migration |
 | [Endless lists](INFINITE_SCROLL.md) | Infinite scroll for the feed, comments, chats, notifications, groups and more; cursors and the shared list API |
-| [Data scripts](SCRIPTS.md) | Sample data seed (20 people with photos) and wipe scripts to reset the app to an empty state |
+| [Data scripts](SCRIPTS.md) | Sample data seed (38 people with photos, topic-focused content for recommendations) and wipe scripts to reset the app to an empty state |
 | [Data model](DATA_MODEL.md) | Every MongoDB collection and field, relationships, indexes, migrations and seed data |
 | [Authentication and security](AUTHENTICATION.md) | Login, JWT cookies, refresh token rotation, logout, password reset, CSRF and other protections |
 | [Posts and feed](POSTS_AND_FEED.md) | Creating and editing posts, who can see what, media layout, reactions, comments, home feed order |
@@ -32,6 +32,7 @@ Then open the page for the feature you are working on.
 | [Groups](GROUPS.md) | Group settings, roles, joining, invites, post approval |
 | [Messaging and notifications](MESSAGING_AND_NOTIFICATIONS.md) | Socket.IO events, friends-only chat, notification types |
 | [Stories](STORIES.md) | 24-hour stories, audience rules, the tray, views, reactions and replies |
+| [Recommendations](RECOMMENDATIONS.md) | "For you": behaviour signals, the TF-IDF and topic model, ranking formula, reasons, privacy and how to test it |
 | [Search and places](SEARCH_AND_PLACES.md) | FastAPI search, recent searches and typeahead suggestions, the ranking formula, place search for check-ins |
 | [Frontend](FRONTEND.md) | Pages, EJS partials, the client script, Tailwind and theming |
 | [API reference](API_REFERENCE.md) | Every endpoint with its body and error codes |
@@ -57,6 +58,7 @@ flowchart TB
   Posts --> Media["Media"]
   Social --> Msg["Messaging and notifications"]
   Posts --> Search["Search and places"]
+  Search --> Recs["Recommendations"]
   Front --> APIRef["API reference"]
 ```
 

@@ -75,6 +75,14 @@ export const searchRecordSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('query'), query: z.string().trim().min(2).max(80) }),
   z.object({ kind: z.enum(['user', 'group']), id: z.string().regex(/^[a-f0-9]{24}$/i, 'Invalid id.') })
 ]);
+const entityId = z.string().regex(/^[a-f0-9]{24}$/i, 'Invalid id.');
+/** Reading time and in-post clicks batched by the browser for recommendations. */
+export const activitySchema = z.object({
+  events: z.array(z.discriminatedUnion('type', [
+    z.object({ type: z.literal('dwell'), postId: entityId, ms: z.number().int().min(0).max(600_000) }),
+    z.object({ type: z.literal('click'), target: z.enum(['post', 'user', 'group', 'story']), id: entityId })
+  ])).min(1).max(50)
+});
 export const profilePhotoSchema = z.object({ kind: z.enum(['avatar', 'cover']), url: z.string().max(500).optional(), remove: z.preprocess((value) => value === true || value === 'true', z.boolean()).default(false) });
 // Multipart posts send structured fields as JSON strings.
 const jsonField = <T extends z.ZodTypeAny>(schema: T) => z.preprocess((value) => {

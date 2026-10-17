@@ -22,4 +22,5 @@ pageRoutes.get('/messages', requirePageAuth, asyncHandler(page.messages));
 pageRoutes.get('/messages/:conversationId', requirePageAuth, asyncHandler(page.conversation));
 pageRoutes.get('/notifications', requirePageAuth, asyncHandler(page.notifications));
 pageRoutes.get('/search', requirePageAuth, asyncHandler(page.search));
+pageRoutes.get('/discover', requirePageAuth, asyncHandler(page.discover));
 pageRoutes.get('/settings', requirePageAuth, page.settings);

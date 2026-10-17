@@ -351,6 +351,30 @@ const searchTermSchema = new Schema({
 }, options);
 searchTermSchema.index({ count: -1 });
 
+/**
+ * Behaviour signals for the recommender (see src/recommender): searches, clicks/opens, reading time,
+ * reactions, comments, follows, joins and story views. Each row keeps the target's keywords as they were
+ * when the signal happened, so the interest profile never has to re-read (or leak) content later.
+ */
+export const SIGNAL_TYPES = ['search', 'open', 'click', 'dwell', 'react', 'comment', 'share', 'follow', 'join', 'story_view'] as const;
+export const SIGNAL_TARGETS = ['query', 'post', 'user', 'group', 'story'] as const;
+export const SIGNAL_RETENTION_DAYS = 120;
+const interactionSchema = new Schema({
+  userId: { type: objectId, ref: 'User', required: true },
+  type: { type: String, enum: SIGNAL_TYPES, required: true },
+  targetType: { type: String, enum: SIGNAL_TARGETS, required: true },
+  targetId: { type: objectId, default: null },
+  // Who made the target (post/story author, or the profile itself) and its group, for affinity.
+  authorId: { type: objectId, default: null },
+  groupId: { type: objectId, default: null },
+  // Search text, or a short title used to explain recommendations ("Because you searched …").
+  label: { type: String, maxlength: 120, default: '' },
+  durationMs: { type: Number, min: 0, default: 0 },
+  features: { type: [new Schema({ t: { type: String, required: true, maxlength: 60 }, w: { type: Number, required: true }, s: { type: String, maxlength: 60 } }, { _id: false })], default: [] }
+}, { timestamps: { createdAt: true, updatedAt: false }, versionKey: false });
+interactionSchema.index({ userId: 1, createdAt: -1 });
+interactionSchema.index({ createdAt: 1 }, { expireAfterSeconds: SIGNAL_RETENTION_DAYS * 24 * 60 * 60 });
+
 export const Post: Model<any> = models.Post || model('Post', postSchema);
 export const Reaction: Model<any> = models.Reaction || model('Reaction', reactionSchema);
 export const Comment: Model<any> = models.Comment || model('Comment', commentSchema);
@@ -368,3 +392,4 @@ export const RefreshToken: Model<any> = models.RefreshToken || model('RefreshTok
 export const AuditLog: Model<any> = models.AuditLog || model('AuditLog', auditLogSchema);
 export const SearchHistory: Model<any> = models.SearchHistory || model('SearchHistory', searchHistorySchema);
 export const SearchTerm: Model<any> = models.SearchTerm || model('SearchTerm', searchTermSchema);
+export const Interaction: Model<any> = models.Interaction || model('Interaction', interactionSchema);

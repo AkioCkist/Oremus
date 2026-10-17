@@ -104,6 +104,9 @@ All endpoints of the web app and the search service.
 | DELETE | `/api/search/recent/:entryId` | Remove one recent search |
 | DELETE | `/api/search/recent` | Clear all recent searches |
 | GET | `/api/places?q=&lat=&lon=` | Place search for check-ins |
+| POST | `/api/activity` | Reading time and in-post clicks for recommendations: `{ events: [{ type: "dwell", postId, ms } or { type: "click", target, id }] }`, 1–50 events. 240 per minute → `{ stored }`. See [Recommendations](RECOMMENDATIONS.md) |
+| DELETE | `/api/activity` | Clear your behaviour history → `{ removed }` |
+| GET | `/api/recommendations` | Suggested people, groups, posts and stories with reasons, plus learned interests. 120 per minute |
 | GET | `/api/places/nearby?lat=&lon=` | Places near a point |
 | GET | `/api/dev/cache` | Cache hit/miss statistics |
 | GET | `/health` | Web health (MongoDB + Redis), no auth |

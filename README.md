@@ -19,7 +19,7 @@ Oremus is a full-stack social network built with Express, MongoDB, Redis, FastAP
 | Start here | [Overview](docs/OVERVIEW.md) · [Development guide](docs/DEVELOPMENT.md) · [Architecture](docs/ARCHITECTURE.md) |
 | Data | [Data model](docs/DATA_MODEL.md) |
 | Security | [Authentication and security](docs/AUTHENTICATION.md) |
-| Features | [Posts and feed](docs/POSTS_AND_FEED.md) · [Media uploads and compression](docs/MEDIA.md) · [People and relationships](docs/SOCIAL_GRAPH.md) · [Profiles](docs/PROFILES.md) · [Groups](docs/GROUPS.md) · [Messaging and notifications](docs/MESSAGING_AND_NOTIFICATIONS.md) · [Stories](docs/STORIES.md) · [Search and places](docs/SEARCH_AND_PLACES.md) |
+| Features | [Recommendations](docs/RECOMMENDATIONS.md) · [Posts and feed](docs/POSTS_AND_FEED.md) · [Media uploads and compression](docs/MEDIA.md) · [People and relationships](docs/SOCIAL_GRAPH.md) · [Profiles](docs/PROFILES.md) · [Groups](docs/GROUPS.md) · [Messaging and notifications](docs/MESSAGING_AND_NOTIFICATIONS.md) · [Stories](docs/STORIES.md) · [Search and places](docs/SEARCH_AND_PLACES.md) |
 | User interface | [Frontend](docs/FRONTEND.md) |
 | Reference | [API reference](docs/API_REFERENCE.md) |
 | Operations | [Deployment and operations](docs/DEPLOYMENT.md) · [Caching](docs/CACHING.md) · [Performance and memory](docs/PERFORMANCE.md) |
@@ -119,6 +119,7 @@ See [Overview](docs/OVERVIEW.md#repository-layout) for the full tree.
 - Uploads are stored on a local volume. Use S3-compatible storage before running several web servers.
 - Password reset shows its link only in development; production needs an email provider.
 - Search uses simple case-insensitive matching. For large data, swap the FastAPI internals for Atlas Search or OpenSearch without changing the web app.
-- Presence, typing indicators, ads and machine-learning recommendations are out of scope.
+- Recommendations are content-based (TF-IDF, topics, behaviour signals) and computed in the web process; collaborative filtering and a precomputed index are next steps at larger scale. See [Recommendations](docs/RECOMMENDATIONS.md#limits-and-next-steps).
+- Presence, typing indicators and ads are out of scope.
 
 More detail in [Deployment and operations](docs/DEPLOYMENT.md#production-checklist).

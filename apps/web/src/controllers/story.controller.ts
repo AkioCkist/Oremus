@@ -3,13 +3,18 @@ import { storyReactionSchema, storyReplySchema, storySchema, storySettingsSchema
 import * as stories from '../services/story.service.js';
 import { emitUserEvent } from '../services/notification.service.js';
 import { countUnreadConversations } from '../services/message.service.js';
+import { trackSignal } from '../services/activity.service.js';
 
 const id = (req: Request) => req.user!.id;
 const storyId = (req: Request) => String(req.params.storyId);
 
 export async function tray(req: Request, res: Response) { res.json({ ok: true, data: { tray: await stories.getStoryTray(id(req)) } }); }
 export async function create(req: Request, res: Response) { const story = await stories.createStory(id(req), storySchema.parse(req.body), req.file); res.status(201).json({ ok: true, data: { story, redirect: `/stories/${req.user!.username}` } }); }
-export async function view(req: Request, res: Response) { res.json({ ok: true, data: await stories.markViewed(storyId(req), id(req)) }); }
+export async function view(req: Request, res: Response) {
+  const result = await stories.markViewed(storyId(req), id(req));
+  if ('seen' in result) trackSignal(id(req), { type: 'story_view', targetType: 'story', targetId: storyId(req) });
+  res.json({ ok: true, data: result });
+}
 export async function react(req: Request, res: Response) { const { type } = storyReactionSchema.parse(req.body); res.json({ ok: true, data: await stories.reactToStory(storyId(req), id(req), type) }); }
 export async function reply(req: Request, res: Response) {
   const { content } = storyReplySchema.parse(req.body);
