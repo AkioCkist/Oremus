@@ -93,6 +93,10 @@ Text index on `displayName` and `username`.
 
 Work, education and link entries have their own `_id` so they can be edited and removed one by one. See [Profiles](PROFILES.md) for how these fields are shown and protected.
 
+### User interests
+
+`User.interests` holds the onboarding survey: `topics` (keys from [`shared/interests.ts`](../apps/web/src/shared/interests.ts)), `keywords` (free sub-interests), `completedAt`, `skippedAt`. Until one of the two dates is set, signed-in pages redirect to `/onboarding`. See [Interest survey](RECOMMENDATIONS.md#interest-survey-onboarding).
+
 ### Follow
 
 One-way "A follows B". Unique on `(followerId, followingId)`.

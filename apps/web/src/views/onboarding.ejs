@@ -1,0 +1,86 @@
+<%- include('partials/head') %>
+<%# Interest survey before using Oremus (see onboardingGate). Three steps on one page, driven by views-or-client/onboarding.ts:
+    1. topics (at least minInterests), 2. optional sub-interests, 3. people and groups picked from the answers. -%>
+<% const steps = ['Interests', 'Details', 'Suggestions']; -%>
+<main id="main" class="min-h-dvh bg-grouped" data-onboarding data-min="<%= minInterests %>" data-max-keywords="<%= maxKeywords %>" data-next="<%= next %>" data-editing="<%= editing ? 'true' : 'false' %>">
+  <script type="application/json" id="onboarding-data"><%- JSON.stringify({ options: options.map(function (o) { return { key: o.key, label: o.label, emoji: o.emoji, keywords: o.keywords }; }), selected, keywords }).replace(/</g, '\\u003c') %></script>
+
+  <div class="mx-auto flex min-h-dvh w-full max-w-3xl flex-col px-4 pb-32 pt-5 sm:px-6 sm:pt-8">
+    <header class="flex items-center justify-between gap-3">
+      <span class="flex items-center gap-2"><img src="/assets/brand/logo.svg" alt="" class="size-9"><span class="font-display text-headline font-bold">Oremus</span></span>
+      <button type="button" class="btn-ghost btn-sm text-subheadline text-muted" data-onb-skip><%= editing ? 'Cancel' : 'Skip for now' %></button>
+    </header>
+
+    <%# Progress: one bar per step, like a stories progress row. -%>
+    <nav class="mt-6" aria-label="Survey progress">
+      <ol class="grid grid-cols-3 gap-2">
+        <% steps.forEach(function (label, index) { %>
+        <li class="min-w-0" data-onb-progress="<%= index + 1 %>">
+          <span class="block h-1 overflow-hidden rounded-full bg-line"><span class="block h-full w-0 rounded-full bg-brand-600 transition-[width] duration-300" data-onb-bar></span></span>
+          <span class="mt-1.5 block truncate text-footnote text-muted" data-onb-label><%= label %></span>
+        </li>
+        <% }) %>
+      </ol>
+    </nav>
+
+    <!-- Step 1: topics -->
+    <section class="mt-8" data-step="1" aria-labelledby="onb-title-1">
+      <p class="eyebrow text-center">Step 1 of 3</p>
+      <h1 id="onb-title-1" class="mt-1 text-center font-display text-title1 font-bold sm:text-large-title">Choose your interests</h1>
+      <p class="mx-auto mt-2 max-w-md text-center text-subheadline text-muted">Pick at least <%= minInterests %>. We use them to suggest people, posts, groups and stories you'll like.</p>
+      <ul class="mt-8 grid grid-cols-3 gap-x-2 gap-y-6 sm:grid-cols-5 sm:gap-x-4" aria-label="Interests">
+        <% options.forEach(function (o) { const on = selected.includes(o.key); %>
+        <li class="flex justify-center">
+          <button type="button" class="group flex w-full max-w-[7.5rem] flex-col items-center gap-2 rounded-2xl p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600" data-onb-topic="<%= o.key %>" aria-pressed="<%= on ? 'true' : 'false' %>">
+            <span class="relative grid size-[4.75rem] place-items-center rounded-full bg-gradient-to-br <%= o.tone %> shadow-card ring-offset-2 ring-offset-canvas transition duration-200 group-hover:scale-105 group-aria-pressed:ring-[3px] group-aria-pressed:ring-brand-600 sm:size-24">
+              <span class="text-[2.25rem] drop-shadow-sm sm:text-[2.75rem]" aria-hidden="true"><%= o.emoji %></span>
+              <span class="absolute inset-0 hidden place-items-center rounded-full bg-black/45 group-aria-pressed:grid" aria-hidden="true"><svg class="icon size-9 stroke-[2.5] text-white"><use href="#i-check"/></svg></span>
+            </span>
+            <span class="text-center text-footnote font-semibold uppercase leading-tight tracking-wide text-muted group-aria-pressed:text-ink"><%= o.label %></span>
+          </button>
+        </li>
+        <% }) %>
+      </ul>
+    </section>
+
+    <!-- Step 2: sub-interests -->
+    <section class="mt-8 hidden" data-step="2" aria-labelledby="onb-title-2">
+      <p class="eyebrow text-center">Step 2 of 3 · Optional</p>
+      <h1 id="onb-title-2" class="mt-1 text-center font-display text-title1 font-bold sm:text-large-title">What topics interest you most?</h1>
+      <p class="mx-auto mt-2 max-w-md text-center text-subheadline text-muted">Pick anything specific. The more precise, the sharper your suggestions.</p>
+      <div class="mt-8 space-y-6" data-onb-groups></div>
+      <form class="mx-auto mt-8 flex max-w-md gap-2" data-onb-custom>
+        <label class="sr-only" for="onb-custom">Add your own interest</label>
+        <input id="onb-custom" class="pill-input h-10 flex-1" placeholder="Add your own, e.g. Bonsai" maxlength="<%= keywordMaxLength %>" autocomplete="off">
+        <button type="submit" class="btn-secondary h-10 shrink-0"><svg class="icon size-4"><use href="#i-plus"/></svg>Add</button>
+      </form>
+    </section>
+
+    <!-- Step 3: suggestions from the answers -->
+    <section class="mt-8 hidden" data-step="3" aria-labelledby="onb-title-3">
+      <p class="eyebrow text-center">Step 3 of 3</p>
+      <h1 id="onb-title-3" class="mt-1 text-center font-display text-title1 font-bold sm:text-large-title">People and groups for you</h1>
+      <p class="mx-auto mt-2 max-w-md text-center text-subheadline text-muted">Picked from your interests. Follow or join a few now, or later from <span class="font-semibold text-ink">For you</span>.</p>
+      <div class="mt-8 grid gap-6 lg:grid-cols-2" aria-live="polite">
+        <section aria-labelledby="onb-people-title">
+          <h2 id="onb-people-title" class="px-1 pb-2 text-headline font-semibold">People</h2>
+          <ul class="inset-group" data-onb-people><li class="inset-row py-6 text-subheadline text-muted">Finding people…</li></ul>
+        </section>
+        <section aria-labelledby="onb-groups-title">
+          <h2 id="onb-groups-title" class="px-1 pb-2 text-headline font-semibold">Groups</h2>
+          <ul class="inset-group" data-onb-groups-list><li class="inset-row py-6 text-subheadline text-muted">Finding groups…</li></ul>
+        </section>
+      </div>
+    </section>
+  </div>
+
+  <%# Sticky action bar: counter and Back on the left, the main action on the right (full width on phones). -%>
+  <div class="glass-bar fixed inset-x-0 bottom-0 z-30 border-t border-line pb-[env(safe-area-inset-bottom)]">
+    <div class="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3 sm:px-6">
+      <button type="button" class="btn-secondary hidden shrink-0" data-onb-back><svg class="icon size-4"><use href="#i-arrow-left"/></svg><span class="max-sm:sr-only">Back</span></button>
+      <p class="min-w-0 flex-1 text-subheadline text-muted" data-onb-status aria-live="polite"></p>
+      <button type="button" class="btn-primary h-11 shrink-0 px-6 disabled:cursor-not-allowed disabled:opacity-50 max-sm:flex-1" data-onb-continue>Continue<svg class="icon size-4"><use href="#i-chevron-right"/></svg></button>
+    </div>
+  </div>
+</main>
+<%- include('partials/foot') %>

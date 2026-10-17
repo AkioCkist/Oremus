@@ -106,6 +106,8 @@ All endpoints of the web app and the search service.
 | GET | `/api/places?q=&lat=&lon=` | Place search for check-ins |
 | POST | `/api/activity` | Reading time and in-post clicks for recommendations: `{ events: [{ type: "dwell", postId, ms } or { type: "click", target, id }] }`, 1–50 events. 240 per minute → `{ stored }`. See [Recommendations](RECOMMENDATIONS.md) |
 | DELETE | `/api/activity` | Clear your behaviour history → `{ removed }` |
+| POST | `/api/onboarding` | Save interest survey answers: `{ topics (≥ 3 topic keys), keywords? (≤ 30) }`. 30 per hour. See [Interest survey](RECOMMENDATIONS.md#interest-survey-onboarding) |
+| POST | `/api/onboarding/skip` | Skip the survey: `{ next? }` → `{ redirect }` (local paths only) |
 | GET | `/api/recommendations` | Suggested people, groups, posts and stories with reasons, plus learned interests. 120 per minute |
 | GET | `/api/places/nearby?lat=&lon=` | Places near a point |
 | GET | `/api/dev/cache` | Cache hit/miss statistics |

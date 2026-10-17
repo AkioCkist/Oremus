@@ -6,6 +6,8 @@ import { asyncHandler } from '../utils/async-handler.js';
 export const pageRoutes = Router();
 pageRoutes.use(optionalAuth);
 pageRoutes.use(asyncHandler(page.navState));
+// Signed-in people answer the interest survey (or skip it) before using the app.
+pageRoutes.use(page.onboardingGate);
 pageRoutes.get('/login', page.loginPage);
 pageRoutes.get('/register', page.registerPage);
 pageRoutes.get('/reset-password', page.resetPage);
@@ -22,5 +24,6 @@ pageRoutes.get('/messages', requirePageAuth, asyncHandler(page.messages));
 pageRoutes.get('/messages/:conversationId', requirePageAuth, asyncHandler(page.conversation));
 pageRoutes.get('/notifications', requirePageAuth, asyncHandler(page.notifications));
 pageRoutes.get('/search', requirePageAuth, asyncHandler(page.search));
+pageRoutes.get('/onboarding', requirePageAuth, page.onboarding);
 pageRoutes.get('/discover', requirePageAuth, asyncHandler(page.discover));
 pageRoutes.get('/settings', requirePageAuth, page.settings);

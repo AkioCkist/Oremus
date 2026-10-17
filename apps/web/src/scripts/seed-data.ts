@@ -5,7 +5,7 @@
  * avatar numbers are Pravatar ids (https://i.pravatar.cc/600?img=<n>). See seed-media.ts.
  */
 
-import { TOPIC_CHATS, TOPIC_FOLLOWS, TOPIC_FRIENDS, TOPIC_GROUPS, TOPIC_PEOPLE, TOPIC_POSTS, TOPIC_SIGNALS, TOPIC_STORIES } from './seed-data-topics.js';
+import { NEWCOMERS, TOPIC_CHATS, TOPIC_FOLLOWS, TOPIC_FRIENDS, TOPIC_GROUPS, TOPIC_PEOPLE, TOPIC_POSTS, TOPIC_SIGNALS, TOPIC_STORIES } from './seed-data-topics.js';
 
 export type Topic = 'travel' | 'food' | 'coffee' | 'pets' | 'city' | 'work' | 'nature' | 'music' | 'study' | 'sport' | 'art' | 'general'
   | 'ai' | 'gaming' | 'books' | 'running' | 'fitness' | 'business' | 'fashion' | 'ocean' | 'baking' | 'film' | 'photography';
@@ -17,6 +17,8 @@ export type SeedPerson = {
   avatar: number;
   cover: number;
   profile: Record<string, unknown>;
+  /** Onboarding survey answers. Omitted: derived from the profile and posts (seed.ts). "pending": survey not taken yet. */
+  interests?: { topics: string[]; keywords?: string[] } | 'pending';
 };
 
 export type SeedPhoto = number | [id: number, width: number, height: number];
@@ -74,7 +76,8 @@ const school = (name: string, concentration: string, startYear: number, endYear:
   ({ school: name, level: 'college', concentration, degree, startYear, endYear, graduated: endYear <= 2026 });
 
 const BASE_PEOPLE: SeedPerson[] = [
-  { key: 'maya', email: 'maya@example.com', displayName: 'Maya Tran', avatar: 32, cover: 82, profile: {
+  { key: 'maya', email: 'maya@example.com', displayName: 'Maya Tran', avatar: 32, cover: 82,
+    interests: { topics: ['gardening', 'cycling', 'books', 'coffee', 'hiking'], keywords: ['Composting', 'Balcony garden', 'Podcasts', 'Pottery'] }, profile: {
     bio: 'Community gardener, weekend cyclist, and collector of good questions.', location: 'Da Nang, Vietnam', hometown: 'Hue, Vietnam',
     website: 'https://example.com/maya', storyAudience: 'followers', gender: 'female', pronouns: 'she/her', relationship: 'in_relationship',
     birthDay: 14, birthMonth: 3, birthYear: 1996, languages: ['Vietnamese', 'English'], hobbies: ['Gardening', 'Cycling', 'Podcasts', 'Pottery'],
@@ -492,7 +495,7 @@ const BASE_CHATS: SeedChat[] = [
 
 /* ---------- Full sample: the original lived-in network plus topic-focused content for recommendations ---------- */
 
-export const PEOPLE: SeedPerson[] = [...BASE_PEOPLE, ...TOPIC_PEOPLE];
+export const PEOPLE: SeedPerson[] = [...BASE_PEOPLE, ...TOPIC_PEOPLE, ...NEWCOMERS];
 export const GROUPS: SeedGroup[] = [...BASE_GROUPS, ...TOPIC_GROUPS];
 export const POSTS: SeedPost[] = [...BASE_POSTS, ...TOPIC_POSTS];
 export const STORIES: SeedStory[] = [...BASE_STORIES, ...TOPIC_STORIES];

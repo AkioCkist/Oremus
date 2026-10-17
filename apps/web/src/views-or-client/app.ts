@@ -5,6 +5,7 @@ import './search-box.js';
 import { optimizeFormUploads, optimizeUpload, runImageJob } from './workers.js';
 import { createInfiniteList, htmlNodes, initInfiniteLists, type InfiniteList } from './infinite.js';
 import { initActivityTracking } from './activity.js';
+import { initOnboarding } from './onboarding.js';
 
 const csrf = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content || '';
 const me = {
@@ -2234,6 +2235,8 @@ initInfiniteLists(request, (name, fragment) => {
 
 // Reading time and in-post clicks feed "Suggested for you".
 initActivityTracking();
+// Interest survey before using the app (only on /onboarding).
+initOnboarding();
 
 /* ---------- Filters (chats, groups) ---------- */
 

@@ -1,6 +1,8 @@
 import mongoose from 'mongoose';
 import { Comment, Follow, Friendship, Group, GroupJoinRequest, GroupMember, Post, Reaction, Story, StoryView, User } from '../models/index.js';
 import { groupText, postText, storyText, userText } from '../recommender/documents.js';
+import { declaredSignals } from '../recommender/interests.js';
+import { interestOption } from '../shared/interests.js';
 import { buildProfile, computeIdf, decay, diversify, rankDocuments, topInterests, type Candidate, type Interest, type Profile, type Reason } from '../recommender/engine.js';
 import { analyze, type Vector } from '../recommender/text.js';
 import { plural } from '../utils/view-helpers.js';
@@ -36,7 +38,8 @@ export type RecPerson = { _id: string; username: string; displayName: string; pr
 export type RecGroup = { _id: string; name: string; slug: string; coverUrl: string; privacy: string; memberCount: number; tags: string[]; description: string; reason: Reason; score: number; friendsInGroup: number; pending: boolean };
 export type RecPost = { _id: string; content: string; media: { url: string; video: boolean } | null; mediaCount: number; author: { _id: string; username: string; displayName: string; avatarUrl: string }; group: { name: string; slug: string } | null; reactionCount: number; commentCount: number; createdAt: Date; reason: Reason; score: number };
 export type RecStory = { id: string; author: { _id: string; username: string; displayName: string; avatarUrl: string }; story: { mediaUrl: string | null; mediaType: 'image' | 'video' | null; text: string; style: unknown; background: string }; createdAt: Date; seen: boolean; reason: Reason; score: number };
-export type Recommendations = { people: RecPerson[]; groups: RecGroup[]; posts: RecPost[]; stories: RecStory[]; interests: Interest[]; signalCount: number; personalized: boolean };
+/** `declared` echoes the onboarding survey answers; `interests` is what the model learned from them plus behaviour. */
+export type Recommendations = { people: RecPerson[]; groups: RecGroup[]; posts: RecPost[]; stories: RecStory[]; interests: Interest[]; declared: { topics: string[]; keywords: string[] }; signalCount: number; personalized: boolean };
 
 /* ---------- Corpus ---------- */
 
@@ -182,14 +185,17 @@ export async function getRecommendations(userId: string): Promise<Recommendation
   const cached = await cacheGet<Recommendations>(key);
   if (cached) return cached;
 
-  const [corpus, signals, excluded, follows, friendIds, memberships, reactions, comments] = await Promise.all([
+  const [corpus, signals, excluded, follows, friendIds, memberships, reactions, comments, viewer] = await Promise.all([
     loadCorpus(), loadSignals(userId), feedExclusions(userId),
     Follow.find({ followerId: userId }).select('followingId').lean(), listFriendIds(userId),
     GroupMember.find({ userId }).select('groupId').lean(),
     Reaction.find({ userId }).sort({ createdAt: -1 }).limit(1000).select('postId').lean(),
-    Comment.find({ authorId: userId, deletedAt: null }).sort({ createdAt: -1 }).limit(1000).select('postId').lean()
+    Comment.find({ authorId: userId, deletedAt: null }).sort({ createdAt: -1 }).limit(1000).select('postId').lean(),
+    User.findById(userId).select('interests').lean()
   ]);
-  const profile = buildProfile(signals);
+  const declared: any = (viewer as any)?.interests || {};
+  // Survey answers and recorded behaviour share one profile; the survey's weight fades as behaviour builds up.
+  const profile = buildProfile([...signals, ...declaredSignals(declared)]);
   const following = new Set(follows.map((row: any) => String(row.followingId)));
   const friends = new Set(friendIds);
   const excludedSet = new Set(excluded);
@@ -238,6 +244,7 @@ export async function getRecommendations(userId: string): Promise<Recommendation
       }
     })),
     interests: topInterests(profile, 10),
+    declared: { topics: (declared.completedAt ? declared.topics || [] : []).map((key: string) => interestOption(key)?.label).filter(Boolean), keywords: declared.completedAt ? declared.keywords || [] : [] },
     signalCount: profile.signalCount,
     personalized: profile.terms.size > 0
   };

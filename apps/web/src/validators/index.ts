@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { AUDIENCE_FIELDS, AUDIENCES, GENDERS, GROUP_TYPES, INTRO_ITEMS, PRONOUNS, REACTION_TYPES, RELATIONSHIPS, SOCIAL_PLATFORMS, STORY_BACKGROUNDS, STORY_REACTIONS } from '../models/index.js';
 import { ACTIVITIES, FEELINGS } from '../shared/feelings.js';
+import { INTEREST_KEYS, KEYWORD_MAX_LENGTH, MAX_KEYWORDS, MIN_INTERESTS } from '../shared/interests.js';
 import { STORY_ALIGNS, STORY_ANIMATIONS, STORY_EFFECTS, STORY_FONTS, STORY_SIZE_RANGE } from '../shared/story-style.js';
 
 const username = z.string().trim().toLowerCase().regex(/^[a-z0-9_]{3,24}$/, 'Username must contain 3–24 letters, numbers, or underscores.');
@@ -75,6 +76,12 @@ export const searchRecordSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('query'), query: z.string().trim().min(2).max(80) }),
   z.object({ kind: z.enum(['user', 'group']), id: z.string().regex(/^[a-f0-9]{24}$/i, 'Invalid id.') })
 ]);
+/** Onboarding survey: at least MIN_INTERESTS topics, optional sub-interests (duplicates removed, case-insensitive). */
+export const interestsSchema = z.object({
+  topics: z.array(z.enum(INTEREST_KEYS)).transform((topics) => [...new Set(topics)]).refine((topics) => topics.length >= MIN_INTERESTS, `Pick at least ${MIN_INTERESTS} interests.`),
+  keywords: z.array(z.string().trim().min(2, 'Interests need at least 2 characters.').max(KEYWORD_MAX_LENGTH)).max(MAX_KEYWORDS).default([])
+    .transform((keywords) => [...new Map(keywords.map((keyword) => [keyword.toLowerCase(), keyword])).values()])
+});
 const entityId = z.string().regex(/^[a-f0-9]{24}$/i, 'Invalid id.');
 /** Reading time and in-post clicks batched by the browser for recommendations. */
 export const activitySchema = z.object({

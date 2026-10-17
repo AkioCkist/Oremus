@@ -12,7 +12,8 @@
 
 import { featureLabel, isTopic, topicLabel, type Feature, type Vector } from './text.js';
 
-export type SignalType = 'search' | 'open' | 'click' | 'dwell' | 'react' | 'comment' | 'share' | 'follow' | 'join' | 'story_view';
+/** `interest` comes from the onboarding survey (see interests.ts); every other type is recorded behaviour. */
+export type SignalType = 'search' | 'open' | 'click' | 'dwell' | 'react' | 'comment' | 'share' | 'follow' | 'join' | 'story_view' | 'interest';
 export type TargetType = 'query' | 'post' | 'user' | 'group' | 'story';
 
 export type Signal = {
@@ -46,8 +47,8 @@ export type Profile = {
 
 const DAY = 86_400_000;
 /** Days until a signal counts half as much. Search intent fades faster than engagement. */
-const HALF_LIFE_DAYS: Record<SignalType, number> = { search: 10, open: 21, click: 14, dwell: 21, react: 30, comment: 30, share: 30, follow: 45, join: 45, story_view: 7 };
-const BASE_WEIGHT: Record<SignalType, number> = { search: 3, open: 1.5, click: 1, dwell: 3, react: 2, comment: 3, share: 3, follow: 2.5, join: 3, story_view: 1 };
+const HALF_LIFE_DAYS: Record<SignalType, number> = { search: 10, open: 21, click: 14, dwell: 21, react: 30, comment: 30, share: 30, follow: 45, join: 45, story_view: 7, interest: 60 };
+const BASE_WEIGHT: Record<SignalType, number> = { search: 3, open: 1.5, click: 1, dwell: 3, react: 2, comment: 3, share: 3, follow: 2.5, join: 3, story_view: 1, interest: 2.5 };
 /** Opening a profile or group says more about your interests than opening a single post. */
 const OPEN_TARGET_WEIGHT: Partial<Record<TargetType, number>> = { user: 2, group: 2, post: 1.5, story: 1 };
 /** Reading time saturates: ~20 s gives two thirds of the maximum, a minute is nearly all of it. */
@@ -128,7 +129,7 @@ export function buildProfile(signals: Signal[], now = Date.now()): Profile {
     terms: new Map(length ? top.map(([token, value]) => [token, value / length]) : []),
     sources: new Map(top.map(([token]) => [token, best.get(token)!.source])),
     surface, authors: scaleToOne(authors), groups: scaleToOne(groupAffinity), seen,
-    signalCount: signals.length
+    signalCount: signals.filter((signal) => signal.type !== 'interest').length
   };
 }
 
@@ -188,7 +189,7 @@ export type Candidate = {
   penalty?: number;
 };
 
-export type Reason = { code: 'search' | 'read' | 'engaged' | 'viewed' | 'topic' | 'social' | 'popular' | 'new'; text: string };
+export type Reason = { code: 'search' | 'read' | 'engaged' | 'viewed' | 'topic' | 'interest' | 'social' | 'popular' | 'new'; text: string };
 export type Ranked<T extends Candidate> = T & { score: number; relevance: number; similarity: number; reason: Reason };
 
 const WEIGHTS = { relevance: 6, affinity: 1.5, social: 1.2, popularity: 0.8, freshness: 0.5 };
@@ -209,6 +210,7 @@ export function explain(token: string | null, profile: Profile): Reason | null {
   const source = profile.sources.get(token);
   const what = featureLabel(token, profile.surface.get(token));
   if (source?.type === 'search' && source.label) return { code: 'search', text: `Because you searched “${source.label}”` };
+  if (source?.type === 'interest' && source.label) return { code: 'interest', text: `Matches your interest in ${source.label}` };
   if (isTopic(token)) {
     if (source?.type === 'dwell') return { code: 'read', text: `Because you spent time reading about ${topicLabel(token).toLowerCase()}` };
     return { code: 'topic', text: `Based on your interest in ${topicLabel(token).toLowerCase()}` };

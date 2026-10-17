@@ -69,6 +69,8 @@ apiRoutes.get('/search/recent', asyncHandler(controller.recentSearches));
 apiRoutes.post('/search/recent', rateLimit('search-record', 120, 60), asyncHandler(controller.recordSearch));
 apiRoutes.delete('/search/recent', asyncHandler(controller.removeRecentSearch));
 apiRoutes.delete('/search/recent/:entryId', asyncHandler(controller.removeRecentSearch));
+apiRoutes.post('/onboarding', rateLimit('onboarding', 30, 3600), asyncHandler(controller.saveOnboarding));
+apiRoutes.post('/onboarding/skip', asyncHandler(controller.skipOnboardingSurvey));
 apiRoutes.post('/activity', rateLimit('activity', 240, 60), asyncHandler(controller.recordActivity));
 apiRoutes.delete('/activity', asyncHandler(controller.clearActivity));
 apiRoutes.get('/recommendations', rateLimit('recommendations', 120, 60), asyncHandler(controller.recommendations));

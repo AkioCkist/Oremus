@@ -81,12 +81,24 @@ const profileSchema = new Schema({
   audience: { type: audienceSchema, default: () => ({}) }
 }, { _id: false });
 
+/**
+ * Interests from the onboarding survey (topic keys from src/shared/interests.ts plus free sub-interests).
+ * Until the survey is completed or skipped, signed-in pages redirect to /onboarding.
+ */
+const interestsSchema = new Schema({
+  topics: { type: [{ type: String, maxlength: 30 }], default: [] },
+  keywords: { type: [{ type: String, maxlength: 40 }], default: [] },
+  completedAt: { type: Date, default: null },
+  skippedAt: { type: Date, default: null }
+}, { _id: false });
+
 const userSchema = new Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   username: { type: String, required: true, unique: true, lowercase: true, trim: true, minlength: 3, maxlength: 24 },
   displayName: { type: String, required: true, trim: true, maxlength: 60 },
   passwordHash: { type: String, required: true, select: false },
   profile: { type: profileSchema, default: () => ({}) },
+  interests: { type: interestsSchema, default: () => ({}) },
   passwordResetHash: { type: String, select: false },
   passwordResetExpiresAt: { type: Date, select: false },
   lastSeenAt: Date,

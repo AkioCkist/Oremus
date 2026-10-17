@@ -12,6 +12,7 @@
         <a class="side-link shrink-0" href="#photos"><span class="tile-icon bg-ios-orange"><svg class="icon"><use href="#i-camera"/></svg></span>Photos</a>
         <a class="side-link shrink-0" href="#privacy"><span class="tile-icon bg-subtle"><svg class="icon"><use href="#i-shield"/></svg></span>Privacy</a>
         <a class="side-link shrink-0" href="#display"><span class="tile-icon bg-ios-indigo"><svg class="icon"><use href="#i-moon"/></svg></span>Display</a>
+        <a class="side-link shrink-0" href="#interests"><span class="tile-icon bg-ios-purple"><svg class="icon"><use href="#i-sparkles"/></svg></span>Interests</a>
         <a class="side-link shrink-0" href="#stories"><span class="tile-icon bg-ios-pink"><svg class="icon"><use href="#i-stories"/></svg></span>Stories</a>
         <a class="side-link shrink-0" href="#session"><span class="tile-icon bg-ios-teal"><svg class="icon"><use href="#i-key"/></svg></span>Session</a>
       </nav>
@@ -68,6 +69,13 @@
           </label>
         </fieldset>
         <p class="mt-3 text-[0.8125rem] text-muted">Saved on this device. You can also switch quickly from the account menu.</p>
+      </section>
+
+      <section id="interests" class="card scroll-mt-20 p-5">
+        <h2 class="card-title text-xl">Interests</h2>
+        <% const myInterests = (currentUser.interests && currentUser.interests.completedAt) ? currentUser.interests.topics || [] : []; %>
+        <p class="mt-1 text-15 text-muted"><%= myInterests.length ? `${myInterests.length} interests picked. They shape the people, posts, groups and stories suggested to you.` : 'Tell us what you like to get better suggestions for people, posts, groups and stories.' %></p>
+        <div class="mt-4 flex flex-wrap gap-2"><a class="btn-primary" href="/onboarding?next=/settings%23interests"><svg class="icon"><use href="#i-sparkles"/></svg><%= myInterests.length ? 'Edit interests' : 'Choose interests' %></a><a class="btn-secondary" href="/discover">See suggestions</a></div>
       </section>
 
       <section id="stories" class="card scroll-mt-20 p-5">

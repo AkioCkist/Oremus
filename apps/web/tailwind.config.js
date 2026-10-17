@@ -4,7 +4,7 @@
 const themed = (name) => `rgb(var(--c-${name}) / <alpha-value>)`;
 
 export default {
-  content: ['./src/views/**/*.ejs', './src/views-or-client/**/*.ts', './src/utils/view-helpers.ts'],
+  content: ['./src/views/**/*.ejs', './src/views-or-client/**/*.ts', './src/utils/view-helpers.ts', './src/shared/interests.ts'],
   // Built from data at render time (avatar tones, story backgrounds), so the scanner cannot see them.
   safelist: [{ pattern: /^tone-[0-7]$/ }, { pattern: /^bg-story-[a-z]+$/ }],
   darkMode: ['variant', ['&:is([data-theme="dark"] *)', '@media (prefers-color-scheme: dark) { &:is([data-theme="system"] *) }']],

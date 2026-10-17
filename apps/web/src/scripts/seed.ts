@@ -7,6 +7,7 @@ import {
 } from '../models/index.js';
 import { groupText, postText, queryText, userText } from '../recommender/documents.js';
 import { analyze, topFeatures } from '../recommender/text.js';
+import { seedInterests } from './seed-interests.js';
 import { invalidateByPrefix, invalidateFeedCaches } from '../services/cache.service.js';
 import { CHATS, COMMENTS, DEMO_ACCOUNT, EXTRA_FOLLOWS, FRIENDS, GROUPS, PENDING_REQUESTS, PEOPLE, POSTS, REPLIES, SEED_PASSWORD, SIGNALS, STORIES, type SeedPhoto, type SeedSignal } from './seed-data.js';
 import { avatar, isServedBy, photo, prepareSeedImages, type SeedImageRequest } from './seed-media.js';
@@ -90,6 +91,7 @@ async function seed() {
       $set: {
         username: person.key, displayName: person.displayName, passwordHash, deletedAt: null, lastSeenAt: ago((index % 7) * 13 * MINUTE),
         profile: { privacy: 'public', ...person.profile, avatarUrl, coverUrl, avatarHistory: avatarUrl ? [avatarUrl] : [], coverHistory: [coverUrl] },
+        interests: seedInterests(person, joined),
         createdAt: joined, updatedAt: joined
       }
     }, { upsert: true, new: true, timestamps: false });
@@ -303,6 +305,7 @@ Warning: ${origin} cannot serve the seeded photos (${sample} returned an error).
 
   const demo = PEOPLE.find((person) => person.key === DEMO_ACCOUNT)!;
   console.log(`\nSeed complete. Sign in with ${demo.email} / ${SEED_PASSWORD} (every sample account uses the same password).`);
+  console.log('To try the interest survey, sign in as new@example.com: it has not been taken yet.');
 }
 
 /** Deletes everything the sample people created on a previous run, keeping the people and groups themselves. */

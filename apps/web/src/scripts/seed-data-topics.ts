@@ -109,6 +109,12 @@ export const TOPIC_PEOPLE: SeedPerson[] = [
     education: [school('Can Tho University', 'English Language Teaching', 2016, 2020)] } }
 ];
 
+/** A brand-new account that has not taken the interest survey: signing in opens /onboarding. */
+export const NEWCOMERS: SeedPerson[] = [
+  { key: 'namtran', email: 'new@example.com', displayName: 'Nam Tran', avatar: 50, cover: 10, interests: 'pending', profile: {
+    bio: 'Just joined Oremus 👋', location: 'Da Nang, Vietnam', storyAudience: 'followers', gender: 'male', pronouns: 'he/him', languages: ['Vietnamese', 'English'] } }
+];
+
 export const TOPIC_GROUPS: SeedGroup[] = [
   { slug: 'ai-vietnam', name: 'AI & Machine Learning Vietnam', description: 'Deep learning papers, LLM experiments, datasets and career advice for AI engineers in Vietnam.', cover: 0,
     privacy: 'public', groupType: 'learning', location: 'Vietnam', tags: ['ai', 'machine learning', 'data science'],

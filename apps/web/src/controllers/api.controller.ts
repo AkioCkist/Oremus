@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { Follow, Notification } from '../models/index.js';
-import { activitySchema, profileSchema, profileDetailsSchema, profileListItemSchemas, type ProfileList, searchRecordSchema, profilePhotoSchema, postSchema, postEditSchema, reactionSchema, commentSchema, commentEditSchema, groupSchema, decisionSchema, friendActionSchema, breakSchema, blockActionSchema, conversationSchema, messageSchema, groupJoinSchema, groupInviteSchema, placeNearbySchema, placeSearchSchema, photoDeleteSchema, shareSchema, shareSendSchema } from '../validators/index.js';
+import { activitySchema, interestsSchema, profileSchema, profileDetailsSchema, profileListItemSchemas, type ProfileList, searchRecordSchema, profilePhotoSchema, postSchema, postEditSchema, reactionSchema, commentSchema, commentEditSchema, groupSchema, decisionSchema, friendActionSchema, breakSchema, blockActionSchema, conversationSchema, messageSchema, groupJoinSchema, groupInviteSchema, placeNearbySchema, placeSearchSchema, photoDeleteSchema, shareSchema, shareSendSchema } from '../validators/index.js';
 import { AppError } from '../utils/errors.js';
 import * as users from '../services/user.service.js';
 import * as posts from '../services/post.service.js';
@@ -17,6 +17,7 @@ import { searchAll } from '../services/feed.service.js';
 import { audit } from '../services/audit.service.js';
 import { clearSignals, recordClientEvents, trackSignal } from '../services/activity.service.js';
 import { getRecommendations } from '../services/recommendation.service.js';
+import { safeNext, saveInterests, skipOnboarding } from '../services/interest.service.js';
 
 const id = (req: Request) => req.user!.id;
 const param = (req: Request, name: string) => String(req.params[name]);
@@ -114,6 +115,8 @@ export async function removeRecentSearch(req: Request, res: Response) { await se
 export async function recordActivity(req: Request, res: Response) { const { events } = activitySchema.parse(req.body); res.json({ ok: true, data: { stored: await recordClientEvents(id(req), events) } }); }
 export async function recommendations(req: Request, res: Response) { res.json({ ok: true, data: await getRecommendations(id(req)) }); }
 export async function clearActivity(req: Request, res: Response) { const removed = await clearSignals(id(req)); res.json({ ok: true, data: { removed, message: 'Activity history cleared. Suggestions start fresh.' } }); }
+export async function saveOnboarding(req: Request, res: Response) { res.json({ ok: true, data: { interests: await saveInterests(id(req), interestsSchema.parse(req.body)), message: 'Interests saved.' } }); }
+export async function skipOnboardingSurvey(req: Request, res: Response) { await skipOnboarding(id(req)); res.json({ ok: true, data: { redirect: safeNext(req.body?.next) } }); }
 export async function diagnostics(_req: Request, res: Response) { res.json({ ok: true, data: await cacheStats() }); }
 
 export async function photoLibrary(req: Request, res: Response) { res.json({ ok: true, data: await users.getPhotoLibrary(id(req)) }); }

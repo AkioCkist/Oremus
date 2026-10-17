@@ -13,6 +13,8 @@ import { groupMembers, groupPosts, notificationChunk, profileMedia, profileMedia
 import { AppError } from '../utils/errors.js';
 import { trackSignal } from '../services/activity.service.js';
 import { getRecommendations } from '../services/recommendation.service.js';
+import { needsOnboarding, safeNext } from '../services/interest.service.js';
+import { INTEREST_OPTIONS, MIN_INTERESTS, KEYWORD_MAX_LENGTH, MAX_KEYWORDS } from '../shared/interests.js';
 
 const base = (req: Request, title: string) => ({ title, path: req.path, csrfToken: resToken(req), currentUser: req.user?.toObject() ?? null });
 const resToken = (req: Request) => req.cookies?.csrf || '';
@@ -41,6 +43,26 @@ export async function navState(req: Request, res: Response, next: NextFunction) 
 async function myGroups(userId: string, limit = 8) {
   const memberships = await GroupMember.find({ userId }).sort({ createdAt: -1 }).limit(limit).populate('groupId', 'name slug coverUrl memberCount privacy').lean();
   return memberships.map((item: any) => item.groupId).filter(Boolean);
+}
+
+/** Pages that stay reachable before the interest survey is answered. */
+const ONBOARDING_EXEMPT = new Set(['/onboarding', '/login', '/register', '/reset-password']);
+
+/** Sends signed-in people who haven't completed or skipped the survey to it, then back where they were going. */
+export function onboardingGate(req: Request, res: Response, next: NextFunction) {
+  if (req.user && req.method === 'GET' && !ONBOARDING_EXEMPT.has(req.path) && needsOnboarding(req.user)) {
+    res.redirect(302, `/onboarding?next=${encodeURIComponent(safeNext(req.originalUrl))}`);
+    return;
+  }
+  next();
+}
+
+export function onboarding(req: Request, res: Response) {
+  const interests = req.user!.interests || {};
+  res.render('onboarding', {
+    ...base(req, 'Your interests'), hideMobileNav: true, options: INTEREST_OPTIONS, minInterests: MIN_INTERESTS, maxKeywords: MAX_KEYWORDS, keywordMaxLength: KEYWORD_MAX_LENGTH,
+    selected: [...(interests.topics || [])], keywords: [...(interests.keywords || [])], editing: !!interests.completedAt, next: safeNext(req.query.next)
+  });
 }
 
 export function loginPage(req: Request, res: Response) { if (req.user) return res.redirect('/'); res.render('auth/login', base(req, 'Log in')); }
@@ -190,7 +212,7 @@ export async function search(req: Request, res: Response) {
 /** Suggestions never break a page: without them the page renders with empty "for you" sections. */
 async function recommendationsFor(req: Request, userId: string) {
   try { return await getRecommendations(userId); }
-  catch (error) { req.log?.warn({ error }, 'Recommendations unavailable'); return { people: [], groups: [], posts: [], stories: [], interests: [], signalCount: 0, personalized: false }; }
+  catch (error) { req.log?.warn({ error }, 'Recommendations unavailable'); return { people: [], groups: [], posts: [], stories: [], interests: [], declared: { topics: [], keywords: [] }, signalCount: 0, personalized: false }; }
 }
 
 export async function discover(req: Request, res: Response) {

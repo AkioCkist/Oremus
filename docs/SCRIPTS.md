@@ -108,6 +108,7 @@ The scripts clean the server only. Browsers that visited the site still keep:
 | Reactions / comments | ~2,400 reactions, ~290 comments with replies |
 | Stories | 36 photo and text stories with styles, views and reactions, all inside the 24-hour window (topic stories are public) |
 | Chats | 11 conversations, ~40 messages (some unread) |
+| Interests | Every sample account has survey answers (Maya's are hand-picked, the rest derived from bio, hobbies and posts). `new@example.com` has none, so signing in opens the interest survey |
 | Behaviour signals | A short history for `mai@example.com` (AI, IELTS, gaming) and `olivia@example.com` (pets, baking). Maya starts with none |
 | Notifications | Generated from the activity above; the last 12 hours stay unread |
 

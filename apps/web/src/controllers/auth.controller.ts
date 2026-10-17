@@ -7,7 +7,8 @@ const context = (req: Request) => ({ ip: req.ip, userAgent: req.get('user-agent'
 
 export async function register(req: Request, res: Response) {
   const user = await auth.register(registerSchema.parse(req.body), res, context(req));
-  res.status(201).json({ ok: true, data: { user, redirect: '/' } });
+  // New accounts start with the interest survey (see onboardingGate).
+  res.status(201).json({ ok: true, data: { user, redirect: '/onboarding' } });
 }
 export async function login(req: Request, res: Response) {
   const user = await auth.login(loginSchema.parse(req.body), res, context(req));
