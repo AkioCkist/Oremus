@@ -46,7 +46,14 @@ export function clearSessionCookies(res: Response): void {
 }
 
 export async function register(input: { email: string; username: string; displayName: string; password: string }, res: Response, context: { ip?: string; userAgent?: string }) {
-  if (await User.exists({ $or: [{ email: input.email }, { username: input.username }] })) throw new AppError(409, 'That email or username is already in use.', 'IDENTITY_TAKEN');
+  const [emailTaken, usernameTaken] = await Promise.all([User.exists({ email: input.email }), User.exists({ username: input.username })]);
+  if (emailTaken || usernameTaken) {
+    // Same shape as validation errors so the sign-up form can point at the field that needs changing.
+    const fieldErrors: Record<string, string[]> = {};
+    if (emailTaken) fieldErrors.email = ['An account with this email already exists. Log in instead?'];
+    if (usernameTaken) fieldErrors.username = ['That username is already taken. Try another one.'];
+    throw new AppError(409, 'That email or username is already in use.', 'IDENTITY_TAKEN', { fieldErrors });
+  }
   const user = await User.create({ ...input, passwordHash: await bcrypt.hash(input.password, 12) });
   const remember = false, family = crypto.randomUUID(), refresh = signRefresh(user.id, family, remember), access = signAccess(user.id);
   await persistRefresh(user.id, refresh, family, remember, context);

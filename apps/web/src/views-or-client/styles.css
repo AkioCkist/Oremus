@@ -142,6 +142,11 @@
   /* Search field */
   .pill-input { @apply h-9 w-full rounded-full bg-field px-4 text-body text-ink placeholder:text-subtle focus:outline-none focus:ring-2 focus:ring-brand-500; }
   .form-error { @apply rounded-xl bg-ios-red/10 p-3 text-subheadline font-medium text-ios-red; }
+  /* Field-level validation: red ring on the field, message right under it, summary box above the form. */
+  .input[aria-invalid="true"], .input[aria-invalid="true"]:focus { @apply bg-ios-red/5 ring-2 ring-ios-red; }
+  .field-error { @apply mt-1.5 text-footnote font-medium text-ios-red; }
+  .error-summary { @apply rounded-2xl border border-ios-red/30 bg-ios-red/10 p-4 text-subheadline text-ios-red focus:outline-none; }
+  .error-summary a { @apply underline underline-offset-2 hover:no-underline; }
   .form-success { @apply rounded-xl bg-ios-green/10 p-3 text-subheadline font-medium text-ios-green; }
   .file-input { @apply block w-full text-subheadline text-muted file:mr-3 file:rounded-full file:border-0 file:bg-control file:px-3.5 file:py-1.5 file:font-medium file:text-brand-600 hover:file:bg-control-hover; }
   .check { @apply size-[1.125rem] rounded-full border-strong text-brand-600 accent-brand-600; }

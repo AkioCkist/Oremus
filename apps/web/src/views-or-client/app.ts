@@ -27,12 +27,17 @@ function showToast(message: string, tone: 'success' | 'error' = 'success') {
   toast.textContent = message; region.appendChild(toast); window.setTimeout(() => toast.remove(), 4000);
 }
 
+/** A failed API call; `details` carries the server's per-field validation errors when there are any. */
+class RequestError extends Error {
+  constructor(message: string, public details?: unknown) { super(message); }
+}
+
 async function request(url: string, options: RequestInit = {}) {
   let response: Response;
   try { response = await fetch(url, { credentials: 'same-origin', ...options, headers: { 'x-csrf-token': csrf, ...(options.headers || {}) } }); }
   catch { throw new Error(navigator.onLine ? 'Could not reach Oremus. Please try again.' : "You're offline. Check your connection and try again."); }
   const payload = await response.json().catch(() => ({ ok: false, error: { message: 'Unexpected server response.' } }));
-  if (!response.ok || !payload.ok) throw new Error(payload.error?.message || 'Request failed.');
+  if (!response.ok || !payload.ok) throw new RequestError(payload.error?.message || 'Request failed.', payload.error?.details);
   return payload.data;
 }
 const postJson = (url: string, body: unknown, method = 'POST') => request(url, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
@@ -107,6 +112,140 @@ darkQuery.addEventListener('change', syncThemeControls);
 syncThemeControls();
 
 
+/* ---------- Form validation (forms with data-validate) ---------- */
+
+// Each check returns a message for what is wrong, or nothing when the value is fine. Keyed by the input's name (or id
+// for fields that aren't sent, like "Repeat password"); messages mirror the server's validators.
+type FieldCheck = (value: string, form: HTMLFormElement) => string | undefined;
+type FieldProblem = { key: string; message: string };
+
+const joinWords = (words: string[]) => words.length > 1 ? `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}` : words[0] ?? '';
+
+const FIELD_CHECKS: Record<string, Record<string, FieldCheck>> = {
+  register: {
+    displayName: (value) => {
+      const name = value.trim();
+      if (!name) return 'Enter your full name.';
+      if (name.length < 2) return 'Full name must be at least 2 characters.';
+      if (name.length > 60) return 'Full name must be no more than 60 characters.';
+    },
+    username: (value) => {
+      const name = value.trim();
+      if (!name) return 'Choose a username.';
+      if (/\s/.test(name)) {
+        const suggestion = name.replace(/\s+/g, '_');
+        return `Username can't contain spaces.${/^[a-zA-Z0-9_]{3,24}$/.test(suggestion) ? ` Try "${suggestion}" instead.` : ' Use underscores instead.'}`;
+      }
+      if (/[^a-zA-Z0-9_]/.test(name)) return 'Username can only use letters (no accents), numbers and underscores.';
+      if (name.length < 3) return 'Username must be at least 3 characters.';
+      if (name.length > 24) return 'Username must be no more than 24 characters.';
+    },
+    email: (value) => {
+      const email = value.trim();
+      if (!email) return 'Enter your email address.';
+      if (email.length > 254) return 'Email address is too long.';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Enter a valid email address, like name@example.com.';
+    },
+    password: (value) => {
+      if (!value) return 'Enter a password.';
+      if (value.length > 128) return 'Password must be no more than 128 characters.';
+      const missing = [
+        value.length < 10 && 'at least 10 characters', !/[A-Z]/.test(value) && 'an uppercase letter',
+        !/[a-z]/.test(value) && 'a lowercase letter', !/[0-9]/.test(value) && 'a number'
+      ].filter((item): item is string => !!item);
+      if (missing.length) return `Password needs ${joinWords(missing)}.`;
+    },
+    'password-repeat': (value, form) => {
+      if (!value) return 'Repeat your password.';
+      if (value !== $<HTMLInputElement>('[data-password-source]', form)?.value) return 'Passwords do not match.';
+    }
+  }
+};
+
+const fieldInput = (form: HTMLFormElement, key: string) => $<HTMLInputElement>(`[name="${CSS.escape(key)}"], #${CSS.escape(key)}`, form);
+
+function setFieldError(form: HTMLFormElement, key: string, message?: string) {
+  const input = fieldInput(form, key);
+  const slot = $(`[data-field-error="${CSS.escape(key)}"]`, form);
+  if (message) input?.setAttribute('aria-invalid', 'true'); else input?.removeAttribute('aria-invalid');
+  if (slot) { slot.textContent = message || ''; slot.classList.toggle('hidden', !message); }
+}
+
+/** Lists every problem in the box above the form; each one links to its field. Problems without a field are plain text. */
+function showErrorSummary(form: HTMLFormElement, problems: FieldProblem[]) {
+  const summary = $('[data-error-summary]', form);
+  if (!summary) return;
+  summary.classList.toggle('hidden', !problems.length);
+  $('[data-error-summary-title]', summary)!.textContent = problems.length === 1 ? 'Please fix 1 problem' : `Please fix ${problems.length} problems`;
+  $('[data-error-summary-list]', summary)!.replaceChildren(...problems.map(({ key, message }) => {
+    const item = document.createElement('li');
+    const input = key ? fieldInput(form, key) : null;
+    if (!input) { item.textContent = message; return item; }
+    const link = document.createElement('a'); link.href = `#${input.id}`; link.textContent = message;
+    link.addEventListener('click', (event) => { event.preventDefault(); input.focus(); input.scrollIntoView({ block: 'center', behavior: 'smooth' }); });
+    item.appendChild(link); return item;
+  }));
+}
+
+// Problems only the server can spot ("username taken"), with the value they were about; they stay until that value changes.
+const serverFieldErrors = new WeakMap<HTMLFormElement, Map<string, { value: string; message: string }>>();
+
+/** Checks every field, marks the wrong ones and refreshes the summary. Returns true when the form can be sent. */
+function validateForm(form: HTMLFormElement) {
+  const checks = FIELD_CHECKS[form.dataset.validate || ''] || {};
+  const serverErrors = serverFieldErrors.get(form);
+  const problems: FieldProblem[] = [];
+  for (const [key, check] of Object.entries(checks)) {
+    const input = fieldInput(form, key); if (!input) continue;
+    const serverError = serverErrors?.get(key);
+    const message = check(input.value, form) || (serverError?.value === input.value ? serverError.message : undefined);
+    setFieldError(form, key, message);
+    if (message) problems.push({ key, message });
+  }
+  showErrorSummary(form, problems);
+  return !problems.length;
+}
+
+function focusErrorSummary(form: HTMLFormElement) {
+  const summary = $('[data-error-summary]', form);
+  if (!summary || summary.classList.contains('hidden')) return;
+  summary.focus({ preventScroll: true }); summary.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
+$$<HTMLFormElement>('form[data-validate]').forEach((form) => {
+  const checks = FIELD_CHECKS[form.dataset.validate || ''] || {};
+  // Before the first Sign up a field is only checked once someone leaves it with something typed;
+  // after it, every keystroke re-checks the whole form so fixed problems drop off the list right away.
+  form.addEventListener('focusout', (event) => {
+    const input = event.target as HTMLInputElement;
+    const key = input.name || input.id;
+    // Leaving a field by pressing Sign up: the submit check covers it, and a message appearing now would push the
+    // button down mid-click so the click misses.
+    if ((event.relatedTarget as Element | null)?.matches('[type="submit"]')) return;
+    if (form.dataset.attempted || !checks[key] || !input.value) return;
+    setFieldError(form, key, checks[key](input.value, form));
+  });
+  form.addEventListener('input', (event) => {
+    if (form.dataset.attempted) { validateForm(form); return; }
+    const input = event.target as HTMLInputElement;
+    // Clear a field's message as soon as it becomes valid; new problems wait until the field is left.
+    const key = input.name || input.id;
+    if (input.getAttribute('aria-invalid') && checks[key] && !checks[key](input.value, form)) setFieldError(form, key);
+  });
+});
+
+/** Shows a failed request's per-field errors (or its single message) in the summary. Returns false when the form has no summary. */
+function showServerErrors(form: HTMLFormElement, message: string, details: unknown) {
+  if (!$('[data-error-summary]', form)) return false;
+  const fieldErrors = (details as { fieldErrors?: Record<string, string[] | undefined> } | undefined)?.fieldErrors || {};
+  const problems = Object.entries(fieldErrors).filter(([, messages]) => messages?.length).map(([key, messages]) => ({ key, message: messages![0]! }));
+  serverFieldErrors.set(form, new Map(problems.map(({ key, message: fieldMessage }) => [key, { value: fieldInput(form, key)?.value ?? '', message: fieldMessage }])));
+  problems.forEach(({ key, message: fieldMessage }) => setFieldError(form, key, fieldMessage));
+  showErrorSummary(form, problems.length ? problems : [{ key: '', message }]);
+  focusErrorSummary(form);
+  return true;
+}
+
 /* ---------- API forms ---------- */
 
 $$<HTMLFormElement>('[data-api-form]').forEach((form) => {
@@ -116,6 +255,10 @@ $$<HTMLFormElement>('[data-api-form]').forEach((form) => {
     const error = $('[data-form-error]', form);
     const success = $('[data-form-success]', form);
     const developmentResetLink = $<HTMLAnchorElement>('[data-development-reset-link]', form);
+    if (form.dataset.validate !== undefined) {
+      form.dataset.attempted = 'true';
+      if (!validateForm(form)) { focusErrorSummary(form); return; }
+    }
     const repeat = $<HTMLInputElement>('[data-password-repeat]', form);
     if (repeat && repeat.value !== $<HTMLInputElement>('[data-password-source]', form)?.value) {
       if (error) { error.textContent = 'Passwords do not match.'; error.classList.remove('hidden'); }
@@ -139,6 +282,7 @@ $$<HTMLFormElement>('[data-api-form]').forEach((form) => {
       }
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : 'Something went wrong.';
+      if (showServerErrors(form, message, caught instanceof RequestError ? caught.details : undefined)) return;
       if (error) { error.textContent = message; error.classList.remove('hidden'); } else showToast(message, 'error');
     } finally { submit?.removeAttribute('disabled'); form.removeAttribute('aria-busy'); }
   });

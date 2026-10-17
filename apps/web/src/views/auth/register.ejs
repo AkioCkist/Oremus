@@ -1,27 +1,33 @@
 <%- include('_shell-top') %>
         <h1 class="text-center font-display text-large-title font-bold leading-tight">Create an account</h1>
         <p class="mt-2 text-center text-15 text-muted">To continue, fill out your personal info</p>
-        <form class="mt-8 space-y-4" data-api-form action="/auth/register" method="post">
+        <form class="mt-8 space-y-4" data-api-form data-validate="register" action="/auth/register" method="post" novalidate>
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <div><label class="label" for="displayName">Full name <span class="text-ios-red" aria-hidden="true">*</span></label><input class="input mt-1.5 w-full" id="displayName" name="displayName" autocomplete="name" placeholder="Name Surname" required minlength="2" maxlength="60"></div>
-          <div><label class="label" for="username">Username <span class="text-ios-red" aria-hidden="true">*</span></label><input class="input mt-1.5 w-full" id="username" name="username" autocomplete="username" placeholder="best_wizard421" required pattern="[a-zA-Z0-9_]{3,24}" aria-describedby="username-help"><p id="username-help" class="helper">3–24 letters, numbers or underscores.</p></div>
-          <div><label class="label" for="email">E-mail <span class="text-ios-red" aria-hidden="true">*</span></label><input class="input mt-1.5 w-full" id="email" name="email" type="email" autocomplete="email" placeholder="email@email.com" required></div>
+          <div class="error-summary hidden" data-error-summary role="alert" tabindex="-1" aria-labelledby="register-error-title">
+            <p id="register-error-title" class="flex items-center gap-2 font-semibold"><svg class="icon size-[1.125rem] shrink-0"><use href="#i-info"/></svg><span data-error-summary-title>Please fix the following</span></p>
+            <ul class="mt-2 list-disc space-y-1 pl-7" data-error-summary-list></ul>
+          </div>
+          <div><label class="label" for="displayName">Full name <span class="text-ios-red" aria-hidden="true">*</span></label><input class="input mt-1.5 w-full" id="displayName" name="displayName" autocomplete="name" placeholder="Name Surname" required minlength="2" maxlength="60" aria-describedby="displayName-error"><p id="displayName-error" class="field-error hidden" data-field-error="displayName"></p></div>
+          <div><label class="label" for="username">Username <span class="text-ios-red" aria-hidden="true">*</span></label><input class="input mt-1.5 w-full" id="username" name="username" autocomplete="username" placeholder="best_wizard421" required pattern="[a-zA-Z0-9_]{3,24}" aria-describedby="username-error username-help"><p id="username-error" class="field-error hidden" data-field-error="username"></p><p id="username-help" class="helper">3–24 letters, numbers or underscores.</p></div>
+          <div><label class="label" for="email">E-mail <span class="text-ios-red" aria-hidden="true">*</span></label><input class="input mt-1.5 w-full" id="email" name="email" type="email" autocomplete="email" placeholder="email@email.com" required aria-describedby="email-error"><p id="email-error" class="field-error hidden" data-field-error="email"></p></div>
           <div>
             <label class="label" for="password">Password <span class="text-ios-red" aria-hidden="true">*</span></label>
             <div class="input-icon relative mt-1.5">
               <svg class="icon size-[1.125rem]"><use href="#i-key"/></svg>
-              <input class="input w-full pr-11" id="password" name="password" type="password" autocomplete="new-password" placeholder="••••••••••" required minlength="10" maxlength="128" pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{10,128}" title="Use at least 10 characters, including an uppercase letter, a lowercase letter, and a number." aria-describedby="password-help" data-password-source>
+              <input class="input w-full pr-11" id="password" name="password" type="password" autocomplete="new-password" placeholder="••••••••••" required minlength="10" maxlength="128" pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{10,128}" aria-describedby="password-error password-help" data-password-source>
               <button type="button" class="absolute right-1.5 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-hover" data-toggle-password="password" aria-label="Show password" aria-pressed="false"><svg class="icon size-[1.125rem]"><use href="#i-eye-off"/></svg></button>
             </div>
+            <p id="password-error" class="field-error hidden" data-field-error="password"></p>
             <p id="password-help" class="helper">At least 10 characters with upper- and lowercase letters and a number.</p>
           </div>
           <div>
             <label class="label" for="password-repeat">Repeat password <span class="text-ios-red" aria-hidden="true">*</span></label>
             <div class="input-icon relative mt-1.5">
               <svg class="icon size-[1.125rem]"><use href="#i-key"/></svg>
-              <input class="input w-full pr-11" id="password-repeat" type="password" autocomplete="new-password" placeholder="••••••••••" required data-password-repeat>
+              <input class="input w-full pr-11" id="password-repeat" type="password" autocomplete="new-password" placeholder="••••••••••" required aria-describedby="password-repeat-error" data-password-repeat>
               <button type="button" class="absolute right-1.5 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-hover" data-toggle-password="password-repeat" aria-label="Show password" aria-pressed="false"><svg class="icon size-[1.125rem]"><use href="#i-eye-off"/></svg></button>
             </div>
+            <p id="password-repeat-error" class="field-error hidden" data-field-error="password-repeat"></p>
           </div>
           <p class="text-xs leading-relaxed text-muted">By clicking Sign up, you agree to our Terms and Conditions and confirm you have read our Privacy Notice.</p>
           <p class="form-error hidden" data-form-error role="alert"></p>
