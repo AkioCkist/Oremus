@@ -223,11 +223,11 @@
   .sidebar-hotzone { @apply hidden; }
   @media (min-width: 1024px) {
     body:has(> .app-sidebar) { --header-h: 0px; }
-    .sidebar-hotzone { @apply fixed inset-y-0 left-0 z-50 block w-3; }
+    .sidebar-hotzone { @apply fixed inset-y-0 left-0 z-50 block w-8; }
     .sidebar-hotzone::after { content: ''; @apply absolute left-1 top-1/2 h-14 w-1 -translate-y-1/2 rounded-full bg-ink/20 transition-colors; }
     .sidebar-hotzone:hover::after { @apply bg-ink/40; }
     .app-sidebar {
-      @apply fixed inset-y-2 left-2 z-50 h-auto w-[20.5rem] justify-start rounded-[1.375rem] px-4 pb-3 pt-2.5;
+      @apply fixed inset-y-2 left-2 z-50 h-auto w-[21rem] justify-start rounded-[1.375rem] px-5 pb-4 pt-3;
       box-shadow: var(--shadow-pop);
       transform: translateX(calc(-100% - 1.5rem));
       transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1) 0.15s;
@@ -237,10 +237,22 @@
     .app-sidebar:hover,
     .app-sidebar:focus-within,
     .app-sidebar:has(details[open]) { transform: none; transition-delay: 0s; }
-    .app-sidebar-top { @apply h-[3.375rem] shrink-0 pl-2 pr-1; }
-    .app-sidebar-search { @apply flex shrink-0 items-center gap-2 pb-5; }
-    .app-sidebar-search .pill-input { @apply h-11; }
+    /* Brand row and search row get room to breathe: taller rows, wider gaps, roomier toolbar capsule. */
+    .app-sidebar-top { @apply h-16 shrink-0 gap-3 pl-1 pr-0.5; }
+    .app-sidebar .toolbar-group { @apply h-11 gap-1 px-1.5; }
+    .app-sidebar .toolbar-btn { @apply size-9; }
+    .app-sidebar-search { @apply flex shrink-0 items-center gap-3 pb-7 pt-3; }
+    .app-sidebar-search .pill-input { @apply h-12; }
+    .app-sidebar-search .compose-btn { @apply size-12; }
+    /* Compose stays monochrome like the rest of the sidebar. */
+    .app-sidebar-search .compose-btn { @apply bg-ink text-surface shadow-none; }
     .app-sidebar-body { @apply -mx-1 block min-h-0 flex-1 overflow-y-auto px-1 pb-4; scrollbar-width: none; }
+    /* Instagram-style rows: taller, larger label and 24pt one-color icon; the current page is a bold label on a faint fill. */
+    .app-sidebar-body .side-link { @apply min-h-[3rem] gap-4 rounded-xl px-3 text-body text-ink; }
+    .app-sidebar-body .side-link-active, .app-sidebar-body .side-link-active:hover { @apply bg-ink/[0.06] font-semibold text-ink; }
+    .app-sidebar-body .side-icon { @apply size-6 text-ink; stroke-width: 1.7; }
+    .app-sidebar-body .side-link-active .side-icon { @apply text-ink; stroke-width: 2.3; }
+    .app-sidebar-body .side-heading { @apply px-3 pb-2 pt-7 text-footnote font-semibold uppercase tracking-wider text-subtle; }
     .app-sidebar-account { @apply mt-2 flex shrink-0 items-center gap-2.5 rounded-xl bg-field px-3 py-2 transition-colors hover:bg-control; }
     .app-sidebar .header-popover { @apply left-0 right-auto; }
   }

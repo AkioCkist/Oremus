@@ -1,30 +1,30 @@
-<%# App sidebar rows (rendered inside the nav from lg up). 38pt rows, tinted symbol per destination,
-    trailing counts; the selected row is a solid tint capsule with white text. -%>
+<%# App sidebar rows (rendered inside the nav from lg up). Instagram-style: roomy rows, one-color line icons,
+    the current page shows a bold label on a faint fill; only unread counts carry color. -%>
 <% const sideGroups = locals.groups || []; const isActive = (href) => href === '/' ? path === '/' : path.startsWith(href);
    const row = (href, active) => `side-link${active ? ' side-link-active' : ''}`; -%>
-<nav aria-label="Main" class="space-y-px">
-  <a class="<%= row('/', isActive('/')) %>" href="/" <%= isActive('/') ? 'aria-current=page' : '' %>><svg class="side-icon text-ios-blue"><use href="#i-home"/></svg><span class="flex-1 truncate">Home</span></a>
-  <a class="<%= row('/discover', isActive('/discover')) %>" href="/discover" <%= isActive('/discover') ? 'aria-current=page' : '' %>><svg class="side-icon text-ios-purple"><use href="#i-sparkles"/></svg><span class="flex-1 truncate">For you</span></a>
-  <a class="<%= row('/stories', isActive('/stories') && !isActive('/stories/archive')) %>" href="/stories"><svg class="side-icon text-ios-orange"><use href="#i-stories"/></svg><span class="flex-1 truncate">Stories</span></a>
-  <a class="<%= row('/groups', isActive('/groups')) %>" href="/groups"><svg class="side-icon text-ios-green"><use href="#i-group"/></svg><span class="flex-1 truncate">Groups</span></a>
-  <a class="<%= row('/messages', isActive('/messages')) %>" href="/messages" data-badge-link="messages" data-badge-class="side-count !static !ring-0"><svg class="side-icon text-ios-teal"><use href="#i-chat"/></svg><span class="flex-1 truncate">Messages</span><% if (locals.unreadMessages) { %><span class="badge side-count !static !ring-0" data-badge><%= unreadMessages > 9 ? '9+' : unreadMessages %></span><% } %></a>
-  <a class="<%= row('/notifications', isActive('/notifications')) %>" href="/notifications" data-badge-link="notifications" data-badge-class="side-count !static !ring-0"><svg class="side-icon text-ios-red"><use href="#i-bell"/></svg><span class="flex-1 truncate">Notifications</span><% if (locals.unreadNotifications) { %><span class="badge side-count !static !ring-0" data-badge><%= unreadNotifications > 9 ? '9+' : unreadNotifications %></span><% } %></a>
+<nav aria-label="Main" class="space-y-1">
+  <a class="<%= row('/', isActive('/')) %>" href="/" <%= isActive('/') ? 'aria-current=page' : '' %>><svg class="side-icon"><use href="#i-home"/></svg><span class="flex-1 truncate">Home</span></a>
+  <a class="<%= row('/discover', isActive('/discover')) %>" href="/discover" <%= isActive('/discover') ? 'aria-current=page' : '' %>><svg class="side-icon"><use href="#i-sparkles"/></svg><span class="flex-1 truncate">For you</span></a>
+  <a class="<%= row('/stories', isActive('/stories') && !isActive('/stories/archive')) %>" href="/stories"><svg class="side-icon"><use href="#i-stories"/></svg><span class="flex-1 truncate">Stories</span></a>
+  <a class="<%= row('/groups', isActive('/groups')) %>" href="/groups"><svg class="side-icon"><use href="#i-group"/></svg><span class="flex-1 truncate">Groups</span></a>
+  <a class="<%= row('/messages', isActive('/messages')) %>" href="/messages" data-badge-link="messages" data-badge-class="side-count !static !ring-0"><svg class="side-icon"><use href="#i-chat"/></svg><span class="flex-1 truncate">Messages</span><% if (locals.unreadMessages) { %><span class="badge side-count !static !ring-0" data-badge><%= unreadMessages > 9 ? '9+' : unreadMessages %></span><% } %></a>
+  <a class="<%= row('/notifications', isActive('/notifications')) %>" href="/notifications" data-badge-link="notifications" data-badge-class="side-count !static !ring-0"><svg class="side-icon"><use href="#i-bell"/></svg><span class="flex-1 truncate">Notifications</span><% if (locals.unreadNotifications) { %><span class="badge side-count !static !ring-0" data-badge><%= unreadNotifications > 9 ? '9+' : unreadNotifications %></span><% } %></a>
 </nav>
 
 <h2 class="side-heading">Library</h2>
-<nav aria-label="Library" class="space-y-px">
-  <a class="<%= row('/profile', isActive('/profile/' + currentUser.username)) %>" href="/profile/<%= currentUser.username %>"><svg class="side-icon text-ios-indigo"><use href="#i-user"/></svg><span class="flex-1 truncate">Profile</span></a>
-  <a class="<%= row('/search', isActive('/search')) %>" href="/search?kind=user"><svg class="side-icon text-ios-teal"><use href="#i-users"/></svg><span class="flex-1 truncate">Find friends</span></a>
-  <a class="<%= row('/stories/archive', isActive('/stories/archive')) %>" href="/stories/archive"><svg class="side-icon text-ios-purple"><use href="#i-archive"/></svg><span class="flex-1 truncate">Story archive</span></a>
-  <a class="<%= row('/settings', isActive('/settings')) %>" href="/settings"><svg class="side-icon text-subtle"><use href="#i-settings"/></svg><span class="flex-1 truncate">Settings</span></a>
+<nav aria-label="Library" class="space-y-1">
+  <a class="<%= row('/profile', isActive('/profile/' + currentUser.username)) %>" href="/profile/<%= currentUser.username %>"><svg class="side-icon"><use href="#i-user"/></svg><span class="flex-1 truncate">Profile</span></a>
+  <a class="<%= row('/search', isActive('/search')) %>" href="/search?kind=user"><svg class="side-icon"><use href="#i-users"/></svg><span class="flex-1 truncate">Find friends</span></a>
+  <a class="<%= row('/stories/archive', isActive('/stories/archive')) %>" href="/stories/archive"><svg class="side-icon"><use href="#i-archive"/></svg><span class="flex-1 truncate">Story archive</span></a>
+  <a class="<%= row('/settings', isActive('/settings')) %>" href="/settings"><svg class="side-icon"><use href="#i-settings"/></svg><span class="flex-1 truncate">Settings</span></a>
 </nav>
 
 <% if (sideGroups.length) { %>
 <h2 class="side-heading">Your groups</h2>
-<nav aria-label="Your groups" class="space-y-px">
+<nav aria-label="Your groups" class="space-y-1">
   <% sideGroups.forEach(function (g) { %>
   <a class="side-link" href="/groups/<%= g.slug %>">
-    <span class="grid size-5 shrink-0 place-items-center overflow-hidden rounded-[5px] <%= g.coverUrl ? 'bg-field' : toneOf(g.name) %>"><% if (g.coverUrl) { %><img class="size-full object-cover" src="<%= g.coverUrl %>" alt=""><% } else { %><span class="text-[0.5625rem] font-bold text-white"><%= initials(g.name) %></span><% } %></span>
+    <span class="grid size-6 shrink-0 place-items-center overflow-hidden rounded-md <%= g.coverUrl ? 'bg-field' : toneOf(g.name) %>"><% if (g.coverUrl) { %><img class="size-full object-cover" src="<%= g.coverUrl %>" alt=""><% } else { %><span class="text-[0.625rem] font-bold text-white"><%= initials(g.name) %></span><% } %></span>
     <span class="flex-1 truncate"><%= g.name %></span>
   </a>
   <% }) %>
