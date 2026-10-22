@@ -2,8 +2,8 @@ services:
   mongo:
     image: mongo:8.0
     restart: unless-stopped
-    ports:
-      - "127.0.0.1:27017:27017"
+    expose:
+      - "27017"
     volumes:
       - mongo-data:/data/db
     healthcheck:
@@ -15,8 +15,8 @@ services:
   redis:
     image: redis:7.4-alpine
     restart: unless-stopped
-    ports:
-      - "127.0.0.1:6379:6379"
+    expose:
+      - "6379"
     command: redis-server --appendonly yes
     volumes:
       - redis-data:/data
@@ -32,8 +32,17 @@ services:
     environment:
       MONGODB_URI: mongodb://mongo:27017/${MONGO_DB_NAME:-oremus}
       REDIS_URL: redis://redis:6379
-    ports:
-      - "127.0.0.1:${API_PORT:-8001}:8000"
+    expose:
+      - "8000"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 128
     depends_on:
       mongo:
         condition: service_healthy
@@ -48,18 +57,29 @@ services:
     restart: unless-stopped
     env_file:
       - path: .env
-        required: false
+        required: true
     environment:
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-development}
       WEB_PORT: 3000
       MONGODB_URI: mongodb://mongo:27017/${MONGO_DB_NAME:-oremus}
       REDIS_URL: redis://redis:6379
       FASTAPI_URL: http://api:8000
       APP_ORIGIN: ${APP_ORIGIN:-http://localhost:3000}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
     ports:
-      - "${WEB_PORT:-3000}:3000"
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
     volumes:
       - uploads:/app/apps/web/uploads
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
     depends_on:
       mongo:
         condition: service_healthy
@@ -76,11 +96,42 @@ services:
     restart: unless-stopped
     env_file:
       - path: .env
-        required: false
+        required: true
     environment:
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-development}
       MONGODB_URI: mongodb://mongo:27017/${MONGO_DB_NAME:-oremus}
       REDIS_URL: redis://redis:6379
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:3000}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+    volumes:
+      - uploads:/app/apps/web/uploads
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  seed:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: seed
+    profiles: ["tools"]
+    environment:
+      NODE_ENV: development
+      MONGODB_URI: mongodb://mongo:27017/${MONGO_DB_NAME:-oremus}
+      REDIS_URL: redis://redis:6379
+      APP_ORIGIN: http://web:3000
     volumes:
       - uploads:/app/apps/web/uploads
     depends_on:
@@ -88,6 +139,14 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  data-mirror:
+    image: alpine:3.21
+    profiles: ["tools"]
+    volumes:
+      - ./apps/web/uploads:/source:ro
+      - uploads:/target
+    command: ["sh", "-c", "cp -a /source/. /target/ && echo 'Host uploads mirrored to the Docker uploads volume.'"]
 
 volumes:
   mongo-data:

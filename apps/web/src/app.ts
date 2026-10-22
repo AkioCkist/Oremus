@@ -45,7 +45,7 @@ function setAssetCacheHeaders(res: express.Response, filePath: string): void {
 
 export function createApp() {
   const app = express();
-  app.set('trust proxy', 1);
+  app.set('trust proxy', env.TRUST_PROXY);
   app.set('view engine', 'ejs');
   app.set('views', path.resolve(process.cwd(), 'src/views'));
   Object.assign(app.locals, viewHelpers, { assetVersion: assetVersion() });

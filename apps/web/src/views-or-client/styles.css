@@ -385,6 +385,17 @@
   .eyebrow { @apply text-footnote font-semibold uppercase text-muted; }
 }
 
+/* Reaction people: quick compositor-only motion for the sheet and selected filter. */
+@keyframes reactions-dialog-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
+@keyframes reactions-backdrop-in { from { opacity: 0; } }
+@keyframes reactions-indicator-in { from { opacity: 0; transform: scaleX(0.55); } }
+dialog[data-reactions-dialog][open] { animation: reactions-dialog-in 180ms ease-out; }
+dialog[data-reactions-dialog][open]::backdrop { animation: reactions-backdrop-in 180ms ease-out; }
+.reaction-tab-indicator { transform-origin: center; animation: reactions-indicator-in 150ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  dialog[data-reactions-dialog][open], dialog[data-reactions-dialog][open]::backdrop, .reaction-tab-indicator { animation: none; }
+}
+
 @layer utilities {
   .scrollbar-none { scrollbar-width: none; }
   .scrollbar-none::-webkit-scrollbar { display: none; }

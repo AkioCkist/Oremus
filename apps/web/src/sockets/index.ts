@@ -4,6 +4,8 @@ import { Server } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
 import { env } from '../config/env.js';
+import { redis } from '../config/database.js';
+import { User } from '../models/index.js';
 import { setNotifier } from '../services/notification.service.js';
 
 export async function createSocketServer(server: HttpServer) {
@@ -13,7 +15,10 @@ export async function createSocketServer(server: HttpServer) {
     try {
       const raw = (socket.handshake.headers.cookie || '').split(';').map((part) => part.trim()).find((part) => part.startsWith('access_token='))?.slice('access_token='.length);
       if (!raw) throw new Error('Missing access token');
-      const claims = jwt.verify(raw, env.JWT_ACCESS_SECRET) as jwt.JwtPayload;
+      const claims = jwt.verify(raw, env.JWT_ACCESS_SECRET, { algorithms: ['HS256'] }) as jwt.JwtPayload;
+      if (claims.type !== 'access' || !claims.sub || !claims.jti || await redis.exists(`deny:${claims.jti}`)) throw new Error('Invalid access token');
+      const user = await User.exists({ _id: claims.sub, deletedAt: null });
+      if (!user) throw new Error('Account unavailable');
       socket.data.userId = claims.sub; next();
     } catch { next(new Error('Authentication required')); }
   });

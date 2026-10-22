@@ -69,7 +69,7 @@ MongoDB and Redis must be running (for example `docker compose up -d mongo redis
 ```powershell
 Copy-Item .env.example .env
 npm install
-python -m pip install -r apps/api/requirements.txt
+python -m pip install -r apps/api/requirements-dev.txt
 npm run db:setup
 npm run dev
 ```

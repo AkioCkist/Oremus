@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import { afterCursor, cursorSort, timeChunk } from '../utils/paginate.js';
 import sanitizeHtml from 'sanitize-html';
-import { Comment, Follow, Group, GroupMember, GroupPost, Post, Reaction } from '../models/index.js';
+import { Comment, Follow, Group, GroupMember, GroupPost, Post, Reaction, REACTION_TYPES } from '../models/index.js';
 import { enqueuePostVideos } from '../media/queue.js';
 import { AppError } from '../utils/errors.js';
 import { invalidateSocialCaches } from './cache.service.js';
@@ -136,6 +136,44 @@ export async function react(userId: string, postId: string, type: string) {
   if (active) await notify({ recipientId: String(post.authorId), actorId: userId, type: 'reaction', entityType: 'Post', entityId: postId, text: `reacted ${type} to your post` });
   await invalidateSocialCaches([userId, String(post.authorId)]);
   return { active, count: post.reactionCount };
+}
+
+export const REACTION_PAGE_SIZE = 30;
+
+/** People who reacted to a post, filterable by reaction type and ordered newest first. */
+export async function listReactions(userId: string, postId: string, type: unknown, cursor: unknown) {
+  if (!mongoose.isValidObjectId(postId)) throw new AppError(404, 'Post not found.', 'POST_NOT_FOUND');
+  const post: any = await Post.findOne({ _id: postId, deletedAt: null }).lean();
+  if (!post) throw new AppError(404, 'Post not found.', 'POST_NOT_FOUND');
+  await assertCanAccessPost(post, userId);
+
+  const selected = String(type || 'all');
+  if (selected !== 'all' && !(REACTION_TYPES as readonly string[]).includes(selected)) {
+    throw new AppError(422, 'Choose a valid reaction type.', 'INVALID_REACTION_TYPE');
+  }
+  const blocked = await blockedUserIds(userId);
+  const visible = { postId: post._id, userId: { $nin: blocked.map((blockedId) => new mongoose.Types.ObjectId(blockedId)) } };
+  const filter = { ...visible, ...(selected === 'all' ? {} : { type: selected }), ...afterCursor(cursor) };
+  const rows = await Reaction.find(filter).sort(cursorSort()).limit(REACTION_PAGE_SIZE + 1)
+    .populate('userId', 'username displayName profile.avatarUrl deletedAt').lean();
+  const chunk = timeChunk(rows as any[], REACTION_PAGE_SIZE);
+  const grouped = await Reaction.aggregate<{ _id: string; count: number }>([
+    { $match: visible },
+    { $lookup: { from: 'users', localField: 'userId', foreignField: '_id', as: 'user' } },
+    { $unwind: '$user' },
+    { $match: { 'user.deletedAt': null } },
+    { $group: { _id: '$type', count: { $sum: 1 } } }
+  ]);
+  const counts = Object.fromEntries(REACTION_TYPES.map((reaction) => [reaction, grouped.find((row) => row._id === reaction)?.count || 0]));
+  return {
+    items: chunk.items.filter((row: any) => row.userId && !row.userId.deletedAt).map((row: any) => ({
+      type: row.type,
+      createdAt: row.createdAt,
+      user: { _id: row.userId._id, username: row.userId.username, displayName: row.userId.displayName, avatarUrl: row.userId.profile?.avatarUrl || '' }
+    })),
+    next: chunk.next,
+    counts: { all: Object.values(counts).reduce((sum, count) => sum + count, 0), ...counts }
+  };
 }
 
 export async function addComment(userId: string, postId: string, input: any) {

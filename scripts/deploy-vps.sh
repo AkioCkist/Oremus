@@ -8,8 +8,33 @@ if [ ! -f .env ]; then
   exit 1
 fi
 
-if grep -Eq '^JWT_(ACCESS|REFRESH)_SECRET=dev-' .env; then
-  echo "Refusing to deploy with the example JWT secrets in .env." >&2
+env_value() {
+  sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*//p" .env | tail -n 1 | tr -d '\r' | sed 's/^"//;s/"$//'
+}
+
+access_secret="$(env_value JWT_ACCESS_SECRET)"
+refresh_secret="$(env_value JWT_REFRESH_SECRET)"
+case "$access_secret:$refresh_secret" in
+  :*|*:|dev-*|*:dev-*|replace-*|*:replace-*)
+    echo "Refusing to deploy without two non-placeholder JWT secrets." >&2
+    exit 1
+    ;;
+esac
+if [ "$access_secret" = "$refresh_secret" ]; then
+  echo "JWT access and refresh secrets must be different." >&2
+  exit 1
+fi
+
+app_origin="$(env_value APP_ORIGIN)"
+case "$app_origin" in
+  https://*) ;;
+  *)
+    echo "APP_ORIGIN must be the public HTTPS origin before deployment." >&2
+    exit 1
+    ;;
+esac
+if printf '%s' "$app_origin" | grep -q ','; then
+  echo "Use one canonical HTTPS APP_ORIGIN in production." >&2
   exit 1
 fi
 
@@ -35,41 +60,27 @@ docker compose version >/dev/null 2>&1 || {
   exit 1
 }
 
-firewall_backend="none"
-if command -v ufw >/dev/null 2>&1; then
-  firewall_backend="ufw"
-elif command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
-  firewall_backend="firewalld"
-fi
-if [ "$firewall_backend" != "none" ] && [ "$(id -u)" -ne 0 ]; then
-  echo "Run with sudo so the script can allow TCP port $web_port in the host firewall." >&2
-  exit 1
-fi
+compose() {
+  docker compose -f docker-compose.yml -f docker-compose.prod.yml "$@"
+}
 
-docker compose config --quiet
-docker compose up --build -d
-docker compose exec -T web node dist/scripts/migrate.js
+compose config --quiet
+compose build
+compose run --rm --no-deps --user root --cap-add CHOWN web chown -R node:node /app/apps/web/uploads
+compose up -d
+compose exec -T web node dist/scripts/migrate.js
 
 attempt=0
-until docker compose exec -T web wget -q -O /dev/null http://127.0.0.1:3000/health; do
+until compose exec -T web wget -q -O /dev/null http://127.0.0.1:3000/health; do
   attempt=$((attempt + 1))
   if [ "$attempt" -ge 30 ]; then
     echo "Web health check did not pass after 60 seconds." >&2
-    docker compose logs --tail=100 web >&2
+    compose logs --tail=100 web >&2
     exit 1
   fi
   sleep 2
 done
 
-if [ "$firewall_backend" = "ufw" ]; then
-  ufw allow "$web_port/tcp"
-elif [ "$firewall_backend" = "firewalld" ]; then
-  firewall-cmd --permanent --add-port="$web_port/tcp"
-  firewall-cmd --reload
-else
-  echo "No active UFW or firewalld installation detected; no host firewall rule was needed or changed."
-fi
-
-docker compose ps
-echo "Oremus is healthy and listening on TCP port $web_port."
-echo "If your VPS provider has a cloud firewall/security group, allow this port there too."
+compose ps
+echo "Oremus is healthy on loopback port $web_port."
+echo "Terminate HTTPS in a reverse proxy on ports 80/443 and forward to 127.0.0.1:$web_port."

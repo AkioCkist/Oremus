@@ -20,6 +20,7 @@ export async function refresh(req: Request, res: Response) {
 }
 export async function logout(req: Request, res: Response) {
   await auth.logout(req.cookies?.refresh_token, req.auth?.jti, res);
+  req.app.get('io')?.in(`user:${req.user!.id}`).disconnectSockets(true);
   res.json({ ok: true, data: { redirect: '/login' } });
 }
 export async function requestReset(req: Request, res: Response) {

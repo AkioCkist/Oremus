@@ -1,0 +1,14 @@
+services:
+  web:
+    environment:
+      NODE_ENV: production
+      APP_ORIGIN: ${APP_ORIGIN:?Set APP_ORIGIN to the public HTTPS origin}
+      COOKIE_SECURE: "true"
+      TRUST_PROXY: "1"
+
+  media:
+    environment:
+      NODE_ENV: production
+      APP_ORIGIN: ${APP_ORIGIN:?Set APP_ORIGIN to the public HTTPS origin}
+      COOKIE_SECURE: "true"
+      TRUST_PROXY: "1"

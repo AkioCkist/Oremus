@@ -1,11 +1,12 @@
 /**
- * Sample content for `npm run seed`: 38 people with full profiles, groups, posts, stories and chats
- * (the topic-focused half lives in seed-data-topics.ts).
+ * Sample content for `npm run seed`: curated fixtures plus a deterministic 2,000-person crowd.
+ * Hand-written topics live in seed-data-topics.ts; the scalable layer lives in seed-data-crowd.ts.
  * Photo numbers are Lorem Picsum ids (https://picsum.photos/id/<n>/info) chosen to match each caption;
  * avatar numbers are Pravatar ids (https://i.pravatar.cc/600?img=<n>). See seed-media.ts.
  */
 
 import { NEWCOMERS, TOPIC_CHATS, TOPIC_FOLLOWS, TOPIC_FRIENDS, TOPIC_GROUPS, TOPIC_PEOPLE, TOPIC_POSTS, TOPIC_SIGNALS, TOPIC_STORIES } from './seed-data-topics.js';
+import { buildCrowdSeed } from './seed-data-crowd.js';
 
 export type Topic = 'travel' | 'food' | 'coffee' | 'pets' | 'city' | 'work' | 'nature' | 'music' | 'study' | 'sport' | 'art' | 'general'
   | 'ai' | 'gaming' | 'books' | 'running' | 'fitness' | 'business' | 'fashion' | 'ocean' | 'baking' | 'film' | 'photography';
@@ -14,7 +15,8 @@ export type SeedPerson = {
   key: string;
   email: string;
   displayName: string;
-  avatar: number;
+  /** Numeric values use curated Pravatar portraits; strings create deterministic local abstract avatars. */
+  avatar: number | string;
   cover: number;
   profile: Record<string, unknown>;
   /** Onboarding survey answers. Omitted: derived from the profile and posts (seed.ts). "pending": survey not taken yet. */
@@ -36,6 +38,8 @@ export type SeedPost = {
   place?: { name: string; address: string; lat: number; lon: number };
   /** Hand-written comments shown first; [author, text, reply from the post author?]. */
   comments?: Array<[string, string, string?]>;
+  /** Large generated fixtures use bounded engagement so 2,000 users do not create millions of reactions. */
+  engagement?: 'normal' | 'light';
 };
 
 export type SeedGroup = {
@@ -495,11 +499,17 @@ const BASE_CHATS: SeedChat[] = [
 
 /* ---------- Full sample: the original lived-in network plus topic-focused content for recommendations ---------- */
 
-export const PEOPLE: SeedPerson[] = [...BASE_PEOPLE, ...TOPIC_PEOPLE, ...NEWCOMERS];
-export const GROUPS: SeedGroup[] = [...BASE_GROUPS, ...TOPIC_GROUPS];
-export const POSTS: SeedPost[] = [...BASE_POSTS, ...TOPIC_POSTS];
-export const STORIES: SeedStory[] = [...BASE_STORIES, ...TOPIC_STORIES];
-export const FRIENDS: Array<[string, string]> = [...BASE_FRIENDS, ...TOPIC_FRIENDS];
-export const EXTRA_FOLLOWS: Array<[string, string]> = [...BASE_FOLLOWS, ...TOPIC_FOLLOWS];
+const CURATED_PEOPLE: SeedPerson[] = [...BASE_PEOPLE, ...TOPIC_PEOPLE, ...NEWCOMERS];
+const CURATED_GROUPS: SeedGroup[] = [...BASE_GROUPS, ...TOPIC_GROUPS];
+const CURATED_POSTS: SeedPost[] = [...BASE_POSTS, ...TOPIC_POSTS];
+const CURATED_STORIES: SeedStory[] = [...BASE_STORIES, ...TOPIC_STORIES];
+const CROWD = buildCrowdSeed({ people: CURATED_PEOPLE, posts: CURATED_POSTS }, 2000);
+
+export const PEOPLE: SeedPerson[] = [...CURATED_PEOPLE, ...CROWD.people];
+export const GROUPS: SeedGroup[] = [...CURATED_GROUPS, ...CROWD.groups];
+export const POSTS: SeedPost[] = [...CURATED_POSTS, ...CROWD.posts];
+export const STORIES: SeedStory[] = [...CURATED_STORIES, ...CROWD.stories];
+export const FRIENDS: Array<[string, string]> = [...BASE_FRIENDS, ...TOPIC_FRIENDS, ...CROWD.friends];
+export const EXTRA_FOLLOWS: Array<[string, string]> = [...BASE_FOLLOWS, ...TOPIC_FOLLOWS, ...CROWD.follows];
 export const CHATS: SeedChat[] = [...BASE_CHATS, ...TOPIC_CHATS];
 export const SIGNALS = TOPIC_SIGNALS;

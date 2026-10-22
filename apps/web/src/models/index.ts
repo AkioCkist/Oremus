@@ -180,6 +180,7 @@ const reactionSchema = new Schema({
   type: { type: String, enum: ['like', 'love', 'haha', 'wow', 'sad', 'angry'], required: true }
 }, options);
 reactionSchema.index({ userId: 1, postId: 1 }, { unique: true });
+reactionSchema.index({ postId: 1, type: 1, createdAt: -1, _id: -1 });
 
 const commentSchema = new Schema({
   postId: { type: objectId, ref: 'Post', required: true, index: true },

@@ -3,8 +3,12 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import sharp from 'sharp';
+import express from 'express';
+import request from 'supertest';
 import { compressImage, IMAGE_MAX_EDGE } from '../media/image.js';
 import { posterArgs, transcodeArgs, VIDEO_MAX_EDGE } from '../media/video.js';
+import { POST_MEDIA_MAX_FILES, postUpload } from '../middleware/upload.js';
+import { errorHandler } from '../middleware/error.js';
 
 let dir = '';
 beforeAll(async () => { dir = await fs.mkdtemp(path.join(os.tmpdir(), 'oremus-media-')); });
@@ -69,5 +73,20 @@ describe('video transcoding arguments', () => {
   });
   it('grabs a single poster frame', () => {
     expect(posterArgs('a.mp4', 'a.jpg')).toEqual(expect.arrayContaining(['-frames:v', '1', 'a.jpg']));
+  });
+});
+
+describe('upload resource limits', () => {
+  it('rejects a post with more than the bounded number of media files', async () => {
+    const app = express();
+    app.post('/api/upload', postUpload.array('images', POST_MEDIA_MAX_FILES), (_req, res) => res.sendStatus(204));
+    app.use(errorHandler);
+    let call = request(app).post('/api/upload');
+    for (let index = 0; index <= POST_MEDIA_MAX_FILES; index += 1) {
+      call = call.attach('images', Buffer.from([0xff, 0xd8, 0xff]), { filename: `${index}.jpg`, contentType: 'image/jpeg' });
+    }
+    const response = await call;
+    expect(response.status).toBe(422);
+    expect(response.body.error.code).toBe('LIMIT_FILE_COUNT');
   });
 });

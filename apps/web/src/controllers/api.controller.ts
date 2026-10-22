@@ -18,6 +18,7 @@ import { audit } from '../services/audit.service.js';
 import { clearSignals, recordClientEvents, trackSignal } from '../services/activity.service.js';
 import { getRecommendations } from '../services/recommendation.service.js';
 import { safeNext, saveInterests, skipOnboarding } from '../services/interest.service.js';
+import { env } from '../config/env.js';
 
 const id = (req: Request) => req.user!.id;
 const param = (req: Request, name: string) => String(req.params[name]);
@@ -50,6 +51,9 @@ export async function react(req: Request, res: Response) {
   const result = await posts.react(id(req), param(req, 'postId'), type);
   if (result.active) trackSignal(id(req), { type: 'react', targetType: 'post', targetId: param(req, 'postId') });
   res.json({ ok: true, data: result });
+}
+export async function reactions(req: Request, res: Response) {
+  res.json({ ok: true, data: await posts.listReactions(id(req), param(req, 'postId'), req.query.type, req.query.cursor) });
 }
 export async function editComment(req: Request, res: Response) { const comment = await posts.editComment(id(req), param(req, 'commentId'), commentEditSchema.parse(req.body).content); res.json({ ok: true, data: { comment, message: 'Comment updated.' } }); }
 export async function deleteComment(req: Request, res: Response) {
@@ -95,7 +99,7 @@ export async function sharePost(req: Request, res: Response) {
 }
 export async function sendPost(req: Request, res: Response) {
   const { userIds, content } = shareSendSchema.parse(req.body);
-  const sent = await shares.sendPostToFriends(id(req), param(req, 'postId'), userIds, content, `${req.protocol}://${req.get('host')}`);
+  const sent = await shares.sendPostToFriends(id(req), param(req, 'postId'), userIds, content, env.APP_ORIGIN[0]!);
   await Promise.all(sent.map((item) => deliverMessage(item, id(req))));
   res.status(201).json({ ok: true, data: { sent: sent.length, conversations: sent.map((item) => String(item.message.conversationId)), message: sent.length === 1 ? 'Sent.' : `Sent to ${sent.length} people.` } });
 }

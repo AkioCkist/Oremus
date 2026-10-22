@@ -14,10 +14,9 @@ import { avatar, isServedBy, photo, prepareSeedImages, type SeedImageRequest } f
 import { env } from '../config/env.js';
 
 /**
- * `npm run seed`: fills the app with 38 sample people (full profiles, real photos), 17 groups, ~140 posts with reactions
- * and comment threads, ~36 stories, chats and notifications, so every page looks like a lived-in social network.
- * Half of the people have one clear subject each (AI, coffee, gaming, books, running…) for testing recommendations,
- * and two accounts (mai@, olivia@) get a short behaviour history so their "For you" page is already personalised.
+ * `npm run seed`: preserves the curated fixtures and adds a deterministic crowd for a total of 2,000 people,
+ * 137 groups, ~8,000 posts, ~690 stories and a dense social graph. Every person has personal and group posts.
+ * Generated media comes from narrow, hand-audited topic pools so captions and photos describe the same subject.
  *
  * Safe to re-run: sample users keep their ids (so open sessions survive), everything they created is rebuilt
  * relative to "now" (stories stay inside the 24-hour window). Content made by other accounts is left alone.
@@ -211,7 +210,8 @@ async function seed() {
     const ranked = [...shuffle(audience.filter((key) => close.has(key)), random), ...shuffle(audience.filter((key) => !close.has(key)), random)];
 
     const popularity = (post.photos?.length ? 0.55 : 0.35) + random() * 0.4;
-    for (const key of ranked.slice(0, Math.max(2, Math.round(ranked.length * popularity)))) {
+    const reactionLimit = post.engagement === 'light' ? 3 + Math.floor(random() * 10) : Math.max(2, Math.round(ranked.length * popularity));
+    for (const key of ranked.slice(0, reactionLimit)) {
       const type = reactionType(random);
       const when = at();
       reactions.push({ userId: id(key), postId, type, createdAt: when, updatedAt: when });
@@ -220,7 +220,7 @@ async function seed() {
 
     const thread: Array<[string, string, string?]> = [...(post.comments || [])];
     const used = new Set(thread.map(([key]) => key));
-    const extra = Math.floor(random() * 4);
+    const extra = post.engagement === 'light' ? Math.floor(random() * 2) : Math.floor(random() * 4);
     for (const key of ranked.filter((candidate) => !used.has(candidate)).slice(0, extra)) {
       thread.push([key, pick([...COMMENTS[post.topic], ...COMMENTS.general], random), random() < 0.35 ? pick(REPLIES, random) : undefined]);
     }
@@ -370,11 +370,21 @@ function seedInteraction(signal: SeedSignal, refs: { id: (key: string) => Id; po
 }
 
 async function recountPosts(postIds: Id[]) {
-  for (const postId of postIds) {
-    await Post.updateOne({ _id: postId }, {
-      reactionCount: await Reaction.countDocuments({ postId }),
-      commentCount: await Comment.countDocuments({ postId, deletedAt: null })
-    }, { timestamps: false });
+  // Two grouped scans + batched writes replace three round trips per post (24k+ queries for the crowd seed).
+  const [reactionRows, commentRows] = await Promise.all([
+    Reaction.aggregate<{ _id: Id; count: number }>([{ $match: { postId: { $in: postIds } } }, { $group: { _id: '$postId', count: { $sum: 1 } } }]),
+    Comment.aggregate<{ _id: Id; count: number }>([{ $match: { postId: { $in: postIds }, deletedAt: null } }, { $group: { _id: '$postId', count: { $sum: 1 } } }])
+  ]);
+  const reactions = new Map(reactionRows.map((row) => [String(row._id), row.count]));
+  const comments = new Map(commentRows.map((row) => [String(row._id), row.count]));
+  for (let offset = 0; offset < postIds.length; offset += 1000) {
+    await Post.bulkWrite(postIds.slice(offset, offset + 1000).map((postId) => ({
+      updateOne: {
+        filter: { _id: postId },
+        update: { $set: { reactionCount: reactions.get(String(postId)) || 0, commentCount: comments.get(String(postId)) || 0 } },
+        timestamps: false
+      }
+    })), { ordered: false });
   }
 }
 

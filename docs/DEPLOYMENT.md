@@ -49,7 +49,7 @@ Set in `.env` (see `.env.example`). Docker Compose overrides the database hosts 
 |---|---|---|---|
 | `NODE_ENV` | `development` | web, media | `production` turns off automatic index creation and enables long asset caching |
 | `WEB_PORT` | `3000` | web | HTTP port |
-| `API_PORT` | `8001` | compose | Host port for FastAPI |
+| `API_PORT` | `8001` | local development only | Optional host port when running the API outside production Compose |
 | `MONGO_DB_NAME` | `oremus` | compose | Database name |
 | `MONGODB_URI` | `mongodb://localhost:27017/oremus` | web, media, api | MongoDB connection |
 | `REDIS_URL` | `redis://localhost:6379` | web, media, api | Redis connection |
@@ -58,6 +58,7 @@ Set in `.env` (see `.env.example`). Docker Compose overrides the database hosts 
 | `ACCESS_TOKEN_TTL` | `15m` | web | Access token lifetime |
 | `REFRESH_TOKEN_DAYS` | `30` | web | "Remember me" session length |
 | `COOKIE_SECURE` | `false` | web | Set `true` behind HTTPS |
+| `TRUST_PROXY` | `false` | web | Trusted reverse-proxy hop count; the production override pins this to `1` |
 | `FASTAPI_URL` | `http://localhost:8000` | web | Search service URL |
 | `APP_ORIGIN` | `http://localhost:3000` | web | Comma-separated allowed origins for Socket.IO |
 | `PLACES_URL` | `https://photon.komoot.io` | web | Place search provider |
@@ -71,7 +72,7 @@ See [Caching](CACHING.md) for the complete HTTP and Redis cache policy and verif
 | Check | How | Healthy response |
 |---|---|---|
 | Web | `GET /health` | `{ ok: true, infrastructure: { mongodb: "ok", redis: "ok" } }` |
-| Search API | `GET http://localhost:8001/health` | `{ status: "ok" }` |
+| Search API | Run its `/health` check from inside the Compose network | `{ status: "ok" }` |
 | MongoDB / Redis | Built-in Compose health checks | `docker compose ps` shows `healthy` |
 | Cache | `GET /api/dev/cache` (signed in) | Hit/miss counts and hit rate |
 | Media worker | `docker compose logs media` | "Media worker is ready", then one line per compressed video |
@@ -99,7 +100,9 @@ Run the migration after every update that adds indexes. It is safe to run many t
 ## One-command VPS deployment
 
 On a Linux VPS, prepare `.env` once with strong JWT secrets and the public URL in
-`APP_ORIGIN`, then run:
+`APP_ORIGIN`, then run. The script combines `docker-compose.yml` with
+`docker-compose.prod.yml`, which forces production mode, secure cookies, and one
+trusted reverse-proxy hop:
 
 ```sh
 sudo sh scripts/deploy-vps.sh
@@ -109,14 +112,13 @@ The equivalent npm alias is `sudo npm run deploy:vps` when `npm` is available
 on root's `PATH`.
 
 The deploy command validates the Compose configuration, builds and starts the
-containers, runs database migrations, waits for the web health check, and allows
-`WEB_PORT` through UFW or firewalld when either is installed. MongoDB, Redis, and
-the internal search API remain bound to localhost; only the web port is intended
-for public access.
+containers, runs database migrations, and waits for the web health check. The web
+port is bound to `127.0.0.1` for a local HTTPS reverse proxy. MongoDB, Redis, and
+the internal search API are available only on the private Compose network.
 
-Some VPS providers also have a cloud firewall or security group outside the
-server. Allow `WEB_PORT` there once, or expose only ports 80/443 when adding an
-HTTPS reverse proxy.
+Configure Caddy, Nginx, or an equivalent reverse proxy to terminate HTTPS on
+ports 80/443 and forward to `127.0.0.1:WEB_PORT`. Do not expose `WEB_PORT`
+through the host or cloud firewall.
 
 ## Production checklist
 
@@ -124,9 +126,10 @@ HTTPS reverse proxy.
 |---|---|
 | Strong, different JWT secrets | Anyone with the secret can sign in as any user |
 | `NODE_ENV=production` | Correct caching and no automatic index building |
-| HTTPS in front (reverse proxy) and `COOKIE_SECURE=true` | Cookies only over encrypted connections. `trust proxy` is already set to 1 |
+| HTTPS in front (reverse proxy) | Production refuses HTTP origins, forces secure cookies, trusts one proxy hop, and binds the app to loopback |
 | Correct `APP_ORIGIN` | Socket.IO rejects other origins |
-| Do not expose MongoDB and Redis ports publicly | Compose maps them to the host for development only |
+| Do not expose MongoDB, Redis, or FastAPI ports | Production Compose keeps all three on its private network |
+| Limit post media | A request accepts at most 12 files; the reverse proxy should also enforce a total request-body limit |
 | Back up the `mongo-data` and `uploads` volumes | User data and files |
 | Connect an email provider for password reset | Reset tokens are only shown in development |
 | Move uploads to S3-compatible storage before scaling out | The local volume cannot be shared by many servers |

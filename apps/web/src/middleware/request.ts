@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import type { RequestHandler } from 'express';
+import { env } from '../config/env.js';
 
 export const requestContext: RequestHandler = (req, res, next) => {
   req.requestId = req.header('x-request-id') || crypto.randomUUID();
@@ -11,7 +12,7 @@ export const csrfToken: RequestHandler = (req, res, next) => {
   let token = req.cookies?.csrf as string | undefined;
   if (!token) {
     token = crypto.randomBytes(24).toString('base64url');
-    res.cookie('csrf', token, { sameSite: 'lax', secure: req.secure, httpOnly: false, maxAge: 86_400_000 });
+    res.cookie('csrf', token, { sameSite: 'lax', secure: env.COOKIE_SECURE, httpOnly: false, maxAge: 86_400_000 });
     req.cookies.csrf = token;
   }
   res.locals.csrfToken = token;

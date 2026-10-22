@@ -89,10 +89,10 @@
   </a>
   <% } %>
   <div class="mx-4 flex min-h-[2.5rem] items-center justify-between gap-3 text-15 text-muted">
-    <span class="flex items-center gap-1.5 <%= item.reactionCount ? '' : 'invisible' %>" data-reaction-summary>
+    <<%= currentUser ? 'button type="button"' : 'span' %> class="flex items-center gap-1.5 rounded-md <%= currentUser ? 'hover:underline' : '' %> <%= item.reactionCount ? '' : 'invisible' %>" data-reaction-summary<% if (currentUser) { %> data-open-reactions="<%= item._id %>" aria-label="See who reacted to this post" aria-haspopup="dialog"<% } %>>
       <span class="flex -space-x-1" data-reaction-icons><% top.forEach(function (type) { %><svg class="size-[1.125rem] rounded-full ring-2 ring-surface"><use href="#r-<%= type %>"/></svg><% }) %></span>
       <span data-reaction-count><%= compact(item.reactionCount || 0) %></span>
-    </span>
+    </<%= currentUser ? 'button' : 'span' %>>
     <span class="flex items-center gap-3">
       <a class="hover:underline <%= item.commentCount ? '' : 'hidden' %>" href="/posts/<%= item._id %>#comments" data-comment-count-label><span data-comment-count><%= item.commentCount || 0 %></span> <%= item.commentCount === 1 ? 'comment' : 'comments' %></a>
       <span class="<%= item.shareCount ? '' : 'hidden' %>" data-share-count-label><span data-share-count><%= item.shareCount || 0 %></span> <%= item.shareCount === 1 ? 'share' : 'shares' %></span>

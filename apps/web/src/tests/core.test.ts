@@ -4,6 +4,7 @@ import { loginSchema, registerSchema, postSchema, reactionSchema } from '../vali
 import { assertOwner } from '../services/permissions.js';
 import { friendshipPair, stateFromFriendship } from '../services/friendship.service.js';
 import { conversationMemberFilter } from '../services/message.service.js';
+import { parseEnv } from '../config/env.js';
 
 describe('authentication policy', () => {
   it('requires a strong password during registration', () => {
@@ -19,6 +20,32 @@ describe('authentication policy', () => {
   it('defaults to a browser session and accepts explicit remembered login', () => {
     expect(loginSchema.parse({ email: 'a@example.com', password: 'secret' }).remember).toBe(false);
     expect(loginSchema.parse({ email: 'a@example.com', password: 'secret', remember: 'true' }).remember).toBe(true);
+  });
+});
+
+describe('production environment policy', () => {
+  const production = {
+    NODE_ENV: 'production',
+    JWT_ACCESS_SECRET: 'a'.repeat(48),
+    JWT_REFRESH_SECRET: 'b'.repeat(48),
+    COOKIE_SECURE: 'true',
+    TRUST_PROXY: '1',
+    APP_ORIGIN: 'https://oremus.example'
+  };
+
+  it('accepts an HTTPS deployment with separate secrets and an explicit proxy', () => {
+    expect(parseEnv(production).NODE_ENV).toBe('production');
+  });
+
+  it.each([
+    [{ ...production, COOKIE_SECURE: 'false' }, 'COOKIE_SECURE'],
+    [{ ...production, TRUST_PROXY: 'false' }, 'TRUST_PROXY'],
+    [{ ...production, APP_ORIGIN: 'http://oremus.example' }, 'APP_ORIGIN'],
+    [{ ...production, JWT_ACCESS_SECRET: 'replace-with-at-least-32-random-characters' }, 'JWT_ACCESS_SECRET'],
+    [{ ...production, JWT_REFRESH_SECRET: 'a'.repeat(48) }, 'JWT_REFRESH_SECRET']
+  ])('rejects unsafe production configuration for %s', (input, field) => {
+    const result = parseEnv;
+    expect(() => result(input)).toThrow(field);
   });
 });
 

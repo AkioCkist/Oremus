@@ -8,6 +8,10 @@ import { registerSchema } from '../validators/index.js';
 describe('authentication boundaries', () => {
   const app = createApp();
 
+  it('does not trust forwarded client addresses without an explicit proxy setting', () => {
+    expect(app.get('trust proxy')).toBe(false);
+  });
+
   it('redirects an anonymous page request to sign in', async () => {
     const response = await request(app).get('/').set('Accept', 'text/html');
 

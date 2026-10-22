@@ -76,7 +76,7 @@ export async function login(input: { email: string; password: string; remember: 
 async function rotateSession(raw: string | undefined, res: Response, context: SessionContext) {
   if (!raw) throw new AppError(401, 'Refresh token is missing.', 'REFRESH_REQUIRED');
   let claims: RefreshClaims;
-  try { claims = jwt.verify(raw, env.JWT_REFRESH_SECRET) as RefreshClaims; } catch { throw new AppError(401, 'Session has expired.', 'REFRESH_INVALID'); }
+  try { claims = jwt.verify(raw, env.JWT_REFRESH_SECRET, { algorithms: ['HS256'] }) as RefreshClaims; } catch { throw new AppError(401, 'Session has expired.', 'REFRESH_INVALID'); }
   if (claims.type !== 'refresh' || !claims.family || !claims.sub) throw new AppError(401, 'Session is invalid.', 'REFRESH_INVALID');
   const record = await RefreshToken.findOne({ tokenHash: digest(raw) });
   if (!record || record.revokedAt) {

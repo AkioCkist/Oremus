@@ -19,10 +19,10 @@ const CONCURRENCY = 6;
 
 export type SeedImageRequest =
   | { kind: 'photo'; id: number; width: number; height: number }
-  | { kind: 'avatar'; id: number };
+  | { kind: 'avatar'; id: number | string };
 
 export const photo = (id: number, width = 1600, height = 1200): SeedImageRequest => ({ kind: 'photo', id, width, height });
-export const avatar = (id: number): SeedImageRequest => ({ kind: 'avatar', id });
+export const avatar = (id: number | string): SeedImageRequest => ({ kind: 'avatar', id });
 
 const fileName = (request: SeedImageRequest) => request.kind === 'photo'
   ? `seed-photo-${request.id}-${request.width}x${request.height}.webp`
@@ -52,11 +52,24 @@ function placeholder(request: Extract<SeedImageRequest, { kind: 'photo' }>) {
   return sharp(Buffer.from(svg));
 }
 
-type Outcome = 'cached' | 'downloaded' | 'placeholder' | 'missing';
+type Outcome = 'cached' | 'downloaded' | 'generated' | 'placeholder' | 'missing';
+
+/** Local abstract portrait used by the large crowd: distinct, network-free and cheap to cache. */
+function generatedAvatar(id: string) {
+  const seed = [...id].reduce((value, char) => Math.imul(value ^ char.charCodeAt(0), 16777619) >>> 0, 2166136261);
+  const hue = seed % 360, second = (hue + 45 + (seed % 75)) % 360;
+  const x = 150 + (seed % 300), y = 140 + ((seed >>> 8) % 280), radius = 90 + ((seed >>> 16) % 130);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="hsl(${hue},72%,64%)"/><stop offset="1" stop-color="hsl(${second},66%,38%)"/></linearGradient></defs><rect width="600" height="600" fill="url(#g)"/><circle cx="${x}" cy="${y}" r="${radius}" fill="rgba(255,255,255,.24)"/><circle cx="${600 - x / 2}" cy="${580 - y / 3}" r="${radius * 0.72}" fill="rgba(10,20,50,.18)"/><path d="M-40 520 Q220 ${280 + seed % 100} 640 500 V640 H-40Z" fill="rgba(255,255,255,.2)"/></svg>`;
+  return sharp(Buffer.from(svg));
+}
 
 async function materialize(request: SeedImageRequest): Promise<Outcome> {
   const target = path.join(UPLOADS_DIR, fileName(request));
   if (await exists(target)) return 'cached';
+  if (request.kind === 'avatar' && typeof request.id === 'string') {
+    await generatedAvatar(request.id).webp({ quality: 82 }).toFile(target);
+    return 'generated';
+  }
   try {
     const source = await download(sourceUrl(request));
     // Same settings as real uploads (src/media/image.ts): WebP q80, no metadata.
@@ -102,6 +115,6 @@ export async function prepareSeedImages(requests: SeedImageRequest[]): Promise<(
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
   process.stdout.write('\n');
   const count = (outcome: Outcome) => [...outcomes.values()].filter((value) => value === outcome).length;
-  console.log(`  ${count('downloaded')} downloaded, ${count('cached')} reused, ${count('placeholder')} placeholders, ${count('missing')} avatars unavailable.`);
+  console.log(`  ${count('downloaded')} downloaded, ${count('generated')} generated, ${count('cached')} reused, ${count('placeholder')} placeholders, ${count('missing')} avatars unavailable.`);
   return (request) => (outcomes.get(requestKey(request)) === 'missing' ? '' : seedImageUrl(request));
 }

@@ -35,7 +35,10 @@ class RequestError extends Error {
 async function request(url: string, options: RequestInit = {}) {
   let response: Response;
   try { response = await fetch(url, { credentials: 'same-origin', ...options, headers: { 'x-csrf-token': csrf, ...(options.headers || {}) } }); }
-  catch { throw new Error(navigator.onLine ? 'Could not reach Oremus. Please try again.' : "You're offline. Check your connection and try again."); }
+  catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw error;
+    throw new Error(navigator.onLine ? 'Could not reach Oremus. Please try again.' : "You're offline. Check your connection and try again.");
+  }
   const payload = await response.json().catch(() => ({ ok: false, error: { message: 'Unexpected server response.' } }));
   if (!response.ok || !payload.ok) throw new RequestError(payload.error?.message || 'Request failed.', payload.error?.details);
   return payload.data;
@@ -445,6 +448,77 @@ function paintReaction(card: Element, active: string | null, count: number) {
   const wrap = $('.reaction-wrap', card);
   if (wrap) { wrap.classList.add('reaction-done'); wrap.addEventListener('mouseleave', () => wrap.classList.remove('reaction-done'), { once: true }); }
 }
+
+type ReactionFilter = 'all' | 'like' | 'love' | 'haha' | 'wow' | 'sad' | 'angry';
+type ReactionPerson = { type: string; createdAt: string; user: { _id: string; username: string; displayName: string; avatarUrl: string } };
+const REACTION_FILTERS: ReactionFilter[] = ['all', 'like', 'love', 'haha', 'wow', 'sad', 'angry'];
+const reactionsDialog = $<HTMLDialogElement>('[data-reactions-dialog]');
+let reactionsPost = '', reactionsFilter: ReactionFilter = 'all', reactionsCursor: string | null = null, reactionsRequest: AbortController | null = null;
+
+function reactionSkeletons() {
+  return Array.from({ length: 6 }, () => {
+    const row = document.createElement('li'); row.className = 'flex items-center gap-3 px-2 py-2'; row.setAttribute('aria-hidden', 'true');
+    row.innerHTML = '<span class="size-10 animate-pulse rounded-full bg-field"></span><span class="h-4 w-40 animate-pulse rounded-full bg-field"></span>';
+    return row;
+  });
+}
+
+function renderReactionTabs(counts: Record<string, number>) {
+  const tabs = $('[data-reaction-tabs]', reactionsDialog!)!;
+  tabs.replaceChildren(...REACTION_FILTERS.filter((type) => type === 'all' || counts[type]).map((type) => {
+    const button = Object.assign(document.createElement('button'), { type: 'button', className: `relative flex min-h-12 shrink-0 items-center gap-1.5 px-2 font-semibold md:px-3 ${type === reactionsFilter ? 'text-brand-600' : 'text-muted hover:text-ink'}` });
+    button.dataset.reactionFilter = type; button.setAttribute('aria-pressed', String(type === reactionsFilter));
+    if (type === 'all') button.append('All'); else button.append(svgUse(`r-${type}`, 'size-5'), document.createTextNode(REACTION_STYLE[type]!.label));
+    const count = document.createElement('span'); count.className = 'tabular-nums'; count.textContent = new Intl.NumberFormat('en', { notation: 'compact' }).format(counts[type] || 0); button.appendChild(count);
+    if (type === reactionsFilter) { const line = document.createElement('span'); line.className = 'reaction-tab-indicator absolute inset-x-1 bottom-0 h-0.5 rounded-full bg-brand-600'; line.setAttribute('aria-hidden', 'true'); button.appendChild(line); }
+    button.addEventListener('click', () => { if (type !== reactionsFilter) { reactionsFilter = type; void loadReactions(true); } });
+    return button;
+  }));
+}
+
+function reactionPersonRow(item: ReactionPerson) {
+  const row = document.createElement('li'); row.className = 'flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-hover';
+  const avatar = document.createElement('a'); avatar.href = `/profile/${encodeURIComponent(item.user.username)}`; avatar.className = 'relative shrink-0'; avatar.setAttribute('aria-label', `${item.user.displayName}'s profile`);
+  avatar.appendChild(avatarEl(item.user, 'size-10 text-sm'));
+  const reaction = svgUse(`r-${item.type}`, 'absolute -bottom-0.5 -right-1 size-4 rounded-full ring-2 ring-surface'); reaction.setAttribute('aria-hidden', 'true'); avatar.appendChild(reaction);
+  const name = document.createElement('a'); name.href = avatar.href; name.className = 'min-w-0 flex-1 truncate font-semibold hover:underline'; name.textContent = item.user.displayName;
+  row.append(avatar, name); return row;
+}
+
+async function loadReactions(reset: boolean) {
+  if (!reactionsDialog || !reactionsPost) return;
+  const list = $('[data-reaction-people]', reactionsDialog)!, empty = $('[data-reaction-empty]', reactionsDialog)!, error = $('[data-reaction-error]', reactionsDialog)!, more = $<HTMLButtonElement>('[data-reaction-more]', reactionsDialog)!;
+  reactionsRequest?.abort(); reactionsRequest = new AbortController();
+  if (reset) { reactionsCursor = null; list.replaceChildren(...reactionSkeletons()); list.setAttribute('aria-busy', 'true'); }
+  else more.disabled = true;
+  empty.classList.add('hidden'); error.classList.add('hidden'); more.classList.add('hidden');
+  try {
+    const params = new URLSearchParams({ type: reactionsFilter }); if (reactionsCursor) params.set('cursor', reactionsCursor);
+    const result = await request(`/api/posts/${reactionsPost}/reactions?${params}`, { signal: reactionsRequest.signal });
+    if (reset) list.replaceChildren();
+    list.append(...(result.items as ReactionPerson[]).map(reactionPersonRow)); list.removeAttribute('aria-busy');
+    if (reset && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      list.animate([{ opacity: 0, transform: 'translateX(8px)' }, { opacity: 1, transform: 'translateX(0)' }], { duration: 160, easing: 'ease-out' });
+    }
+    reactionsCursor = result.next; renderReactionTabs(result.counts);
+    empty.classList.toggle('hidden', list.children.length > 0);
+    more.classList.toggle('hidden', !reactionsCursor); more.disabled = false;
+  } catch (caught) {
+    if (caught instanceof DOMException && caught.name === 'AbortError') return;
+    if (reset) list.replaceChildren(); list.removeAttribute('aria-busy'); error.classList.remove('hidden'); more.disabled = false;
+  }
+}
+
+function openReactions(postId: string) {
+  if (!reactionsDialog) return;
+  reactionsPost = postId; reactionsFilter = 'all'; reactionsCursor = null;
+  if (!reactionsDialog.open) reactionsDialog.showModal();
+  void loadReactions(true);
+}
+
+$('[data-reaction-more]', reactionsDialog || document)?.addEventListener('click', () => void loadReactions(false));
+$('[data-reaction-retry]', reactionsDialog || document)?.addEventListener('click', () => void loadReactions(true));
+reactionsDialog?.addEventListener('close', () => { reactionsRequest?.abort(); reactionsPost = ''; });
 
 /* ---------- Composer dialog ---------- */
 
@@ -1449,11 +1523,13 @@ if (photoViewer) {
   togglePanelButtons.forEach((button) => button.addEventListener('click', () => panel.classList.toggle('max-lg:hidden')));
 
   const paintReactions = () => {
-    const holder = $('[data-viewer-reactions]', photoViewer)!;
+    const holder = $<HTMLButtonElement>('[data-viewer-reactions]', photoViewer)!;
     const top: string[] = post.topReactions?.length ? post.topReactions : post.reactionCount ? ['like'] : [];
     const icons = document.createElement('span'); icons.className = 'flex -space-x-1';
     top.forEach((type) => icons.appendChild(svgUse(`r-${type}`, 'size-[1.125rem] rounded-full ring-2 ring-surface')));
     holder.replaceChildren(...(post.reactionCount ? [icons, document.createTextNode(new Intl.NumberFormat('en', { notation: 'compact' }).format(post.reactionCount))] : []));
+    holder.dataset.openReactions = String(post._id);
+    holder.disabled = !post.reactionCount;
     $('[data-viewer-comment-count]', photoViewer)!.textContent = post.commentCount ? `${post.commentCount} ${post.commentCount === 1 ? 'comment' : 'comments'}` : '';
     const like = $<HTMLButtonElement>('[data-viewer-like]', photoViewer)!;
     Object.values(REACTION_STYLE).forEach((style) => like.classList.remove(style.color));
@@ -1965,6 +2041,7 @@ document.addEventListener('click', async (event) => {
       return;
     }
     if (data.messageUser) { const result = await postJson('/api/conversations', { memberId: data.messageUser }); window.location.assign(result.redirect); return; }
+    if (data.openReactions) { openReactions(data.openReactions); return; }
     if (data.react && data.post) {
       const result = await postJson(`/api/posts/${data.post}/reactions`, { type: data.react });
       const card = target.closest('[data-post-id]'); if (card) paintReaction(card, result.active, result.count); return;

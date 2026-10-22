@@ -101,12 +101,12 @@ The scripts clean the server only. Browsers that visited the site still keep:
 
 | Data | Amount |
 |---|---|
-| People | 38, each with avatar, cover photo, bio, work, education, hometown, birthday, languages, hobbies and links. 18 of them have one clear subject each (AI, specialty coffee, gaming, books, running, yoga, startups, fashion, diving, baking, film, pets, street photography, vegan food, fitness, jazz, data science, IELTS) and are not connected to Maya, for testing [recommendations](RECOMMENDATIONS.md) |
-| Relationships | ~75 friendships, ~170 follows, 4 pending friend requests (3 waiting for Maya) |
-| Groups | 17 (public and private, one with post approval and a pending join request; 12 topic groups) |
-| Posts | ~130 in English and Vietnamese with ~80 photos, feelings, check-ins, group posts and a followers-only post, spread over the last 30 days |
-| Reactions / comments | ~2,400 reactions, ~290 comments with replies |
-| Stories | 36 photo and text stories with styles, views and reactions, all inside the 24-hour window (topic stories are public) |
+| People | 2,000. The original 39 curated accounts stay unchanged; 1,961 deterministic crowd accounts add bios, locations, work, languages, interests, covers and locally generated abstract avatars |
+| Relationships | ~5,960 friendships, ~15,850 follows and 4 pending friend requests |
+| Groups | 137 seed groups across 20 subjects (public/private, rules, moderators and roughly 45 members per generated group) |
+| Posts | ~7,985. Every account has at least one personal post and one group post; crowd accounts have two of each. Generated posts always include an image |
+| Reactions / comments | ~194,000 reactions and ~5,500 comments/replies. Generated posts use bounded engagement so database size stays practical |
+| Stories | ~690 active photo stories inside the 24-hour window |
 | Chats | 11 conversations, ~40 messages (some unread) |
 | Interests | Every sample account has survey answers (Maya's are hand-picked, the rest derived from bio, hobbies and posts). `new@example.com` has none, so signing in opens the interest survey |
 | Behaviour signals | A short history for `mai@example.com` (AI, IELTS, gaming) and `olivia@example.com` (pets, baking). Maya starts with none |
@@ -120,38 +120,42 @@ Every sample account uses the password `CircleSpace123`. The demo account is **`
 |---|---|
 | [`seed-data.ts`](../apps/web/src/scripts/seed-data.ts) | The content: people, groups, posts, stories, chats, comment pools. Edit this file to change the sample |
 | [`seed-data-topics.ts`](../apps/web/src/scripts/seed-data-topics.ts) | Topic-focused people, groups, posts, stories and behaviour signals for testing recommendations |
+| [`seed-data-crowd.ts`](../apps/web/src/scripts/seed-data-crowd.ts) | Deterministically generates the large crowd, social graph, 120 extra groups, posts and stories without replacing curated fixtures |
 | [`seed-media.ts`](../apps/web/src/scripts/seed-media.ts) | Downloads and compresses photos |
 | [`seed.ts`](../apps/web/src/scripts/seed.ts) | Inserts everything, generates reactions, comments and notifications |
 
 ### Photos
 
-Photos are downloaded once on the first run, converted to WebP and stored in `apps/web/uploads/` as `seed-photo-<id>-<size>.webp` and `seed-avatar-<id>.webp`. Later runs reuse these files. The first run needs internet and takes about 30 seconds.
+Photos are downloaded once on the first run, converted to WebP and stored in the Docker `uploads` volume as `seed-photo-<id>-<size>.webp` and `seed-avatar-<id>.webp`. Later runs reuse these files. A warm large seed takes about one minute on the development machine.
 
-- **Post, cover and story photos** come from [Lorem Picsum](https://picsum.photos) (Unsplash photos, free to use). Each caption was matched to a specific photo id.
-- **Avatars** come from [Pravatar](https://pravatar.cc), placeholder portraits made for demos.
+- **Post, cover and story photos** come from [Lorem Picsum](https://picsum.photos) (Unsplash photos). Generated content uses narrow, hand-audited pools per subject—trail images cannot be selected for coffee posts, flower images cannot be selected for hiking captions, and so on.
+- **Avatars** for curated accounts come from [Pravatar](https://pravatar.cc). The crowd cycles through 240 deterministic abstract WebP avatars generated locally, avoiding thousands of network requests.
 - **Offline:** photos fall back to generated gradients and avatars to initials, so the seed still finishes.
 
 ### When the app runs in Docker
 
-In Docker Compose, `web` stores uploads in the named volume `uploads`, not in `apps/web/uploads` on your machine. A seed run on the host therefore writes the database correctly, but the container can't find the photos and every image shows as broken. The seed detects this and prints a warning.
+`npm run seed` now runs in a one-shot Docker container connected to the same MongoDB, Redis and named `uploads` volume as `web`. This makes Docker the default and prevents database records from pointing at photos that only exist on the host.
 
-Seed from the host and copy the photos into the container in one step:
+Build/start the application, then seed it:
 
 ```bash
-npm run seed:docker
+docker compose up -d --build
+npm run seed
 ```
 
-If you already seeded, copy the photos only:
+If an older seed already put photos in `apps/web/uploads`, merge those files into Docker without deleting anything already in the volume:
+
+```bash
+npm run data:mirror:docker
+```
+
+The old command remains as a compatibility alias:
 
 ```bash
 npm run seed:copy-docker
 ```
 
-Alternatively, seed inside the container. The image must be rebuilt after seed changes (`docker compose up --build -d`):
-
-```bash
-docker compose exec web node dist/scripts/seed.js
-```
+For host-only development, use `npm run seed:local`. To apply database migrations through Docker, use `npm run db:migrate:docker`.
 
 The same applies to `wipe:data`: run from the host, it clears `apps/web/uploads` and not the container volume. Use the `docker compose exec` commands in [Safety checks](#safety-checks).
 

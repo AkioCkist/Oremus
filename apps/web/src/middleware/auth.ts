@@ -13,7 +13,7 @@ async function resolveUser(req: Parameters<RequestHandler>[0], res: Parameters<R
   const token = req.cookies?.access_token;
   if (token) {
     try {
-      const claims = jwt.verify(token, env.JWT_ACCESS_SECRET) as AccessClaims;
+      const claims = jwt.verify(token, env.JWT_ACCESS_SECRET, { algorithms: ['HS256'] }) as AccessClaims;
       if (claims.type === 'access' && !(await redis.exists(`deny:${claims.jti}`))) {
         const user = await User.findOne({ _id: claims.sub, deletedAt: null });
         if (user) { req.user = user; req.auth = { sub: claims.sub, jti: claims.jti }; return; }

@@ -63,6 +63,10 @@ docker compose exec web node dist/scripts/migrate.js
 docker compose exec web node dist/scripts/seed.js
 ```
 
+The base Compose file follows the local `.env` values (HTTP origins and insecure
+cookies are valid for localhost). Production-only overrides are applied by
+`scripts/deploy-vps.sh`; do not add `docker-compose.prod.yml` to local commands.
+
 Open `http://localhost:3000` and sign in with the sample account:
 
 - Email: `maya@example.com`
@@ -143,7 +147,7 @@ npm install
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -r apps/api/requirements.txt
+python -m pip install -r apps/api/requirements-dev.txt
 ```
 
 If PowerShell blocks the activate script, call `.\.venv\Scripts\python.exe` directly.

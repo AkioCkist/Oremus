@@ -9,6 +9,7 @@ import { AppError } from '../utils/errors.js';
 const IMAGE_MAX_BYTES = 20 * 1024 * 1024;
 const VIDEO_MAX_BYTES = 200 * 1024 * 1024;
 const STORY_VIDEO_MAX_BYTES = 100 * 1024 * 1024;
+export const POST_MEDIA_MAX_FILES = 12;
 const imageTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 const videoTypes = new Set(['video/mp4', 'video/webm', 'video/quicktime']);
 const extension: Record<string, string> = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif', 'video/mp4': '.mp4', 'video/webm': '.webm', 'video/quicktime': '.mov' };
@@ -24,10 +25,10 @@ export const upload = multer({
   fileFilter: (_req, file, done) => imageTypes.has(file.mimetype) ? done(null, true) : done(new AppError(415, 'Only JPEG, PNG, WebP, and GIF images are accepted.', 'INVALID_MEDIA'))
 });
 
-/** Post media: any number of photos and videos. Multer only knows one size cap, so photos are re-checked after upload. */
+/** Post media: a bounded set of photos and videos. Multer only knows one size cap, so photos are re-checked after upload. */
 export const postUpload = multer({
   storage,
-  limits: { fileSize: VIDEO_MAX_BYTES },
+  limits: { fileSize: VIDEO_MAX_BYTES, files: POST_MEDIA_MAX_FILES, fields: 20, parts: POST_MEDIA_MAX_FILES + 20 },
   fileFilter: (_req, file, done) => imageTypes.has(file.mimetype) || videoTypes.has(file.mimetype) ? done(null, true) : done(new AppError(415, 'Only JPEG, PNG, WebP, GIF images and MP4, WebM, MOV videos are accepted.', 'INVALID_MEDIA'))
 });
 

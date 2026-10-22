@@ -2,6 +2,24 @@
 <div class="mini-chat-dock hidden items-end gap-3 lg:flex" data-mini-chat-dock aria-label="Open mini chats"></div>
 <% if (currentUser) { %><%- include('break-dialog') %><% } %>
 
+<% if (currentUser) { %>
+<dialog id="reactions-dialog" class="m-auto max-h-[min(42rem,calc(100dvh-1.5rem))] w-[min(46rem,calc(100%-1.5rem))] overflow-hidden rounded-sheet p-0 shadow-pop" aria-labelledby="reactions-title" data-reactions-dialog>
+  <div class="flex max-h-[min(42rem,calc(100dvh-1.5rem))] flex-col">
+    <div class="relative border-b border-line px-4 py-3 text-center">
+      <h2 id="reactions-title" class="text-balance text-xl font-bold">People who reacted</h2>
+      <button type="button" class="icon-btn absolute right-3 top-2" data-close-dialog="reactions-dialog" aria-label="Close reactions"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="scrollbar-none flex min-h-12 shrink-0 gap-1 overflow-x-auto border-b border-line px-3 md:justify-between md:overflow-x-visible" role="group" aria-label="Filter reactions" data-reaction-tabs></div>
+    <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2" data-reaction-scroll>
+      <ul class="space-y-1" data-reaction-people aria-live="polite"></ul>
+      <p class="hidden px-4 py-10 text-center text-pretty text-muted" data-reaction-empty>No one has used this reaction yet.</p>
+      <div class="hidden px-4 py-3 text-center" role="alert" data-reaction-error><p class="text-pretty text-ios-red">Could not load reactions.</p><button type="button" class="btn-secondary mt-3" data-reaction-retry>Try again</button></div>
+      <button type="button" class="btn-secondary mx-auto mt-2 hidden" data-reaction-more>See more</button>
+    </div>
+  </div>
+</dialog>
+<% } %>
+
 <dialog id="confirm-dialog" class="w-[min(30rem,calc(100%-2rem))] rounded-sheet p-0 shadow-pop" role="alertdialog" aria-labelledby="confirm-title" aria-describedby="confirm-description">
   <div class="flex items-center justify-between border-b border-line px-4 py-3"><h2 id="confirm-title" class="mx-auto pl-9 text-xl font-bold">Move to trash?</h2><button class="icon-btn" value="cancel" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button></div>
   <p id="confirm-description" class="px-4 py-4 text-15 text-ink">This can't be undone.</p>
@@ -43,7 +61,7 @@
       <div class="min-h-0 flex-1 overflow-y-auto" data-viewer-scroll>
         <p class="whitespace-pre-wrap break-words px-4 text-15 leading-[1.4]" data-viewer-content></p>
         <div class="mx-4 mt-2 flex min-h-[2.5rem] items-center justify-between gap-3 text-15 text-muted">
-          <span class="flex items-center gap-1.5" data-viewer-reactions></span>
+          <button type="button" class="flex items-center gap-1.5 rounded-md hover:underline" data-viewer-reactions aria-label="See who reacted to this post" aria-haspopup="dialog"></button>
           <span data-viewer-comment-count></span>
         </div>
         <div class="mx-4 flex gap-1 border-y border-line py-1">

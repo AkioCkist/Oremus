@@ -231,9 +231,29 @@ describe('sample data for recommendations', () => {
     }
   });
 
-  it('keeps keys, e-mails and avatars unique', () => {
-    for (const values of [PEOPLE.map((p) => p.key), PEOPLE.map((p) => p.email), PEOPLE.map((p) => String(p.avatar)), POSTS.map((p) => p.key), GROUPS.map((g) => g.slug)]) {
+  it('keeps entity keys and e-mails unique', () => {
+    for (const values of [PEOPLE.map((p) => p.key), PEOPLE.map((p) => p.email), POSTS.map((p) => p.key), GROUPS.map((g) => g.slug)]) {
       expect(new Set(values).size).toBe(values.length);
+    }
+  });
+
+  it('creates a dense 2,000-person network where everyone posts personally and in a group', () => {
+    expect(PEOPLE).toHaveLength(2000);
+    expect(GROUPS.length).toBeGreaterThanOrEqual(130);
+    expect(POSTS.length).toBeGreaterThanOrEqual(7900);
+    expect(STORIES.length).toBeGreaterThanOrEqual(650);
+    for (const person of PEOPLE) {
+      expect(POSTS.some((post) => post.author === person.key && !post.group), `${person.key} personal post`).toBe(true);
+      expect(POSTS.some((post) => post.author === person.key && !!post.group), `${person.key} group post`).toBe(true);
+    }
+  });
+
+  it('gives every generated crowd post relevant seeded media and valid group membership', () => {
+    const crowdPosts = POSTS.filter((post) => post.key.startsWith('crowd-') || post.key.startsWith('supplemental-'));
+    expect(crowdPosts.length).toBeGreaterThan(7800);
+    for (const post of crowdPosts) {
+      expect(post.photos?.length, `${post.key} photo`).toBeGreaterThan(0);
+      if (post.group) expect(groups.get(post.group)?.members.some(([key]) => key === post.author), `${post.key} membership`).toBe(true);
     }
   });
 

@@ -1,4 +1,5 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
+import fs from 'node:fs/promises';
 import multer from 'multer';
 import { ZodError } from 'zod';
 import { AppError } from '../utils/errors.js';
@@ -6,7 +7,7 @@ import { logger } from '../config/logger.js';
 
 export const notFound: RequestHandler = (req, _res, next) => next(new AppError(404, `Route ${req.path} was not found`, 'NOT_FOUND'));
 
-export const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
+export const errorHandler: ErrorRequestHandler = async (error, req, res, _next) => {
   void _next;
   if (error instanceof multer.MulterError) error = new AppError(error.code === 'LIMIT_FILE_SIZE' ? 413 : 422, error.code === 'LIMIT_FILE_SIZE' ? 'This file is too large.' : error.message, error.code);
   const isValidation = error instanceof ZodError;
@@ -16,6 +17,10 @@ export const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
     : isValidation
       ? error.issues[0]?.message || 'Please check the information you entered.'
       : error.message;
+  if (status < 500) {
+    const files = [...(Array.isArray(req.files) ? req.files : Object.values(req.files || {}).flat()), ...(req.file ? [req.file] : [])];
+    await Promise.allSettled(files.map((file) => fs.rm(file.path, { force: true })));
+  }
   if (status >= 500) logger.error({ error, requestId: req.requestId }, 'Unhandled request error');
   if (req.path.startsWith('/api/') || req.path.startsWith('/auth/')) {
     res.status(status).json({ ok: false, error: { code: isValidation ? 'VALIDATION_ERROR' : error.code ?? 'INTERNAL_ERROR', message, details: isValidation ? error.flatten() : error.details }, requestId: req.requestId });

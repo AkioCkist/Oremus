@@ -22,7 +22,7 @@ Then open the page for the feature you are working on.
 | [Performance and memory](PERFORMANCE.md) | N+1 prevention, query indexes, memory bounds and verification commands |
 | [Database setup and migrations](DATABASE.md) | One-command setup, reset, migration commands and how to add a migration |
 | [Endless lists](INFINITE_SCROLL.md) | Infinite scroll for the feed, comments, chats, notifications, groups and more; cursors and the shared list API |
-| [Data scripts](SCRIPTS.md) | Sample data seed (38 people with photos, topic-focused content for recommendations) and wipe scripts to reset the app to an empty state |
+| [Data scripts](SCRIPTS.md) | Large deterministic sample seed (2,000 people, ~8,000 illustrated posts, groups/stories/social graph) and wipe scripts |
 | [Data model](DATA_MODEL.md) | Every MongoDB collection and field, relationships, indexes, migrations and seed data |
 | [Authentication and security](AUTHENTICATION.md) | Login, JWT cookies, refresh token rotation, logout, password reset, CSRF and other protections |
 | [Posts and feed](POSTS_AND_FEED.md) | Creating and editing posts, who can see what, media layout, reactions, comments, home feed order |

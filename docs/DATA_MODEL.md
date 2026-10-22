@@ -214,5 +214,5 @@ Behaviour signals for [recommendations](RECOMMENDATIONS.md): `userId`, `type` (`
 ## Migrations and seed data
 
 - `npm run db:migrate` runs [`scripts/migrate.ts`](../apps/web/src/scripts/migrate.ts). It syncs the indexes of every model and runs pending data migrations from [`src/migrations/`](../apps/web/src/migrations/); the `migrations` collection records which ones already ran. See [Database setup and migrations](DATABASE.md).
-- `npm run seed` runs [`scripts/seed.ts`](../apps/web/src/scripts/seed.ts). It creates 38 sample people with full profiles and real photos, 17 groups, about 130 posts with reactions and comments, stories, chats, notifications and a short behaviour history for two accounts. It is safe to run many times. The sample login is `maya@example.com` / `CircleSpace123`. See [Sample data](SCRIPTS.md#sample-data-seed).
+- `npm run seed` runs [`scripts/seed.ts`](../apps/web/src/scripts/seed.ts). It keeps the curated fixtures and adds a deterministic crowd for 2,000 people, 137 seed groups, about 8,000 posts, 690 stories, relationships, reactions, comments, notifications and recommendation signals. It is safe to run many times. The sample login is `maya@example.com` / `CircleSpace123`. See [Sample data](SCRIPTS.md#sample-data-seed).
 
