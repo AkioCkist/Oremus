@@ -4,7 +4,8 @@
 :root {
   /* Backgrounds (Grouped): primary = page, secondary = cards/cells, elevated = sheets */
   --c-canvas: 255 255 255; --c-surface: 255 255 255; --c-grouped: 242 242 247; --c-elevated: 255 255 255;
-  --header-h: 3.5rem;
+  --header-h: 3.5rem; --rail-w: 0px;
+  --story-ring: linear-gradient(45deg, rgb(255 141 40), rgb(255 45 85) 55%, rgb(203 48 224));
   /* Fills: tertiary = text fields, secondary = bordered buttons, quaternary = hover */
   --c-field: 239 239 240; --c-hover: 244 244 245; --c-control: 233 233 235; --c-control-hover: 228 228 230; --c-rail-hover: 229 229 234;
   /* Separators (non-opaque on white) and Gray 3 for strong strokes */
@@ -121,11 +122,14 @@
   /* Surfaces — inset grouped cells: no drop shadow, large continuous corners. */
   .skip-link { @apply fixed left-3 top-3 z-50 -translate-y-20 rounded-full bg-surface px-4 py-2 font-semibold shadow-pop focus:translate-y-0; }
   .card { @apply rounded-2xl bg-surface shadow-card; }
+  /* Feed posts have no chrome: they sit on the page, one hairline between them. */
+  .post { @apply border-b border-line pb-4; }
+  .post-pad { @apply px-3 sm:px-0; }
   .bg-grouped .card { @apply bg-elevated shadow-none; }
   .card-title { @apply font-display text-title3 font-semibold text-ink; }
   .divider { @apply my-2 border-t border-line; }
-  .empty-state { @apply rounded-2xl bg-surface p-8 text-center shadow-card; }
-  .empty-icon { @apply mx-auto grid size-14 place-items-center rounded-full bg-brand-50 text-brand-600; }
+  .empty-state { @apply p-8 text-center; }
+  .empty-icon { @apply mx-auto grid size-16 place-items-center rounded-full text-ink ring-2 ring-ink; }
 
   /* Forms — iOS text fields: filled, borderless, rounded; focus shows the tint ring. */
   .label { @apply text-footnote font-semibold text-muted; }
@@ -163,6 +167,10 @@
   .btn-primary { @apply btn bg-brand-600 text-white hover:bg-primary-hover active:brightness-95; }
   .btn-secondary { @apply btn bg-control text-ink hover:bg-control-hover; }
   .btn-soft { @apply btn bg-control text-brand-600 hover:bg-control-hover; }
+  /* Inline text action, Instagram's blue Follow. */
+  .btn-text { @apply inline-flex items-center text-footnote font-semibold text-brand-600 hover:text-ink disabled:opacity-40; }
+  .btn-text > svg { @apply hidden; }
+  .btn-text[data-following="true"] { @apply text-muted; }
   .btn-ghost { @apply btn text-brand-600 hover:bg-hover; }
   .btn-outline { @apply btn glass text-ink hover:brightness-[0.98]; }
   .btn-danger { @apply btn bg-ios-red text-white hover:brightness-95; }
@@ -181,8 +189,10 @@
   /* Avatar */
   .avatar { @apply relative grid shrink-0 place-items-center overflow-hidden rounded-full font-display font-semibold text-white; }
   .avatar img { @apply size-full object-cover; }
-  .avatar-ring { @apply rounded-full p-[3px] ring-[2.5px] ring-brand-600; }
-  .avatar-ring-seen { @apply ring-strong; }
+  .avatar-ring { @apply inline-grid shrink-0 rounded-full p-[2.5px]; background: var(--story-ring); }
+  .avatar-ring-seen { @apply p-px; background: rgb(var(--c-strong)); }
+  .avatar-ring-gap { @apply inline-grid rounded-full bg-canvas p-[2.5px]; }
+  .avatar-ring-seen > .avatar-ring-gap { @apply p-[3.5px]; }
   .online-dot { @apply absolute bottom-0 right-0 size-3 rounded-full bg-online ring-2 ring-surface; }
   /* Monogram tones use the kit accents. */
   .tone-0 { background: linear-gradient(180deg, #4dacff, #0088ff); }
@@ -194,105 +204,89 @@
   .tone-6 { background: linear-gradient(180deg, #ff6b88, #ff2d55); }
   .tone-7 { background: linear-gradient(180deg, #a5abb8, #858994); }
 
-  /* App shell (Figma: Opportunities web — sidebar · content · inspector).
-     Phones/tablets: glass top bar + floating tab bar. lg+: the same <header> becomes a full-height sidebar. */
-  /* The sidebar's and the toolbar's glass is painted by a ::before layer, not the element itself: an element with
-     backdrop-filter becomes the backdrop root of everything inside it, so the Messages / Notifications popovers
-     (which hang outside both) would only blur the sidebar and show the page behind them unblurred. */
-  .app-sidebar { @apply sticky top-0 z-40 flex h-14 flex-col justify-center px-3 sm:px-4; box-shadow: 0 0.5px 0 var(--bar-rim); }
-  .app-sidebar::before { content: ''; @apply pointer-events-none absolute inset-0 -z-10 rounded-[inherit]; background: var(--bar-bg); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%); }
-  /* Above the search field and nav rows that follow it, so its popovers aren't covered by them. */
-  .app-sidebar-top { @apply relative z-10 flex items-center gap-2; }
-  .app-sidebar-search, .app-sidebar-body, .app-sidebar-account { @apply hidden; }
-  .header-action { @apply glass size-11; }
-  .header-action > .icon { @apply size-[1.375rem]; }
-  /* Toolbar - Glass Group: one capsule holding several 22pt symbols. */
-  .toolbar-group { @apply relative isolate flex h-11 items-center gap-0.5 rounded-full px-1 lg:h-10; }
-  .toolbar-group::before { content: ''; @apply glass pointer-events-none absolute inset-0 -z-10 rounded-full; }
-  .toolbar-btn { @apply relative grid size-9 cursor-pointer list-none place-items-center rounded-full text-ink transition-colors hover:bg-ink/[0.06] lg:size-8; }
-  .toolbar-btn > .icon { @apply size-[1.375rem] lg:size-5; }
-  .compose-btn { @apply grid size-11 shrink-0 place-items-center rounded-full bg-brand-600 text-white shadow-float transition-[filter,transform] hover:brightness-105 active:scale-95; }
-  /* Phones: spans the screen under the top bar (anchored to its button it would run off the left edge). */
+  /* App shell. Under lg: glass top bar + floating Tab Bar. From lg: the kit's vertical tab bar (Tab Bar - iPhone Duo):
+     a 56pt capsule of destinations with the actions as detached 48pt circles, centered on the left edge so every target
+     is close to the pointer's resting column (Fitts). Glass sits only on controls, content scrolls beneath it. */
+  .app-sidebar { @apply sticky top-0 z-40 flex h-14 items-center gap-1 px-3 sm:px-4; box-shadow: 0 0.5px 0 var(--bar-rim); }
+  .app-sidebar::before { content: ''; @apply pointer-events-none absolute inset-0 -z-10; background: var(--bar-bg); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%); }
+  .rail-brand { @apply mr-auto flex shrink-0 items-center gap-2 rounded-full; }
+  .rail-brand-name { @apply font-display text-title3 font-semibold text-ink; }
+  .rail-nav, .rail-actions { @apply flex items-center gap-1; }
+  .rail-tabs, .rail-search { @apply hidden; }
+  .rail-circle { @apply relative grid size-11 cursor-pointer list-none place-items-center rounded-full text-ink transition-[background-color,transform] duration-150 hover:bg-ink/[0.06] active:scale-90; }
+  .rail-circle > .icon { @apply size-6; stroke-width: 1.7; }
+  .rail-tip { @apply hidden; }
+  .rail-circle > .badge { @apply right-0.5 top-0.5; }
+  /* Phones: spans the screen under the top bar. */
   .header-popover { @apply glass-strong fixed inset-x-2 top-[3.75rem] z-40 overflow-hidden rounded-popover sm:absolute sm:inset-x-auto sm:right-0 sm:top-[3.25rem] sm:w-[22.5rem] sm:max-w-[calc(100vw-1rem)]; }
+  details[open] > .header-popover { @apply animate-pop-in; }
+  .search-panel { @apply p-4; }
+  /* The results sit in flow here, so the field's icon and ghost text anchor to the field, not the whole form. */
+  .search-panel [data-search-box] > .icon { top: 1.375rem; }
+  .search-panel [data-search-ghost] { bottom: auto; height: 2.75rem; }
+  .search-panel .search-results { @apply static mt-3 max-h-[min(32rem,70dvh)] w-full rounded-none bg-transparent p-0; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .messages-dock { @apply fixed bottom-4 right-4 z-40 hidden; }
+  .messages-pill { @apply glass relative flex h-12 cursor-pointer list-none items-center gap-2.5 rounded-full px-4 text-ink transition-transform duration-150 hover:-translate-y-0.5 active:scale-95; }
   .mini-chat-dock { position: fixed; right: max(1rem, env(safe-area-inset-right)); bottom: max(0rem, env(safe-area-inset-bottom)); z-index: 50; }
 
-  /* lg+: the sidebar is a floating Thick-glass panel parked off-canvas (Zen browser style). It slides in over the
-     page when the pointer reaches the left-edge hot zone and stays while hovered, focused (keyboard users tab into it)
-     or while one of its popovers is open; it slides back out when the pointer leaves. Showing is instant; hiding
-     waits a beat so a diagonal exit is forgiving. A faint grabber on the edge hints that it is there. */
-  .sidebar-hotzone { @apply hidden; }
   @media (min-width: 1024px) {
-    body:has(> .app-sidebar) { --header-h: 0px; }
-    .sidebar-hotzone { @apply fixed inset-y-0 left-0 z-50 block w-8; }
-    .sidebar-hotzone::after { content: ''; @apply absolute left-1 top-1/2 h-14 w-1 -translate-y-1/2 rounded-full bg-ink/20 transition-colors; }
-    .sidebar-hotzone:hover::after { @apply bg-ink/40; }
-    .app-sidebar {
-      @apply fixed inset-y-2 left-2 z-50 h-auto w-[21rem] justify-start rounded-[1.375rem] px-5 pb-4 pt-3;
-      box-shadow: var(--shadow-pop);
-      transform: translateX(calc(-100% - 1.5rem));
-      transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1) 0.15s;
-    }
-    .app-sidebar::before { background: var(--glass-bg-strong); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); }
-    .sidebar-hotzone:hover + .app-sidebar,
-    .app-sidebar:hover,
-    .app-sidebar:focus-within,
-    .app-sidebar:has(details[open]) { transform: none; transition-delay: 0s; }
-    /* Brand row and search row get room to breathe: taller rows, wider gaps, roomier toolbar capsule. */
-    .app-sidebar-top { @apply h-16 shrink-0 gap-3 pl-1 pr-0.5; }
-    .app-sidebar .toolbar-group { @apply h-11 gap-1 px-1.5; }
-    .app-sidebar .toolbar-btn { @apply size-9; }
-    .app-sidebar-search { @apply flex shrink-0 items-center gap-3 pb-7 pt-3; }
-    .app-sidebar-search .pill-input { @apply h-12; }
-    .app-sidebar-search .compose-btn { @apply size-12; }
-    /* Compose stays monochrome like the rest of the sidebar. */
-    .app-sidebar-search .compose-btn { @apply bg-ink text-surface shadow-none; }
-    .app-sidebar-body { @apply -mx-1 block min-h-0 flex-1 overflow-y-auto px-1 pb-4; scrollbar-width: none; }
-    /* Instagram-style rows: taller, larger label and 24pt one-color icon; the current page is a bold label on a faint fill. */
-    .app-sidebar-body .side-link { @apply min-h-[3rem] gap-4 rounded-xl px-3 text-body text-ink; }
-    .app-sidebar-body .side-link-active, .app-sidebar-body .side-link-active:hover { @apply bg-ink/[0.06] font-semibold text-ink; }
-    .app-sidebar-body .side-icon { @apply size-6 text-ink; stroke-width: 1.7; }
-    .app-sidebar-body .side-link-active .side-icon { @apply text-ink; stroke-width: 2.3; }
-    .app-sidebar-body .side-heading { @apply px-3 pb-2 pt-7 text-footnote font-semibold uppercase tracking-wider text-subtle; }
-    .app-sidebar-account { @apply mt-2 flex shrink-0 items-center gap-2.5 rounded-xl bg-field px-3 py-2 transition-colors hover:bg-control; }
-    .app-sidebar .header-popover { @apply left-0 right-auto; }
+    body:has(> .app-sidebar) { --header-h: 0px; --rail-w: 5.5rem; }
+    body:has(> .app-sidebar) { padding-left: var(--rail-w); }
+    body:has(> .app-sidebar) > #toast-region { left: calc(var(--rail-w) + 1rem); }
+    .app-sidebar { @apply pointer-events-none fixed inset-y-3 left-4 h-auto w-14 flex-col items-center justify-between gap-0 p-0; box-shadow: none; }
+    .app-sidebar::before { display: none; }
+    .app-sidebar > * { @apply pointer-events-auto; }
+    .rail-brand { @apply mr-0 size-14 justify-center transition-transform duration-150 hover:scale-105; }
+    .rail-brand-name { @apply hidden; }
+    .rail-nav { @apply flex-col gap-3; }
+    .rail-tabs { @apply glass flex flex-col gap-0.5 rounded-full p-1; }
+    .rail-actions { @apply flex-col gap-3; }
+    .rail-search { @apply block; }
+    .rail-tab { @apply relative grid size-12 place-items-center rounded-full text-ink transition-[background-color,color] duration-150 hover:bg-ink/[0.06]; }
+    .rail-tab > .icon { @apply size-[1.625rem] transition-transform duration-150; stroke-width: 1.7; }
+    .rail-tab:hover > .icon { transform: scale(1.08); }
+    .rail-tab-active, .rail-tab-active:hover { @apply text-brand-600; background: rgb(var(--tab-selection)); }
+    .rail-circle { @apply glass size-12 hover:bg-transparent; }
+    .rail-circle:hover > .icon { transform: scale(1.08); }
+    .rail-circle > .icon { @apply transition-transform duration-150; }
+    /* Tooltips name each symbol. Opaque on purpose: no second blur layer over the glass. */
+    .rail-tip { @apply pointer-events-none absolute left-[calc(100%+0.75rem)] top-1/2 z-50 block -translate-y-1/2 whitespace-nowrap rounded-full px-3 py-1.5 text-footnote font-semibold text-ink opacity-0 transition-[opacity,translate] duration-150; background: var(--glass-bg-strong); box-shadow: var(--shadow-pop); translate: -0.25rem 0; }
+    .rail-tab:hover > .rail-tip, .rail-tab:focus-visible > .rail-tip, .rail-circle:hover > .rail-tip, .rail-circle:focus-visible > .rail-tip { @apply opacity-100; translate: 0 0; }
+    details[open] > .rail-circle > .rail-tip { @apply hidden; }
+    /* Panels open next to the rail, where the pointer already is. */
+    .header-popover { @apply fixed inset-x-auto top-3 max-h-[calc(100dvh-1.5rem)] w-[24rem] overflow-y-auto; left: calc(var(--rail-w) + 0.25rem); }
+    .messages-dock { @apply block; }
+    .messages-dock .header-popover { @apply absolute bottom-[calc(100%+0.5rem)] left-auto right-0 top-auto max-h-[min(36rem,calc(100dvh-6rem))] w-[22.5rem] origin-bottom-right; }
+    .mini-chat-dock { right: 14rem; }
   }
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     .app-sidebar::before { @apply bg-surface; }
   }
-  @media (prefers-reduced-motion: reduce) { .app-sidebar { transition: none !important; } }
 
-  /* Sidebar rows (Figma: Sidebar Row) — 38pt, radius 10, 16pt label, 20pt tinted symbol, trailing count. */
-  .side-link { @apply flex min-h-[2.375rem] items-center gap-2.5 rounded-[0.625rem] pl-2.5 pr-3 text-callout text-ink transition-colors hover:bg-ink/[0.05]; }
-  .side-link-active, .side-link-active:hover { @apply bg-ios-blue text-white; }
-  .side-link-active .side-icon { @apply text-white; }
+  /* List rows on Settings, Search and Groups (Figma: Sidebar Row): capsule selection, no bright fill. */
+  .side-link { @apply flex min-h-11 items-center gap-3 rounded-full pl-2.5 pr-4 text-callout text-ink transition-colors hover:bg-ink/[0.05]; }
+  .side-link-active, .side-link-active:hover { @apply bg-ink/[0.08] font-semibold; }
   .side-icon { @apply inline-block size-5 shrink-0 fill-none stroke-current; stroke-width: 1.85; stroke-linecap: round; stroke-linejoin: round; }
   .side-count { @apply ml-auto h-5 min-w-5 px-1.5 text-caption1; }
   .side-heading { @apply px-3 pb-2.5 pt-5 text-body text-muted; }
-  .rail-link { @apply flex items-center gap-3 rounded-xl p-2 text-callout text-ink transition-colors hover:bg-ink/[0.05]; }
   /* Settings-style rows with a colored rounded-square symbol (Figma W09). */
   .tile-icon { @apply grid size-7 shrink-0 place-items-center rounded-[0.4375rem] text-white; }
   .tile-icon > .icon { @apply size-[1.125rem]; }
 
-  /* Inspector column (Figma W05): grouped gray, fixed to the right edge; cells are elevated cards. */
-  /* Inspector (Figma W05), restyled as a floating Thick-glass panel that matches the hover sidebar:
-     inset from the window edges, continuous corners, translucent cells instead of a flat gray column. */
-  .inspector { @apply overflow-y-auto px-3 pb-6 pt-3; scrollbar-width: none; }
-  @media (min-width: 1280px) {
-    .inspector {
-      @apply fixed bottom-2 right-2 top-2 z-30 w-[21rem] rounded-[1.375rem];
-      background: var(--glass-bg-strong);
-      -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);
-      box-shadow: var(--shadow-pop);
-    }
-  }
-  .inspector-heading { @apply flex items-center justify-between px-3 pb-1.5 pt-5 text-footnote font-medium uppercase text-muted; }
-  .inspector > section:first-child .inspector-heading { @apply pt-2; }
+  /* Home suggestions column: flat, sits on the page. */
+  .home-layout { @apply mx-auto w-full pb-28 pt-2 lg:pb-20 lg:pt-6; }
+  @media (min-width: 1280px) { .home-layout { @apply flex items-start justify-center gap-16; } }
+  .home-feed { @apply mx-auto w-full max-w-feed xl:mx-0; }
+  .home-rail { @apply sticky top-6 hidden w-80 shrink-0 xl:block; }
+  .rail-section-head { @apply flex items-center justify-between pb-2 pt-6; }
+  .rail-section-title { @apply text-footnote font-semibold text-muted; }
+  .rail-row { @apply relative flex items-center gap-3 py-1.5; }
+  /* Inset grouped list (Figma: Lists). */
   .inset-group { @apply overflow-hidden rounded-2xl bg-elevated; }
-  .inspector .inset-group { @apply rounded-[1.125rem] bg-white/75 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-white/[0.06] dark:shadow-none; }
   .inset-row { @apply relative flex items-center gap-3 px-4 py-2.5 after:absolute after:bottom-0 after:left-4 after:right-0 after:h-px after:bg-line last:after:hidden; }
 
   /* Large title page header (Figma: 34pt Bold title + secondary subtitle). */
-  .page-header { @apply px-4 pb-4 pt-3 sm:px-0 lg:pt-10; }
+  .page-header { @apply px-4 pb-4 pt-3 sm:px-0 lg:pt-8; }
   .page-title { @apply font-display text-large-title font-bold text-ink; }
   .page-subtitle { @apply mt-1 text-subheadline text-muted; }
 
@@ -311,20 +305,121 @@
   .share-friend[aria-pressed="true"] .share-friend-check { @apply grid; }
 
   /* Feed */
-  .action-button { @apply flex h-9 flex-1 items-center justify-center gap-2 rounded-full text-15 font-medium text-muted transition-colors hover:bg-hover; }
-  .composer-tool { @apply flex h-10 flex-1 items-center justify-center gap-2 rounded-full text-15 font-medium text-muted hover:bg-hover; }
+  .action-button { @apply flex h-9 flex-1 items-center justify-center gap-2 rounded-full text-subheadline font-medium text-muted transition-colors hover:bg-hover; }
+  .post-action { @apply grid size-10 place-items-center rounded-full text-ink transition-[color,transform] hover:text-muted active:scale-90; }
+  .post-action > .icon { @apply size-[1.625rem]; stroke-width: 1.7; }
+  .post-action > svg:not(.icon) { @apply size-[1.625rem]; }
+  .post-action:disabled { @apply cursor-not-allowed opacity-40; }
+  .post-caption-clamp { @apply line-clamp-2; }
+  .post-comment-input { @apply field-bare h-9 min-w-0 flex-1 px-0 text-subheadline text-ink placeholder:text-muted; }
+  /* Carousel: native scroll-snap, Page Control dots, glass arrows. A single photo keeps its shape, capped at 4:5. */
+  .post-media { @apply relative overflow-hidden bg-field sm:rounded-2xl; }
+  .post-media-single img, .post-media-single video { @apply block w-full object-cover; max-height: calc(min(100vw, 33.75rem) * 1.25); }
+  .carousel-track { @apply flex aspect-[4/5] snap-x snap-mandatory overflow-x-auto; scrollbar-width: none; }
+  .carousel-track::-webkit-scrollbar { display: none; }
+  .carousel-slide { @apply relative size-full shrink-0 snap-center snap-always overflow-hidden; }
+  .carousel-slide img, .carousel-slide video { @apply size-full object-cover; }
+  .carousel-nav { @apply glass absolute top-1/2 z-10 hidden size-8 -translate-y-1/2 place-items-center rounded-full text-ink transition-opacity disabled:opacity-0 sm:grid; }
+  .carousel-count { @apply absolute right-3 top-3 z-10 rounded-full bg-black/60 px-2.5 py-0.5 text-caption1 font-medium text-white; }
+  .carousel-dots { @apply flex h-6 items-center justify-center gap-1; }
+  .carousel-dot { @apply size-1.5 rounded-full bg-ink/25 transition-colors; }
+  .carousel-dot-on { @apply bg-brand-600; }
+  /* 3:4 tile grid shared by profile and Discover. */
+  .tile-grid { @apply grid grid-cols-3 gap-px lg:grid-cols-4 xl:grid-cols-5; }
+  .tile { @apply relative block aspect-[3/4] overflow-hidden bg-field; }
+  .tile img, .tile video { @apply size-full object-cover; }
+  .tile-shade { @apply pointer-events-none absolute inset-0 flex items-center justify-center gap-5 bg-black/35 opacity-0 transition-opacity duration-150; }
+  .tile:hover .tile-shade, .tile:focus-within .tile-shade { @apply opacity-100; }
+  .tile-stat { @apply flex items-center gap-1.5 text-subheadline font-semibold text-white; }
+  .section-title { @apply text-title3 font-semibold; }
+  /* A control lifts toward the pointer, then settles when pressed. Transform only. */
+  .press-lift { @apply transition-transform duration-150 hover:scale-[1.04] active:scale-95; }
+  .story-item > a > .avatar-ring, .story-item > button > .avatar-ring, a.story-item > .avatar-ring { @apply transition-transform duration-150; }
+  .story-item:hover .avatar-ring { transform: scale(1.05); }
+  /* Group cards: the cover is the card, text and action sit on it. */
+  .group-card { @apply relative aspect-[4/3] overflow-hidden rounded-3xl bg-field; }
+  .group-card-image { @apply size-full object-cover transition-transform duration-300 ease-out; }
+  .group-card:hover .group-card-image { transform: scale(1.04); }
+  .group-card-text { @apply absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-4 pr-28 pt-16 text-white; }
+  .group-card-action { @apply absolute bottom-4 right-4; }
+  /* Profile preview on hover. */
+  .hover-card { @apply fixed z-[70] w-80 animate-pop-in rounded-[1.75rem] bg-surface p-4 text-ink; box-shadow: var(--shadow-pop); }
+  .hover-card[hidden] { display: none; }
+  .is-popping > svg { animation: heart-pop 0.32s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .heart-burst { @apply pointer-events-none absolute left-1/2 top-1/2 z-10 size-24 text-white; margin: -3rem 0 0 -3rem; filter: drop-shadow(0 4px 12px rgb(0 0 0 / 0.35)); animation: heart-burst 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+  /* Log in / sign up. Under lg the two forms slide past each other. From lg a single photo slides over the form
+     not in use. Transform and opacity only; the leaving form hides once it has finished moving. */
+  .auth-stage { --auth-ease: cubic-bezier(0.34, 1.18, 0.5, 1); @apply relative h-dvh overflow-hidden; }
+  .auth-pane { @apply absolute inset-0 flex flex-col overflow-y-auto overscroll-contain px-6 py-8 sm:px-12; transition: transform 0.55s var(--auth-ease), opacity 0.3s ease, visibility 0s linear 0s; }
+  .auth-pane[inert] { @apply invisible opacity-0; transition: transform 0.55s var(--auth-ease), opacity 0.25s ease, visibility 0s linear 0.55s; }
+  .auth-pane-login[inert] { transform: translateX(-100%); }
+  .auth-pane-register[inert] { transform: translateX(100%); }
+  .auth-pane { scrollbar-width: none; }
+  .auth-brand { @apply flex shrink-0 items-center gap-2 self-start; }
+  .auth-form { @apply mx-auto my-auto w-full max-w-[22rem] py-10; }
+  .auth-photo { @apply hidden; }
+  @media (min-width: 1024px) {
+    .auth-pane { @apply w-1/2 px-14; }
+    .auth-pane-login { left: 50%; }
+    .auth-pane-register { right: 50%; }
+    /* The form behind the photo only drifts a little: the photo does the travelling. */
+    .auth-pane-login[inert] { transform: translateX(-3rem); }
+    .auth-pane-register[inert] { transform: translateX(3rem); }
+    .auth-photo { @apply absolute inset-y-0 left-0 z-10 block w-1/2 overflow-hidden bg-field; transition: transform 0.65s var(--auth-ease); will-change: transform; }
+    [data-mode="register"] > .auth-photo { transform: translateX(100%); }
+    /* A wider picture moving against the panel gives the slide some depth. */
+    .auth-photo-image { @apply absolute inset-y-0 h-full max-w-none object-cover; left: -8%; width: 116%; transition: transform 0.65s var(--auth-ease); }
+    [data-mode="register"] .auth-photo-image { transform: translateX(-6%); }
+    [data-mode="login"] .auth-photo-image { transform: translateX(6%); }
+    .auth-photo-text { @apply absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-10 pt-32; }
+    .auth-photo-line { @apply font-display text-large-title font-bold text-white transition-[opacity,transform] duration-300; grid-area: 1 / 1; }
+    .auth-photo-text { display: grid; }
+    [data-mode="login"] .auth-photo-line-register, [data-mode="register"] .auth-photo-line-login { @apply translate-y-3 opacity-0; }
+  }
+  /* Post modal (kit: Sheets). */
+  .post-modal { @apply fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none overflow-hidden bg-transparent p-0 text-ink; }
+  .post-modal[open] { @apply flex items-center justify-center; }
+  .post-modal-card { --viewer-ratio: 0.8; --viewer-h: min(calc(100dvh - 3rem), 58rem); @apply relative flex h-full w-full flex-col overflow-hidden bg-surface; animation: modal-in 0.26s cubic-bezier(0.32, 0.72, 0, 1); }
+  .post-modal-stage { @apply relative flex w-full shrink-0 select-none items-center justify-center overflow-hidden bg-black; aspect-ratio: var(--viewer-ratio); max-height: 52dvh; }
+  .post-modal-panel { @apply flex min-h-0 w-full flex-1 flex-col bg-surface; }
+  .post-modal-close { @apply glass absolute right-3 top-3 z-20 grid size-10 place-items-center rounded-full text-ink transition-transform duration-150 hover:scale-105 active:scale-95; }
+  .post-modal-step { @apply glass absolute top-1/2 z-20 hidden size-11 -translate-y-1/2 place-items-center rounded-full text-ink transition-transform duration-150 hover:scale-105 active:scale-95; }
+  .post-modal-tools { @apply absolute left-3 top-3 z-10 hidden gap-1 opacity-0 transition-opacity duration-150 group-hover/stage:opacity-100 lg:flex; }
+  .post-modal-tool { @apply glass grid size-8 place-items-center rounded-full text-ink disabled:opacity-40; }
+  .post-modal-dots { @apply absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 gap-1; }
+  .post-modal-dot { @apply size-1.5 rounded-full bg-white/50 transition-colors; }
+  .post-modal-dot-on { @apply bg-white; }
+  .post-modal-card.is-media-only .post-modal-panel { @apply hidden; }
+  .post-modal-card.is-media-only .post-modal-stage { @apply max-h-none flex-1; aspect-ratio: auto; }
+  .post-modal-card.is-text .post-modal-stage { @apply hidden; }
+  @media (min-width: 1024px) {
+    .post-modal-card { --viewer-max-w: calc(100vw - 9rem - 26rem); @apply flex-row rounded-[1.75rem]; width: auto; height: max(36rem, min(var(--viewer-h), calc(var(--viewer-max-w) / var(--viewer-ratio)))); max-width: calc(100vw - 9rem); box-shadow: var(--shadow-pop); }
+    .post-modal-stage { max-height: none; aspect-ratio: auto; height: 100%; width: min(calc(var(--viewer-h) * var(--viewer-ratio)), var(--viewer-max-w)); }
+    .post-modal-panel { @apply w-[26rem] flex-none; }
+    .post-modal-close { @apply fixed right-4 top-4; }
+    .post-modal-step { @apply grid; }
+    .post-modal-card.is-text { @apply w-[34rem]; height: min(calc(100dvh - 3rem), 44rem); }
+    .post-modal-card.is-text .post-modal-panel { @apply w-full; }
+    .post-modal-card.is-media-only { width: calc(100vw - 9rem); }
+    .post-modal-card.is-media-only .post-modal-stage { width: 100%; }
+  }
   .reaction-bar { @apply glass-strong absolute bottom-full left-0 z-30 mb-2 hidden animate-pop-in items-center gap-1 rounded-full p-1.5; }
   .reaction-bar::after { content: ''; @apply absolute inset-x-0 top-full h-3; } /* hover bridge over the gap */
   .reaction-wrap:hover .reaction-bar, .reaction-wrap:focus-within .reaction-bar, .reaction-bar.is-open { @apply flex; }
   .reaction-wrap.reaction-done .reaction-bar { @apply !hidden; }
   .reaction-choice { @apply grid size-10 place-items-center rounded-full transition-transform duration-150 hover:-translate-y-1.5 hover:scale-125 focus-visible:-translate-y-1.5 focus-visible:scale-125; }
   .reaction-choice svg { @apply size-9; }
-  .comment-bubble { @apply inline-block max-w-full rounded-[1.125rem] bg-field px-3 py-2; }
+  .comment-bubble { @apply inline-block max-w-full; }
   .media-grid { @apply grid gap-0.5 bg-surface; }
   .media-grid img { @apply size-full cursor-zoom-in bg-field object-cover; }
   .media-grid video { @apply pointer-events-none size-full bg-black object-cover; }
 
   /* Stories */
+  .story-tray { @apply flex snap-x gap-3 overflow-x-auto px-3 py-2 sm:px-0; scrollbar-width: none; }
+  .story-tray::-webkit-scrollbar { display: none; }
+  .story-item { @apply relative flex w-[4.75rem] shrink-0 snap-start flex-col items-center gap-1.5 text-center; }
+  .story-item-name { @apply block w-full truncate text-caption1 text-ink; }
+  .story-plus { @apply absolute right-1 top-[3.25rem] z-10 grid size-5 place-items-center rounded-full bg-brand-600 text-white ring-2 ring-canvas; }
   .story-card { @apply relative block aspect-[9/16] w-[7rem] shrink-0 overflow-hidden rounded-xl bg-stage shadow-card sm:w-[8.75rem]; }
   .story-card img.story-thumb { @apply size-full object-cover transition-transform duration-300; }
   .story-card:hover img.story-thumb { @apply scale-[1.03]; }
@@ -355,34 +450,54 @@
 
   /* Messenger */
   .chat-row { @apply flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-hover; }
-  .chat-row-active { @apply bg-brand-50 hover:bg-brand-50; }
+  .chat-row-active { @apply bg-ink/[0.06] hover:bg-ink/[0.06]; }
   .bubble { @apply max-w-[75%] whitespace-pre-wrap break-words rounded-[1.125rem] px-3 py-2 text-15 leading-snug; }
   .bubble-me { @apply bg-ios-blue text-white; }
   .bubble-them { @apply bg-control text-ink; }
   .msg-rail-link { @apply grid size-11 place-items-center rounded-full text-muted transition-colors hover:bg-hover hover:text-ink; }
-  .msg-rail-active { @apply bg-brand-50 text-brand-600 hover:bg-brand-50 hover:text-brand-600; }
+  .msg-rail-active { @apply bg-ink/[0.06] text-ink hover:bg-ink/[0.06] hover:text-ink; }
 
   /* Tab Bar - iPhone: floating glass capsule; 54pt items, 10pt Semibold labels, selection on a vibrant fill. */
-  .mobile-tabbar { @apply glass fixed inset-x-4 z-40 mx-auto grid max-w-[28rem] grid-cols-5 gap-0.5 rounded-full p-1 lg:hidden; bottom: max(1rem, env(safe-area-inset-bottom)); }
+  .mobile-tabbar { @apply fixed inset-x-4 z-40 mx-auto flex max-w-[28rem] items-center gap-2 lg:hidden; bottom: max(1rem, env(safe-area-inset-bottom)); }
+  .mobile-tabs { @apply glass grid min-w-0 flex-1 grid-cols-4 gap-0.5 rounded-full p-1; }
+  .mobile-search { @apply glass grid size-[3.875rem] shrink-0 place-items-center rounded-full text-ink; }
   .mobile-link { @apply relative flex h-[3.375rem] flex-col items-center justify-center gap-px rounded-full text-[0.625rem] font-semibold leading-3 text-ink; }
   .mobile-link-active { @apply text-brand-600; background: rgb(var(--tab-selection)); }
 
-  /* Tabs — segmented-control look (Figma: Segmented Controls): the selected segment is a capsule. */
-  .tab { @apply relative isolate flex h-14 items-center px-4 text-subheadline font-medium text-muted hover:text-ink; }
-  .tab::after { content: ''; @apply absolute inset-x-0.5 top-1/2 -z-10 h-8 -translate-y-1/2 rounded-full transition-colors; }
-  .tab:hover::after { @apply bg-hover; }
-  .tab-active { @apply font-semibold text-ink hover:text-ink; }
-  .tab-active::after, .tab-active:hover::after { @apply bg-control; }
+  /* Segmented control (kit: Segmented Controls), in glass because it floats over the grid while scrolling. */
+  .segmented { @apply glass sticky top-[4.25rem] z-20 mx-auto flex w-fit max-w-[calc(100%-1.5rem)] gap-0.5 overflow-x-auto rounded-full p-1 lg:top-3; scrollbar-width: none; }
+  .segmented::-webkit-scrollbar { display: none; }
+  .tab { @apply flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-4 text-subheadline font-medium text-ink transition-colors duration-150 hover:bg-ink/[0.06]; }
+  .tab-active, .tab-active:hover { @apply font-semibold text-brand-600; background: rgb(var(--tab-selection)); }
 
   /* Layout */
   .app-shell { @apply mx-auto w-full max-w-[42.5rem] px-0 pb-28 pt-2 sm:px-4 lg:pb-12; }
-  @media (min-width: 1280px) {
-    .app-shell:has(> .inspector) { @apply max-w-none pr-[23rem]; }
-    .app-shell:has(> .inspector) > :not(.inspector) { @apply mx-auto max-w-[42.5rem]; }
-  }
+  .wide-shell { @apply mx-auto w-full max-w-[88rem] pb-28 lg:px-6 lg:pb-20; }
   .app-grid { @apply app-shell; }
-  .rail-sticky { @apply sticky top-[calc(var(--header-h)+1rem)] max-h-[calc(100dvh-var(--header-h)-1rem)] overflow-y-auto overscroll-contain pb-6; scrollbar-width: thin; }
   .eyebrow { @apply text-footnote font-semibold uppercase text-muted; }
+}
+
+/* Post page, lg+: photo on the left, everything else in a column on the right. The article dissolves into the grid. */
+@media (min-width: 1024px) {
+  .post-detail:has(.post-media) { display: grid; grid-template-columns: minmax(0, 1fr) 24rem; column-gap: 2rem; align-items: start; max-width: 62rem; }
+  .post-detail:has(.post-media) > .post { display: contents; }
+  .post-detail:has(.post-media) .post-media { grid-column: 1; grid-row: 1 / span 20; position: sticky; top: 1.5rem; }
+  .post-detail:has(.post-media) .post-media-single img { max-height: calc(100dvh - 3rem); }
+  .post-detail:has(.post-media) > .post > :not(.post-media), .post-detail:has(.post-media) > :not(.post) { grid-column: 2; }
+}
+
+/* Motion: short, purposeful, opacity and transform only, and gone when someone asks for less. */
+@keyframes modal-in { from { opacity: 0; transform: translateY(10px) scale(0.975); } }
+@keyframes sheet-in { from { opacity: 0; transform: translateY(12px) scale(0.98); } }
+@keyframes backdrop-in { from { opacity: 0; } }
+@keyframes heart-pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
+@keyframes heart-burst { 0% { opacity: 0; transform: scale(0.4); } 25% { opacity: 1; transform: scale(1.1); } 60% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.15); } }
+dialog[open]:not(.post-modal) { animation: sheet-in 0.24s cubic-bezier(0.32, 0.72, 0, 1); }
+dialog[open]::backdrop { animation: backdrop-in 0.2s ease-out; }
+.post-modal::backdrop { background: rgb(0 0 0 / 0.65); -webkit-backdrop-filter: blur(14px) saturate(140%); backdrop-filter: blur(14px) saturate(140%); }
+html:has(dialog.post-modal[open]) { overflow: hidden; }
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
 /* Reaction people: quick compositor-only motion for the sheet and selected filter. */

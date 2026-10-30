@@ -28,19 +28,19 @@
 <li data-key="<%= n._id %>">
   <a class="flex items-center gap-3 rounded-lg p-2 hover:bg-hover" href="<%= hrefOf(n) %>" data-unread="<%= fresh ? 'true' : 'false' %>">
     <span class="relative shrink-0">
-      <%- include('../avatar', { person: n.actorId, size: 'size-14 text-lg' }) %>
-      <span class="absolute -bottom-1 -right-1 grid size-7 place-items-center rounded-full text-white ring-2 ring-surface <%= m.bg %>">
-        <% if (m.fill) { %><svg class="size-7"><use href="#<%= m.icon %>"/></svg><% } else { %><svg class="icon size-4"><use href="#<%= m.icon %>"/></svg><% } %>
+      <%- include('../avatar', { person: n.actorId, size: 'size-11 text-sm' }) %>
+      <span class="absolute -bottom-0.5 -right-0.5 grid size-5 place-items-center rounded-full text-white ring-2 ring-canvas <%= m.bg %>">
+        <% if (m.fill) { %><svg class="size-5"><use href="#<%= m.icon %>"/></svg><% } else { %><svg class="icon size-3"><use href="#<%= m.icon %>"/></svg><% } %>
       </span>
     </span>
     <span class="min-w-0 flex-1">
-      <span class="line-clamp-3 text-15 <%= fresh ? '' : 'text-muted' %>"><strong class="font-semibold text-ink"><%= n.actorId.displayName %></strong> <%= n.text %></span>
-      <span class="mt-0.5 block text-[0.8125rem] <%= fresh ? 'font-semibold text-brand-600' : 'text-muted' %>" data-unread-time><%= timeAgo(n.createdAt) %></span>
+      <span class="line-clamp-3 text-subheadline <%= fresh ? '' : 'text-muted' %>"><strong class="font-semibold text-ink"><%= n.actorId.displayName %></strong> <%= n.text %></span>
+      <span class="mt-0.5 block text-footnote text-muted" data-unread-time><%= timeAgo(n.createdAt) %></span>
     </span>
-    <% if (fresh) { %><span class="size-3 shrink-0 rounded-full bg-brand-600" data-unread-dot aria-label="Unread"></span><% } %>
+    <% if (fresh) { %><span class="size-2 shrink-0 rounded-full bg-brand-600" data-unread-dot aria-label="Unread"></span><% } %>
   </a>
   <% if (n.type === 'friend_request' && n.friendState === 'incoming') { %>
-  <div class="ml-[4.25rem] pb-3 pr-3"><%- include('../friend-controls', { person: n.actorId, state: n.friendState, compact: true, full: false }) %></div>
+  <div class="ml-[3.75rem] pb-3 pr-3"><%- include('../friend-controls', { person: n.actorId, state: n.friendState, compact: true, full: false }) %></div>
   <% } %>
 </li>
 <% }) %>

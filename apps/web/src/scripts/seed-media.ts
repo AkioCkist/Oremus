@@ -1,85 +1,97 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import sharp from 'sharp';
+import { SEED_USER_AGENT, libraryPhoto } from './seed-photo-library.js';
 
 /**
  * Downloads real photos for the sample data and stores them like normal uploads (WebP in `uploads/`).
  *
- * - Photos: Lorem Picsum (https://picsum.photos), images from Unsplash under the Unsplash license.
- * - Portraits: Pravatar (https://pravatar.cc), placeholder avatars made for demos.
+ * - Curated photos: Lorem Picsum (https://picsum.photos), images from Unsplash under the Unsplash license.
+ * - Crowd photos: Wikimedia Commons, one per post. See seed-photo-library.json for author and license.
+ * - Portraits: Pravatar (https://pravatar.cc), xsgames (https://xsgames.co/randomusers) and randomuser.me.
  *
  * Files are named after their source (`seed-photo-1060-1600x1200.webp`), so re-running the seed reuses them
- * instead of downloading again. When the network is unavailable, photos fall back to a generated gradient
- * and avatars to an empty URL (the app then shows initials), so seeding still works offline.
+ * instead of downloading again. When a file can't be downloaded the URL is empty: posts go without a photo and
+ * people show their initials, so seeding still works offline and never fills the feed with placeholders.
  */
 
 const UPLOADS_DIR = path.resolve(process.cwd(), 'uploads');
 const TIMEOUT_MS = 20_000;
-const CONCURRENCY = 6;
+const CONCURRENCY = 3;
+const MAX_RETRIES = 20;
+const MAX_WAIT_SECONDS = 120;
 
 export type SeedImageRequest =
   | { kind: 'photo'; id: number; width: number; height: number }
+  | { kind: 'library'; id: number; width: number; height: number }
   | { kind: 'avatar'; id: number | string };
 
 export const photo = (id: number, width = 1600, height = 1200): SeedImageRequest => ({ kind: 'photo', id, width, height });
+/** A Commons photo, resized on the way in. Height 0 keeps its shape. */
+export const library = (id: number, width = 1080, height = 0): SeedImageRequest => ({ kind: 'library', id, width, height });
 export const avatar = (id: number | string): SeedImageRequest => ({ kind: 'avatar', id });
+/** A story photo: `commons-<pageid>` from the library, or a curated Lorem Picsum id. */
+export const storyImage = (id: number | string): SeedImageRequest => (typeof id === 'string' ? library(Number(id.replace('commons-', '')), 1080, 1920) : photo(id, 1080, 1920));
 
-const fileName = (request: SeedImageRequest) => request.kind === 'photo'
-  ? `seed-photo-${request.id}-${request.width}x${request.height}.webp`
-  : `seed-avatar-${request.id}.webp`;
+const fileName = (request: SeedImageRequest) => {
+  if (request.kind === 'photo') return `seed-photo-${request.id}-${request.width}x${request.height}.webp`;
+  if (request.kind === 'library') return `seed-library-${request.id}-${request.width}x${request.height}.webp`;
+  return `seed-avatar-${request.id}.webp`;
+};
 
-const sourceUrl = (request: SeedImageRequest) => request.kind === 'photo'
-  ? `https://picsum.photos/id/${request.id}/${request.width}/${request.height}`
-  : `https://i.pravatar.cc/600?img=${request.id}`;
+/** Crowd portraits are named `<source>-<gender>-<n>`; numeric ids are curated Pravatar portraits. */
+const portraitUrl = (id: number | string) => {
+  if (typeof id === 'number') return `https://i.pravatar.cc/600?img=${id}`;
+  const [source, gender, number] = id.split('-');
+  return source === 'xsgames'
+    ? `https://xsgames.co/randomusers/assets/avatars/${gender}/${number}.jpg`
+    : `https://randomuser.me/api/portraits/${gender === 'female' ? 'women' : 'men'}/${number}.jpg`;
+};
+
+const sourceUrl = (request: SeedImageRequest) => {
+  if (request.kind === 'photo') return `https://picsum.photos/id/${request.id}/${request.width}/${request.height}`;
+  if (request.kind === 'library') return libraryPhoto(request.id)?.url || '';
+  return portraitUrl(request.id);
+};
 
 export const seedImageUrl = (request: SeedImageRequest) => `/uploads/${fileName(request)}`;
 const requestKey = (request: SeedImageRequest) => fileName(request);
+class PermanentError extends Error {}
 
 async function exists(file: string) {
   try { await fs.access(file); return true; } catch { return false; }
 }
 
+/** Bulk downloads get rate-limited and drop now and then, so both only pause the work. 404 and the like are final. */
 async function download(url: string): Promise<Buffer> {
-  const response = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS), redirect: 'follow' });
-  if (!response.ok) throw new Error(`${response.status} ${url}`);
-  return Buffer.from(await response.arrayBuffer());
+  for (let attempt = 0; ; attempt += 1) {
+    let wait = Math.min((attempt + 1) * 10, MAX_WAIT_SECONDS);
+    try {
+      const response = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS), redirect: 'follow', headers: { 'user-agent': SEED_USER_AGENT } });
+      if (response.ok) return Buffer.from(await response.arrayBuffer());
+      if (response.status !== 429 && response.status < 500) throw new PermanentError(`${response.status} ${url}`);
+      wait = Math.max(wait, Math.min(Number(response.headers.get('retry-after')) || 0, MAX_WAIT_SECONDS));
+    } catch (error) {
+      if (error instanceof PermanentError) throw error;
+    }
+    if (attempt >= MAX_RETRIES) throw new Error(`Gave up on ${url}`);
+    await new Promise((resolve) => setTimeout(resolve, wait * 1000));
+  }
 }
 
-/** A soft two-color gradient that stands in for a photo when it can't be downloaded. */
-function placeholder(request: Extract<SeedImageRequest, { kind: 'photo' }>) {
-  const hue = (request.id * 47) % 360;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${request.width}" height="${request.height}"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${hue},70%,62%)"/><stop offset="1" stop-color="hsl(${(hue + 60) % 360},65%,38%)"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/></svg>`;
-  return sharp(Buffer.from(svg));
-}
-
-type Outcome = 'cached' | 'downloaded' | 'generated' | 'placeholder' | 'missing';
-
-/** Local abstract portrait used by the large crowd: distinct, network-free and cheap to cache. */
-function generatedAvatar(id: string) {
-  const seed = [...id].reduce((value, char) => Math.imul(value ^ char.charCodeAt(0), 16777619) >>> 0, 2166136261);
-  const hue = seed % 360, second = (hue + 45 + (seed % 75)) % 360;
-  const x = 150 + (seed % 300), y = 140 + ((seed >>> 8) % 280), radius = 90 + ((seed >>> 16) % 130);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="hsl(${hue},72%,64%)"/><stop offset="1" stop-color="hsl(${second},66%,38%)"/></linearGradient></defs><rect width="600" height="600" fill="url(#g)"/><circle cx="${x}" cy="${y}" r="${radius}" fill="rgba(255,255,255,.24)"/><circle cx="${600 - x / 2}" cy="${580 - y / 3}" r="${radius * 0.72}" fill="rgba(10,20,50,.18)"/><path d="M-40 520 Q220 ${280 + seed % 100} 640 500 V640 H-40Z" fill="rgba(255,255,255,.2)"/></svg>`;
-  return sharp(Buffer.from(svg));
-}
+type Outcome = 'cached' | 'downloaded' | 'missing';
 
 async function materialize(request: SeedImageRequest): Promise<Outcome> {
   const target = path.join(UPLOADS_DIR, fileName(request));
   if (await exists(target)) return 'cached';
-  if (request.kind === 'avatar' && typeof request.id === 'string') {
-    await generatedAvatar(request.id).webp({ quality: 82 }).toFile(target);
-    return 'generated';
-  }
   try {
     const source = await download(sourceUrl(request));
+    const image = sharp(source).rotate();
+    if (request.kind === 'library') image.resize(request.width, request.height || null, { fit: 'cover' });
     // Same settings as real uploads (src/media/image.ts): WebP q80, no metadata.
-    await sharp(source).rotate().webp({ quality: 80 }).toFile(target);
+    await image.webp({ quality: 80 }).toFile(target);
     return 'downloaded';
-  } catch {
-    if (request.kind === 'avatar') return 'missing';
-    await placeholder(request).webp({ quality: 80 }).toFile(target);
-    return 'placeholder';
-  }
+  } catch { return 'missing'; }
 }
 
 /**
@@ -96,7 +108,7 @@ export async function isServedBy(origin: string, publicUrl: string): Promise<boo
 
 /**
  * Makes sure every requested image exists in `uploads/`, downloading in parallel.
- * Returns a lookup from request to its public URL ('' for an avatar that could not be fetched).
+ * Returns a lookup from request to its public URL ('' for a file that could not be fetched).
  */
 export async function prepareSeedImages(requests: SeedImageRequest[]): Promise<(request: SeedImageRequest) => string> {
   await fs.mkdir(UPLOADS_DIR, { recursive: true });
@@ -115,6 +127,6 @@ export async function prepareSeedImages(requests: SeedImageRequest[]): Promise<(
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
   process.stdout.write('\n');
   const count = (outcome: Outcome) => [...outcomes.values()].filter((value) => value === outcome).length;
-  console.log(`  ${count('downloaded')} downloaded, ${count('generated')} generated, ${count('cached')} reused, ${count('placeholder')} placeholders, ${count('missing')} avatars unavailable.`);
+  console.log(`  ${count('downloaded')} downloaded, ${count('cached')} reused, ${count('missing')} unavailable.`);
   return (request) => (outcomes.get(requestKey(request)) === 'missing' ? '' : seedImageUrl(request));
 }

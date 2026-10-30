@@ -1,6 +1,6 @@
 <%# The original post inside a share (Facebook-style attachment). Locals: shared (populated original, or null when unavailable). -%>
 <% if (!shared) { %>
-<div class="mx-4 mb-3 flex items-start gap-3 rounded-lg border border-line bg-canvas p-4">
+<div class="mx-3 mb-2 flex items-start gap-3 rounded-2xl border border-line p-4 sm:mx-0">
   <span class="icon-btn shrink-0 bg-surface text-muted"><svg class="icon"><use href="#i-lock"/></svg></span>
   <span class="min-w-0"><span class="block font-semibold">This content isn't available right now</span><span class="mt-0.5 block text-pretty text-[0.8125rem] text-muted">When this happens, it's usually because the owner only shared it with a small group of people, changed who can see it, or it's been deleted.</span></span>
 </div>
@@ -12,7 +12,7 @@
   const sFeeling = describeFeeling(shared.feeling);
   const sIcon = shared.visibility === 'private' ? 'i-lock' : shared.visibility === 'followers' ? 'i-users' : 'i-globe';
 -%>
-<div class="mx-4 mb-3 overflow-hidden rounded-lg border border-line" data-shared-post="<%= shared._id %>">
+<div class="mx-3 mb-2 overflow-hidden rounded-2xl border border-line sm:mx-0" data-shared-post="<%= shared._id %>">
   <% if (sMedia.length) { %>
   <a href="/posts/<%= shared._id %>" class="media-grid <%= sMedia.length === 1 ? '' : 'grid-cols-2' %>" aria-label="Open the shared post">
     <% sMedia.forEach(function (m, i) { const video = String(m.mimeType || '').startsWith('video/'); %>

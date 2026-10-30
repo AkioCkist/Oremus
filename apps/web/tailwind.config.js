@@ -66,7 +66,7 @@ export default {
         float: 'var(--shadow-float)',
         glass: 'var(--shadow-glass)'
       },
-      maxWidth: { feed: '42.5rem' },
+      maxWidth: { feed: '33.75rem' },
       keyframes: {
         'pop-in': { '0%': { opacity: '0', transform: 'translateY(6px) scale(.96)' }, '100%': { opacity: '1', transform: 'none' } },
         'fade-in': { '0%': { opacity: '0' }, '100%': { opacity: '1' } }

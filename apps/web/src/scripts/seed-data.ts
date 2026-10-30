@@ -1,7 +1,8 @@
 /**
  * Sample content for `npm run seed`: curated fixtures plus a deterministic 2,000-person crowd.
  * Hand-written topics live in seed-data-topics.ts; the scalable layer lives in seed-data-crowd.ts.
- * Photo numbers are Lorem Picsum ids (https://picsum.photos/id/<n>/info) chosen to match each caption;
+ * Photo numbers are Lorem Picsum ids (https://picsum.photos/id/<n>/info) chosen to match each caption, strings are
+ * Commons photos from seed-photo-library.json;
  * avatar numbers are Pravatar ids (https://i.pravatar.cc/600?img=<n>). See seed-media.ts.
  */
 
@@ -15,15 +16,15 @@ export type SeedPerson = {
   key: string;
   email: string;
   displayName: string;
-  /** Numeric values use curated Pravatar portraits; strings create deterministic local abstract avatars. */
+  /** Numeric values use curated Pravatar portraits; strings are crowd portraits (`<source>-<gender>-<n>`, see seed-media.ts). */
   avatar: number | string;
-  cover: number;
+  cover: number | string;
   profile: Record<string, unknown>;
   /** Onboarding survey answers. Omitted: derived from the profile and posts (seed.ts). "pending": survey not taken yet. */
   interests?: { topics: string[]; keywords?: string[] } | 'pending';
 };
 
-export type SeedPhoto = number | [id: number, width: number, height: number];
+export type SeedPhoto = number | string | [id: number, width: number, height: number];
 
 export type SeedPost = {
   key: string;
@@ -46,7 +47,7 @@ export type SeedGroup = {
   slug: string;
   name: string;
   description: string;
-  cover: number;
+  cover: number | string;
   privacy: 'public' | 'private';
   groupType: string;
   location: string;
@@ -60,7 +61,7 @@ export type SeedGroup = {
 export type SeedStory = {
   author: string;
   minutesAgo: number;
-  photo?: number;
+  photo?: number | string;
   text?: string;
   background?: string;
   style?: Partial<{ font: string; color: string; align: string; effect: string; animation: string; size: number; x: number; y: number }>;
@@ -503,12 +504,12 @@ const CURATED_PEOPLE: SeedPerson[] = [...BASE_PEOPLE, ...TOPIC_PEOPLE, ...NEWCOM
 const CURATED_GROUPS: SeedGroup[] = [...BASE_GROUPS, ...TOPIC_GROUPS];
 const CURATED_POSTS: SeedPost[] = [...BASE_POSTS, ...TOPIC_POSTS];
 const CURATED_STORIES: SeedStory[] = [...BASE_STORIES, ...TOPIC_STORIES];
-const CROWD = buildCrowdSeed({ people: CURATED_PEOPLE, posts: CURATED_POSTS }, 2000);
+const CROWD = buildCrowdSeed({ people: CURATED_PEOPLE, posts: CURATED_POSTS, stories: CURATED_STORIES }, 2000);
 
 export const PEOPLE: SeedPerson[] = [...CURATED_PEOPLE, ...CROWD.people];
 export const GROUPS: SeedGroup[] = [...CURATED_GROUPS, ...CROWD.groups];
-export const POSTS: SeedPost[] = [...CURATED_POSTS, ...CROWD.posts];
-export const STORIES: SeedStory[] = [...CURATED_STORIES, ...CROWD.stories];
+export const POSTS: SeedPost[] = [...CROWD.curatedPosts, ...CROWD.posts];
+export const STORIES: SeedStory[] = [...CROWD.curatedStories, ...CROWD.stories];
 export const FRIENDS: Array<[string, string]> = [...BASE_FRIENDS, ...TOPIC_FRIENDS, ...CROWD.friends];
 export const EXTRA_FOLLOWS: Array<[string, string]> = [...BASE_FOLLOWS, ...TOPIC_FOLLOWS, ...CROWD.follows];
 export const CHATS: SeedChat[] = [...BASE_CHATS, ...TOPIC_CHATS];

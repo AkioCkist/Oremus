@@ -35,10 +35,10 @@ describe('header popovers', () => {
   });
 
   it('marks every rendered unread badge as a live update target', async () => {
-    const html = await ejs.renderFile(path.resolve('src/views/partials/sidebar.ejs'), {
+    const html = await ejs.renderFile(path.resolve('src/views/partials/nav.ejs'), {
       ...viewHelpers,
       path: '/',
-      currentUser: { username: 'me' },
+      currentUser: { _id: 'me', username: 'me', displayName: 'Me' },
       unreadMessages: 12,
       unreadNotifications: 3
     });

@@ -18,6 +18,7 @@ import { audit } from '../services/audit.service.js';
 import { clearSignals, recordClientEvents, trackSignal } from '../services/activity.service.js';
 import { getRecommendations } from '../services/recommendation.service.js';
 import { safeNext, saveInterests, skipOnboarding } from '../services/interest.service.js';
+import { profileMedia } from '../services/lists.service.js';
 import { env } from '../config/env.js';
 
 const id = (req: Request) => req.user!.id;
@@ -41,6 +42,18 @@ export async function breakState(req: Request, res: Response) { res.json({ ok: t
 export async function takeBreak(req: Request, res: Response) { res.json({ ok: true, data: await setBreak(id(req), param(req, 'userId'), breakSchema.parse(req.body)) }); }
 export async function blockUser(req: Request, res: Response) { const { blocked } = blockActionSchema.parse(req.body); res.json({ ok: true, data: await setBlock(id(req), param(req, 'userId'), blocked) }); }
 export async function createPost(req: Request, res: Response) { const post = await posts.createPost(id(req), postSchema.parse(req.body), req.files as Express.Multer.File[]); res.status(201).json({ ok: true, data: { post } }); }
+export async function userCard(req: Request, res: Response) {
+  const username = param(req, 'username');
+  const profile = await users.getProfile(username, id(req));
+  if (profile.blockedByMe) throw new AppError(404, 'User not found.');
+  const info = profile.profile || {};
+  const media = await profileMedia(username, id(req), 'photos', 'newest', null);
+  res.json({ ok: true, data: { card: {
+    _id: String(profile._id), username: profile.username, displayName: profile.displayName, avatarUrl: info.avatarUrl || '', bio: profile.canViewDetails ? info.bio || '' : '',
+    followers: profile.followers, following: profile.following, friends: profile.friends, isSelf: String(profile._id) === id(req), isFollowing: !!profile.isFollowing,
+    photos: media.items.slice(0, 3).map((item: any) => item.url)
+  } } });
+}
 export async function postDetail(req: Request, res: Response) { const detail = await posts.getPostDetail(param(req, 'postId'), id(req)); const [post] = await posts.withReactionSummary([detail.post as any], id(req)); res.json({ ok: true, data: { post, comments: detail.comments, commentsNext: detail.commentsNext, canModerate: detail.canModerate } }); }
 export async function updatePost(req: Request, res: Response) { res.json({ ok: true, data: { post: await posts.updatePost(id(req), param(req, 'postId'), postEditSchema.parse(req.body), req.files as Express.Multer.File[]), message: 'Post updated.' } }); }
 export async function replacePostMedia(req: Request, res: Response) { res.json({ ok: true, data: { ...(await posts.replacePostMedia(id(req), param(req, 'postId'), param(req, 'mediaId'), req.file)), message: 'Media replaced.' } }); }

@@ -1,8 +1,8 @@
 <%- include('partials/head') %><%- include('partials/nav') %>
-<% const isSelf = currentUser && String(profile._id) === String(currentUser._id); const info = profile.profile || {}; const tabHref = (t) => `/profile/${profile.username}${t === 'posts' ? '' : '?tab=' + t}`; -%>
+<% const isSelf = currentUser && String(profile._id) === String(currentUser._id); const info = profile.profile || {}; const tabHref = (t) => `/profile/${profile.username}?tab=${t}`; -%>
 <% if (profile.blockedByMe) { %>
 <main id="main" class="mx-auto max-w-feed px-4 py-12">
-  <section class="card p-8 text-center">
+  <section class="p-8 text-center">
     <div class="empty-icon"><svg class="icon size-7"><use href="#i-lock"/></svg></div>
     <h1 class="mt-4 text-balance text-2xl font-bold">You blocked <%= profile.displayName %></h1>
     <p class="mt-2 text-pretty text-muted">You can't see each other's profiles, follow, add as a friend or send messages. Unblocking won't automatically restore your friendship or follows.</p>
@@ -10,141 +10,82 @@
   </section>
 </main>
 <% } else { %>
-<main id="main" class="pb-24 md:pb-10">
-  <!-- Header -->
-  <section class="bg-surface shadow-card">
-    <div class="mx-auto max-w-[71.25rem]">
-      <div class="relative aspect-[16/6] max-h-[25rem] w-full overflow-hidden bg-field sm:rounded-b-xl">
-        <% if (isSelf) { %><button type="button" class="block size-full" data-photo-menu="cover" data-url="<%= info.coverUrl || '' %>" aria-label="Cover photo options"><% } else if (info.coverUrl) { %><button type="button" class="block size-full" data-lightbox="<%= info.coverUrl %>" aria-label="View cover photo"><% } %>
-        <img class="size-full object-cover" src="<%= info.coverUrl || '/assets/img/default-cover.svg' %>" alt="<%= info.coverUrl ? profile.displayName + `'s cover photo` : '' %>">
-        <% if (isSelf || info.coverUrl) { %></button><% } %>
-        <% if (isSelf) { %><button type="button" class="btn absolute bottom-4 right-4 bg-surface text-ink shadow-card hover:bg-hover" data-photo-menu="cover" data-url="<%= info.coverUrl || '' %>"><svg class="icon"><use href="#i-camera"/></svg><span class="hidden sm:inline"><%= info.coverUrl ? 'Edit cover photo' : 'Add cover photo' %></span></button><% } %>
-      </div>
-      <div class="px-4 lg:px-8">
-        <div class="flex flex-col items-center gap-4 border-b border-line pb-4 md:flex-row md:items-end">
-          <div class="relative -mt-20 shrink-0 md:-mt-8">
-            <% if (hasStory) { %><a href="/stories/<%= profile.username %>" aria-label="View <%= profile.displayName %>'s story" class="block rounded-full bg-surface p-1 ring-[3px] ring-brand-600"><% } %>
-            <% if (!hasStory && isSelf) { %><button type="button" class="block rounded-full" data-photo-menu="avatar" data-url="<%= info.avatarUrl || '' %>" aria-label="Profile picture options"><% } else if (!hasStory && info.avatarUrl) { %><button type="button" class="block rounded-full" data-lightbox="<%= info.avatarUrl %>" aria-label="View profile picture"><% } %>
-            <%- include('partials/avatar', { person: profile, size: 'size-[10.5rem] text-5xl ring-4 ring-surface' }) %>
-            <% if (!hasStory && (isSelf || info.avatarUrl)) { %></button><% } %>
-            <% if (hasStory) { %></a><% } %>
-            <% if (isSelf) { %><button type="button" class="icon-btn absolute bottom-2 right-2" data-photo-menu="avatar" data-url="<%= info.avatarUrl || '' %>" aria-label="Update profile picture"><svg class="icon"><use href="#i-camera"/></svg></button><% } %>
-          </div>
-          <div class="min-w-0 flex-1 text-center md:pb-3 md:text-left">
-            <h1 class="text-balance font-display text-large-title font-bold leading-tight"><%= profile.displayName %></h1>
-            <p class="mt-1 font-semibold text-muted"><span data-profile-friends><%= plural(profile.friends, 'friend') %></span> · <span data-profile-followers data-count="<%= profile.followers %>"><%= plural(profile.followers, 'follower') %></span> · <%= compact(profile.following) %> following</p>
-            <% if (friendsPreview.length) { %>
-            <div class="mt-2 flex justify-center -space-x-2 md:justify-start">
-              <% friendsPreview.slice(0, 8).forEach(function (p) { %><a href="/profile/<%= p.username %>" title="<%= p.displayName %>"><%- include('partials/avatar', { person: p, size: 'size-8 text-2xs ring-2 ring-surface' }) %></a><% }) %>
-            </div>
-            <% } %>
-            <p class="hidden basis-full text-sm text-ios-red" role="alert" data-profile-action-error></p>
-          </div>
-          <div class="profile-actions flex flex-wrap justify-center gap-2 md:max-w-lg md:justify-end md:pb-3">
-            <% if (isSelf) { %>
-              <button type="button" class="btn-primary" data-open-story-composer><svg class="icon"><use href="#i-plus"/></svg>Add to story</button>
-              <button type="button" class="btn-secondary" data-open-dialog="edit-profile-dialog"><svg class="icon"><use href="#i-edit"/></svg>Edit profile</button>
-            <% } else if (currentUser) { %>
-              <%- include('partials/friend-controls', { person: profile, state: profile.friendState, compact: false, full: false }) %>
-              <button type="button" class="btn-secondary" data-follow="<%= profile._id %>" data-follow-style data-following="<%= profile.isFollowing %>"><svg class="icon"><use href="#<%= profile.isFollowing ? 'i-check' : 'i-user-plus' %>"/></svg><span><%= profile.isFollowing ? 'Following' : 'Follow' %></span></button>
-              <button type="button" class="btn-primary <%= profile.friendState === 'friends' ? '' : 'hidden' %>" data-friend-message="<%= profile._id %>" data-message-user="<%= profile._id %>"><svg class="icon"><use href="#i-chat"/></svg>Message</button>
-            <% } else { %>
-              <a class="btn-primary" href="/login">Log in to add friend</a>
-            <% } %>
-            <button type="button" class="btn-secondary" data-open-dialog="profile-search-dialog"><svg class="icon"><use href="#i-search"/></svg>Search</button>
-            <% if (!isSelf && currentUser) { %>
-            <details class="relative" data-menu>
-              <summary class="btn-secondary cursor-pointer" aria-label="More profile actions"><svg class="icon"><use href="#i-chevron-down"/></svg></summary>
-              <div class="menu right-0 top-full mt-2">
-                <button type="button" class="menu-item" data-open-break="<%= profile._id %>" data-user-name="<%= profile.displayName %>"><svg class="icon"><use href="#i-pause"/></svg><span data-break-label><%= profile.seeLess || profile.restrictPosts ? 'Edit break settings' : 'Take a break' %></span></button>
-                <button type="button" class="menu-item" data-copy-profile="/profile/<%= profile.username %>"><svg class="icon"><use href="#i-link"/></svg>Copy profile link</button>
-                <div class="divider"></div>
-                <button type="button" class="menu-item" data-block-user="<%= profile._id %>" data-user-name="<%= profile.displayName %>"><svg class="icon"><use href="#i-lock"/></svg>Block</button>
-              </div>
-            </details>
-            <% } %>
-          </div>
-        </div>
-        <nav aria-label="Profile sections" class="scrollbar-none flex overflow-x-auto">
-          <a class="tab <%= tab === 'posts' ? 'tab-active' : '' %>" href="<%= tabHref('posts') %>" <%= tab === 'posts' ? 'aria-current=page' : '' %>>Posts</a>
-          <a class="tab <%= tab === 'about' ? 'tab-active' : '' %>" href="<%= tabHref('about') %>" <%= tab === 'about' ? 'aria-current=page' : '' %>>About</a>
-          <a class="tab <%= tab === 'media' ? 'tab-active' : '' %>" href="<%= tabHref('media') %>" <%= tab === 'media' ? 'aria-current=page' : '' %>>Media</a>
-        </nav>
-      </div>
+<main id="main" class="wide-shell">
+  <!-- Hero: who this is, in one centered block. -->
+  <header class="mx-auto flex max-w-xl flex-col items-center px-4 pb-6 pt-5 text-center lg:pt-10">
+    <% if (hasStory) { %><a href="/stories/<%= profile.username %>" aria-label="View <%= profile.displayName %>'s story" class="block press-lift"><%- include('partials/avatar', { person: profile, size: 'size-28 text-4xl md:size-36 md:text-5xl', ring: 'unseen' }) %></a>
+    <% } else if (isSelf) { %><button type="button" class="block rounded-full press-lift" data-photo-menu="avatar" data-url="<%= info.avatarUrl || '' %>" aria-label="Profile picture options"><%- include('partials/avatar', { person: profile, size: 'size-28 text-4xl md:size-36 md:text-5xl' }) %></button>
+    <% } else if (info.avatarUrl) { %><button type="button" class="block rounded-full press-lift" data-lightbox="<%= info.avatarUrl %>" aria-label="View profile picture"><%- include('partials/avatar', { person: profile, size: 'size-28 text-4xl md:size-36 md:text-5xl' }) %></button>
+    <% } else { %><%- include('partials/avatar', { person: profile, size: 'size-28 text-4xl md:size-36 md:text-5xl' }) %><% } %>
+
+    <h1 class="page-title mt-4 text-balance"><%= profile.displayName %></h1>
+    <p class="text-subheadline text-muted">@<%= profile.username %></p>
+
+    <p class="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-1 text-subheadline">
+      <span data-profile-friends><%= plural(profile.friends, 'friend') %></span>
+      <span data-profile-followers data-count="<%= profile.followers %>"><%= plural(profile.followers, 'follower') %></span>
+      <span><%= compact(profile.following) %> following</span>
+    </p>
+
+    <% if (info.bio && profile.canViewDetails) { %><p class="mt-3 whitespace-pre-wrap break-words text-subheadline"><%= info.bio %></p><% } %>
+    <% if (info.website && profile.canViewDetails) { %><a class="mt-1 block max-w-full truncate text-subheadline font-semibold text-brand-600 hover:underline" href="<%= info.website %>" target="_blank" rel="noopener noreferrer"><%= info.website.replace(/^https?:\/\/(www\.)?/, '') %></a><% } %>
+    <% if (friendsPreview.length) { %>
+    <div class="mt-3 flex max-w-full items-center gap-2">
+      <span class="flex -space-x-1.5"><% friendsPreview.slice(0, 3).forEach(function (p) { %><a href="/profile/<%= p.username %>" title="<%= p.displayName %>"><%- include('partials/avatar', { person: p, size: 'size-5 text-[0.5rem] ring-2 ring-canvas' }) %></a><% }) %></span>
+      <span class="min-w-0 truncate text-footnote text-muted">Friends with <%= friendsPreview.slice(0, 2).map(function (p) { return firstName(p.displayName); }).join(', ') %><%= profile.friends > 2 ? ` and ${compact(profile.friends - 2)} more` : '' %></span>
     </div>
-  </section>
-
-  <div class="mx-auto mt-4 grid max-w-[71.25rem] gap-4 px-0 sm:px-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:px-8">
-    <% if (tab === 'about') { %>
-    <%- include('partials/profile-about', { info, isSelf }) %>
-    <% } else if (tab === 'posts') { %>
-    <!-- Left column -->
-    <aside class="space-y-4">
-      <%- include('partials/profile-intro', { info, isSelf }) %>
-      <section class="card p-4">
-        <div class="flex items-center justify-between"><h2 class="card-title text-xl">Media</h2><% if (photos.length) { %><a class="rounded-md px-2 py-1 text-15 text-brand-600 hover:bg-hover" href="<%= tabHref('media') %>">See all media</a><% } %></div>
-        <% if (photos.length) { %>
-        <p class="text-15 text-muted"><%= plural(mediaCounts.photos, 'photo') %> · <%= plural(mediaCounts.videos, 'video') %></p>
-        <div class="mt-3 grid grid-cols-3 gap-1 overflow-hidden rounded-lg">
-          <% photos.forEach(function (item) { %><%- include('partials/media-tile', { item, isSelf }) %><% }) %>
-        </div>
-        <% } else { %><p class="mt-3 text-15 text-muted">No photos or videos to show.</p><% } %>
-      </section>
-      <% if (friendsPreview.length) { %>
-      <section class="card p-4">
-        <h2 class="card-title text-xl">Friends</h2>
-        <p class="text-15 text-muted"><%= plural(profile.friends, 'friend') %></p>
-        <div class="mt-3 grid grid-cols-3 gap-3">
-          <% friendsPreview.forEach(function (p) { %>
-          <a href="/profile/<%= p.username %>" class="group">
-            <span class="block aspect-square overflow-hidden rounded-lg <%= p.profile && p.profile.avatarUrl ? 'bg-field' : toneOf(p.displayName) %>"><% if (p.profile && p.profile.avatarUrl) { %><img class="size-full object-cover" src="<%= p.profile.avatarUrl %>" alt=""><% } else { %><span class="grid size-full place-items-center font-display text-2xl font-bold text-white"><%= initials(p.displayName) %></span><% } %></span>
-            <span class="mt-1 block truncate text-[0.8125rem] font-semibold group-hover:underline"><%= p.displayName %></span>
-          </a>
-          <% }) %>
-        </div>
-      </section>
-      <% } %>
-    </aside>
     <% } %>
+    <p class="mt-2 hidden text-sm text-ios-red" role="alert" data-profile-action-error></p>
+    <div class="profile-actions mt-5 flex flex-wrap items-center justify-center gap-2">
+      <%- include('partials/profile-actions', { isSelf }) %>
+    </div>
+  </header>
 
-    <% if (tab === 'posts') { %>
-    <section class="min-w-0 space-y-4" aria-label="Posts">
-      <% if (isSelf) { %><%- include('partials/composer') %><% } %>
-      <div class="card flex items-center justify-between gap-3 px-4 py-3"><h2 class="card-title text-balance text-xl"><%= profileQuery ? 'Results for “' + profileQuery + '”' : 'Posts' %></h2><% if (profileQuery) { %><a class="btn-ghost btn-sm" href="<%= tabHref('posts') %>">Clear search</a><% } %></div>
-      <% if (posts.length) { %><div class="space-y-4" data-infinite="profile-posts" data-infinite-next="<%= postsNext || '' %>" data-infinite-query="user=<%= encodeURIComponent(profile.username) %>&q=<%= encodeURIComponent(profileQuery) %>"><%- include('partials/chunks/profile-posts', { items: posts }) %></div><% } else { %>
-      <div class="empty-state"><div class="empty-icon"><svg class="icon size-7"><use href="#i-feed"/></svg></div><h3 class="mt-4 text-balance text-lg font-bold"><%= profileQuery ? 'No matching posts' : 'No posts yet' %></h3><p class="mt-1 text-pretty text-muted"><%= profileQuery ? 'Try another keyword to search this profile.' : isSelf ? 'Share your first post — it will show up here.' : `When ${firstName(profile.displayName)} shares something, it will appear here.` %></p></div>
-      <% } %>
-    </section>
-    <% } else if (tab === 'media') { %>
-    <% const mediaHref = (type, sort) => `/profile/${profile.username}?tab=media${type !== 'all' ? '&type=' + type : ''}${sort !== 'newest' ? '&sort=' + sort : ''}`; -%>
-    <section class="card p-4 lg:col-span-2" aria-labelledby="media-title">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="media-title" class="card-title text-xl">Media</h2>
-        <form method="get" action="/profile/<%= profile.username %>" class="flex items-center gap-2">
-          <input type="hidden" name="tab" value="media">
-          <% if (mediaFilter.type !== 'all') { %><input type="hidden" name="type" value="<%= mediaFilter.type %>"><% } %>
-          <label class="text-[0.8125rem] font-semibold text-muted" for="media-sort">Sort by</label>
-          <select id="media-sort" name="sort" class="input h-9 py-0 text-sm" data-autosubmit>
-            <% [['newest', 'Newest first'], ['oldest', 'Oldest first'], ['reactions', 'Most reactions'], ['comments', 'Most comments']].forEach(function ([value, text]) { %><option value="<%= value %>" <%= mediaFilter.sort === value ? 'selected' : '' %>><%= text %></option><% }) %>
-          </select>
-          <noscript><button type="submit" class="btn-secondary btn-sm">Apply</button></noscript>
-        </form>
-      </div>
-      <nav aria-label="Media type" class="mt-3 flex flex-wrap gap-2">
+  <nav aria-label="Profile sections" class="segmented">
+    <a class="tab <%= tab === 'media' ? 'tab-active' : '' %>" href="<%= tabHref('media') %>" <%= tab === 'media' ? 'aria-current=page' : '' %>><svg class="icon size-[1.125rem]"><use href="#i-grid"/></svg>Media</a>
+    <a class="tab <%= tab === 'posts' ? 'tab-active' : '' %>" href="<%= tabHref('posts') %>" <%= tab === 'posts' ? 'aria-current=page' : '' %>><svg class="icon size-[1.125rem]"><use href="#i-feed"/></svg>Posts</a>
+    <a class="tab <%= tab === 'about' ? 'tab-active' : '' %>" href="<%= tabHref('about') %>" <%= tab === 'about' ? 'aria-current=page' : '' %>><svg class="icon size-[1.125rem]"><use href="#i-info"/></svg>About</a>
+  </nav>
+
+  <% if (tab === 'about') { %>
+  <div class="mt-4 grid gap-4 px-0 sm:px-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:px-0">
+    <%- include('partials/profile-about', { info, isSelf }) %>
+  </div>
+  <% } else if (tab === 'posts') { %>
+  <section class="mx-auto mt-2 max-w-feed" aria-label="Posts">
+    <% if (profileQuery) { %><div class="post-pad flex items-center justify-between gap-3 py-2"><h2 class="truncate text-subheadline font-semibold">Results for “<%= profileQuery %>”</h2><a class="btn-ghost btn-sm" href="<%= tabHref('posts') %>">Clear search</a></div><% } %>
+    <% if (posts.length) { %><div data-infinite="profile-posts" data-infinite-next="<%= postsNext || '' %>" data-infinite-query="user=<%= encodeURIComponent(profile.username) %>&q=<%= encodeURIComponent(profileQuery) %>"><%- include('partials/chunks/profile-posts', { items: posts }) %></div><% } else { %>
+    <div class="empty-state"><div class="empty-icon"><svg class="icon size-7"><use href="#i-feed"/></svg></div><h3 class="mt-4 text-balance text-title3 font-semibold"><%= profileQuery ? 'No matching posts' : 'No posts yet' %></h3><p class="mt-1 text-pretty text-subheadline text-muted"><%= profileQuery ? 'Try another keyword to search this profile.' : isSelf ? 'Share your first post — it will show up here.' : `When ${firstName(profile.displayName)} shares something, it will appear here.` %></p></div>
+    <% } %>
+  </section>
+  <% } else { %>
+  <% const mediaHref = (type, sort) => `/profile/${profile.username}?tab=media${type !== 'all' ? '&type=' + type : ''}${sort !== 'newest' ? '&sort=' + sort : ''}`; -%>
+  <section aria-label="Media">
+    <div class="flex flex-wrap items-center justify-between gap-2 px-3 pb-3 pt-4 lg:px-0">
+      <nav aria-label="Media type" class="flex flex-wrap gap-1.5">
         <% [['all', 'All', mediaCounts.all], ['photos', 'Photos', mediaCounts.photos], ['videos', 'Videos', mediaCounts.videos]].forEach(function ([value, text, count]) { %>
-        <a class="chip <%= mediaFilter.type === value ? 'chip-active' : '' %>" href="<%= mediaHref(value, mediaFilter.sort) %>" <%= mediaFilter.type === value ? 'aria-current=page' : '' %>><svg class="icon size-4"><use href="#<%= value === 'videos' ? 'i-play' : value === 'photos' ? 'i-image' : 'i-stories' %>"/></svg><%= text %> <span class="text-muted"><%= compact(count) %></span></a>
+        <a class="chip h-7 px-3 text-footnote <%= mediaFilter.type === value ? 'chip-active' : '' %>" href="<%= mediaHref(value, mediaFilter.sort) %>" <%= mediaFilter.type === value ? 'aria-current=page' : '' %>><%= text %> <span class="opacity-60"><%= compact(count) %></span></a>
         <% }) %>
       </nav>
-      <% if (photos.length) { %>
-      <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" data-infinite="profile-media" data-infinite-next="<%= photosNext || '' %>" data-infinite-query="user=<%= encodeURIComponent(profile.username) %>&type=<%= mediaFilter.type %>&sort=<%= mediaFilter.sort %>" data-infinite-prefetch="10">
-        <%- include('partials/chunks/profile-media', { items: photos, isSelf }) %>
-      </div>
-      <% } else { %>
-      <div class="py-10 text-center"><div class="empty-icon"><svg class="icon size-7"><use href="#<%= mediaFilter.type === 'videos' ? 'i-play' : 'i-image' %>"/></svg></div><p class="mt-3 text-muted"><%= mediaFilter.type === 'videos' ? 'No videos to show.' : mediaFilter.type === 'photos' ? 'No photos to show.' : 'No photos or videos to show.' %></p></div>
-      <% } %>
-    </section>
+      <form method="get" action="/profile/<%= profile.username %>">
+        <input type="hidden" name="tab" value="media">
+        <% if (mediaFilter.type !== 'all') { %><input type="hidden" name="type" value="<%= mediaFilter.type %>"><% } %>
+        <label class="sr-only" for="media-sort">Sort by</label>
+        <select id="media-sort" name="sort" class="input h-7 rounded-full py-0 pl-3 text-footnote" data-autosubmit>
+          <% [['newest', 'Newest first'], ['oldest', 'Oldest first'], ['reactions', 'Most reactions'], ['comments', 'Most comments']].forEach(function ([value, text]) { %><option value="<%= value %>" <%= mediaFilter.sort === value ? 'selected' : '' %>><%= text %></option><% }) %>
+        </select>
+        <noscript><button type="submit" class="btn-secondary btn-sm">Apply</button></noscript>
+      </form>
+    </div>
+    <% if (photos.length) { %>
+    <div class="tile-grid" data-infinite="profile-media" data-infinite-next="<%= photosNext || '' %>" data-infinite-query="user=<%= encodeURIComponent(profile.username) %>&type=<%= mediaFilter.type %>&sort=<%= mediaFilter.sort %>" data-infinite-prefetch="10">
+      <%- include('partials/chunks/profile-media', { items: photos, isSelf }) %>
+    </div>
+    <% } else { %>
+    <div class="empty-state"><div class="empty-icon"><svg class="icon size-7"><use href="#<%= mediaFilter.type === 'videos' ? 'i-play' : 'i-camera' %>"/></svg></div><h3 class="mt-4 text-title3 font-semibold"><%= mediaFilter.type === 'videos' ? 'No videos yet' : mediaFilter.type === 'photos' ? 'No photos yet' : 'No photos or videos yet' %></h3><% if (isSelf) { %><button type="button" class="btn-text mt-2 text-subheadline" data-open-composer>Share your first photo</button><% } %></div>
     <% } %>
-  </div>
+  </section>
+  <% } %>
 </main>
 <dialog id="profile-search-dialog" class="w-[min(30rem,calc(100%-2rem))] rounded-sheet p-0 shadow-pop" aria-labelledby="profile-search-title">
   <div class="flex items-center justify-between border-b border-line px-4 py-3"><h2 id="profile-search-title" class="text-balance text-xl font-bold">Search this profile</h2><button type="button" class="icon-btn" data-close-dialog="profile-search-dialog" aria-label="Close search"><svg class="icon"><use href="#i-x"/></svg></button></div>

@@ -1,12 +1,13 @@
 import type { SeedGroup, SeedPerson, SeedPhoto, SeedPost, SeedStory, Topic } from './seed-data.js';
+import { STORY_BACKGROUNDS, STORY_FONTS } from '../shared/story-style.js';
+import { PHOTO_LIBRARY } from './seed-photo-library.js';
 
 /**
  * Large deterministic sample layer. It is generated instead of hand-written so `npm run seed` can create a
  * genuinely busy network while the original curated people/posts/groups remain untouched.
  *
- * Photos are selected only from curated posts with the same topic (or an explicit related fallback topic).
- * This keeps media relevant to captions and also keeps the number of downloaded files small: thousands of
- * posts reuse a few dozen cached source photos, just like a fixture/CDN library.
+ * No two posts, stories or group covers share a photo: each takes the next unused photo of its topic from the Commons
+ * library, and a post with nothing left stays text-only rather than repeating one. Captions are unique too.
  */
 
 type Theme = {
@@ -46,6 +47,16 @@ const THEMES: Theme[] = [
 
 const FIRST_NAMES = ['Anh', 'Binh', 'Chi', 'Dung', 'Giang', 'Ha', 'Hai', 'Hanh', 'Hieu', 'Hoa', 'Hoang', 'Huong', 'Khanh', 'Lan', 'Linh', 'Long', 'Mai', 'Minh', 'Nam', 'Nga', 'Ngoc', 'Nhi', 'Phong', 'Phuong', 'Quan', 'Quynh', 'Son', 'Thao', 'Trang', 'Tuan', 'Vy', 'Alex', 'Amelia', 'Arjun', 'Clara', 'Daniel', 'Elena', 'Ethan', 'Hana', 'Iris', 'Jonas', 'Kenji', 'Leah', 'Lucas', 'Maya', 'Nora', 'Omar', 'Priya', 'Rafael', 'Sofia'];
 const LAST_NAMES = ['Nguyen', 'Tran', 'Le', 'Pham', 'Vo', 'Dang', 'Bui', 'Do', 'Hoang', 'Vu', 'Huynh', 'Phan', 'Lam', 'Ngo', 'Duong', 'Taylor', 'Martin', 'Kim', 'Patel', 'Silva', 'Chen', 'Wilson', 'Sato', 'Brown', 'Garcia'];
+// Crowd portraits follow the first name, so a face fits the person it belongs to.
+const WOMEN = new Set(['Chi', 'Giang', 'Ha', 'Hanh', 'Hoa', 'Huong', 'Lan', 'Linh', 'Mai', 'Nga', 'Ngoc', 'Nhi', 'Phuong', 'Quynh', 'Thao', 'Trang', 'Vy', 'Amelia', 'Clara', 'Elena', 'Hana', 'Iris', 'Leah', 'Maya', 'Nora', 'Priya', 'Sofia']);
+const SHARP_PORTRAITS = 79, SMALL_PORTRAITS = 100;
+const crowdPortrait = (index: number) => {
+  const first = FIRST_NAMES[index % FIRST_NAMES.length]!;
+  const gender = WOMEN.has(first) ? 'female' : 'male';
+  const sameGender = FIRST_NAMES.filter((name) => WOMEN.has(name) === (gender === 'female'));
+  const number = (Math.floor(index / FIRST_NAMES.length) * sameGender.length + sameGender.indexOf(first)) % (SHARP_PORTRAITS + SMALL_PORTRAITS);
+  return number < SHARP_PORTRAITS ? `xsgames-${gender}-${number}` : `randomuser-${gender}-${number - SHARP_PORTRAITS}`;
+};
 const PLACES = ['Da Nang', 'Ho Chi Minh City', 'Ha Noi', 'Hoi An', 'Hue', 'Nha Trang', 'Da Lat', 'Can Tho', 'Vung Tau', 'Quy Nhon', 'Phu Quoc', 'Singapore', 'Bangkok', 'Seoul', 'Tokyo'];
 const DETAILS: Record<Topic, string[]> = {
   travel: ['a coastal train journey', 'a local market', 'a mountain homestay'], food: ['mushroom pho', 'crispy tofu noodles', 'lemongrass rice'], coffee: ['a washed arabica', 'a 1:16 pour-over', 'a slow phin brew'], pets: ['our rescue pup', 'a sleepy orange cat', 'the newest foster dog'], city: ['a riverside loop', 'the old quarter route', 'a car-free morning'], work: ['a customer interview', 'a tiny product experiment', 'the weekly planning ritual'], nature: ['a forest trail', 'a sunrise ridge', 'a quiet waterfall'], music: ['a jazz trio', 'an indie playlist', 'a new piano arrangement'], study: ['IELTS writing', 'data structures', 'Japanese vocabulary'], sport: ['a strength session', 'five-a-side football', 'a mobility circuit'], art: ['a poster study', 'a watercolor portrait', 'a small ceramic piece'], general: ['a community afternoon'], ai: ['a Vietnamese NLP model', 'a recommendation baseline', 'a computer vision prototype'], gaming: ['a co-op campaign', 'an indie puzzle game', 'a ranked team match'], books: ['a thoughtful new novel', 'a book about cities', 'a collection of essays'], running: ['an easy 8K', 'a long trail run', 'marathon pacing'], fitness: ['a mobility circuit', 'a full-body session', 'a recovery workout'], business: ['a customer interview', 'a pricing test', 'a small launch'], fashion: ['a repaired linen jacket', 'a vintage shirt', 'a hand-sewn tote'], ocean: ['a reef dive', 'a calm freediving session', 'a beach cleanup'], baking: ['a sourdough loaf', 'butter croissants', 'a fruit tart'], film: ['an independent documentary', 'a quiet coming-of-age film', 'a restored classic'], photography: ['a 35mm film camera', 'a compact prime lens', 'black-and-white street frames']
@@ -65,6 +76,11 @@ const PHOTO_POOLS: Record<Topic, SeedPhoto[]> = {
   film: [91, 1047], photography: [1047, 57, 74, 91]
 };
 
+const PERSONAL_ENDINGS = ['Best part of my week so far.', 'Anyone else feel the same?', 'More soon.', 'Small joys count.', 'Keeping this one for the memories.', 'Would happily do it again tomorrow.', 'Tell me if you have tried this too.', 'Not perfect, and that is fine.', 'Still smiling about it.', 'A good reminder to slow down.', 'This made my day.', 'Grateful for days like this.', 'Next time I am bringing friends.', 'Worth every minute.', 'Happy with how this turned out.', 'Learning a little each time.', 'I needed this today.', 'Simple things, done well.', 'Sharing because it made me happy.', 'What would you have done differently?', 'Going back as soon as I can.', 'Trying something new was the right call.', 'Quiet wins are still wins.', 'Thanks to everyone who suggested this.', 'A nice way to end the week.', 'The photo does not do it justice.', 'It took a few tries to get here.', 'Saving this for a rainy day.', 'Tomorrow I try it again.', 'That is all for today.'];
+const GROUP_ENDINGS = ['Questions welcome.', 'Add your own notes below.', 'Happy to share more details.', 'Would love a second opinion.', 'Newcomers very welcome.', 'Let me know what I missed.', 'Corrections are appreciated.', 'Hope this helps someone here.', 'Tag a friend who should see this.', 'I will update this thread next week.', 'Thanks for all the tips last time.', 'Who wants to try this together?', 'Curious how this compares for you.', 'Pinning my notes in the comments.', 'Shared with thanks to this community.', 'Any better ideas? I am listening.', 'Reply if you want to join next time.', 'Feedback from beginners is especially useful.', 'Keeping it simple on purpose.', 'More details on request.'];
+
+const LIGHT_BACKGROUNDS = new Set<string>(['candy', 'sun', 'mint', 'paper']);
+
 const hash = (value: string) => [...value].reduce((n, c) => Math.imul(n ^ c.charCodeAt(0), 16777619) >>> 0, 2166136261);
 const pick = <T>(items: T[], seed: string) => items[hash(seed) % items.length]!;
 const fill = (template: string, theme: Theme, seed: string) => template
@@ -76,12 +92,33 @@ export type CrowdSeed = {
   groups: SeedGroup[];
   posts: SeedPost[];
   stories: SeedStory[];
+  curatedPosts: SeedPost[];
+  curatedStories: SeedStory[];
   friends: Array<[string, string]>;
   follows: Array<[string, string]>;
 };
 
-export function buildCrowdSeed(existing: { people: SeedPerson[]; posts: SeedPost[] }, targetPeople = 2000): CrowdSeed {
+export function buildCrowdSeed(existing: { people: SeedPerson[]; posts: SeedPost[]; stories: SeedStory[] }, targetPeople = 2000): CrowdSeed {
   const count = Math.max(0, targetPeople - existing.people.length);
+  // Each photo goes out once. Returns undefined when a topic has run out, and callers then go without.
+  const cursor = new Map<string, number>();
+  const nextPhoto = (topic: Topic) => {
+    const pool = PHOTO_LIBRARY[topic] || [];
+    const at = cursor.get(topic) || 0;
+    if (at >= pool.length) return undefined;
+    cursor.set(topic, at + 1);
+    return `commons-${pool[at]!.id}`;
+  };
+  const photoList = (topic: Topic) => { const next = nextPhoto(topic); return next ? [next] : []; };
+  const usedTexts = new Set(existing.posts.map((post) => post.text));
+  /** A fresh sentence for this post: the seed moves on to another combination until the text is new. */
+  const uniqueCaption = (templates: string[], endings: string[], theme: Theme, seed: string) => {
+    for (let salt = 0; ; salt += 1) {
+      const attempt = `${seed}:${salt}`;
+      const text = `${fill(pick(templates, attempt), theme, attempt)} ${pick(endings, `${attempt}:ending`)}`;
+      if (!usedTexts.has(text)) { usedTexts.add(text); return text; }
+    }
+  };
   const topicPhoto = (topic: Topic, seed: string) => pick(PHOTO_POOLS[topic], seed);
   const photoId = (topic: Topic, seed: string) => {
     const value = topicPhoto(topic, seed);
@@ -94,7 +131,7 @@ export function buildCrowdSeed(existing: { people: SeedPerson[]; posts: SeedPost
     const place = PLACES[(index * 7) % PLACES.length]!;
     const key = `crowd${String(number).padStart(4, '0')}`;
     return {
-      key, email: `${key}@example.test`, displayName: name, avatar: `abstract-${String(index % 240).padStart(3, '0')}`, cover: photoId(theme.topic, `${key}:cover`),
+      key, email: `${key}@example.test`, displayName: name, avatar: crowdPortrait(index), cover: photoId(theme.topic, `${key}:cover`),
       interests: { topics: [theme.interest, THEMES[(index + 3) % THEMES.length]!.interest, THEMES[(index + 7) % THEMES.length]!.interest], keywords: theme.tags },
       profile: {
         bio: `${theme.emoji} ${theme.label} enthusiast sharing useful notes and everyday moments.`, location: `${place}, Vietnam`, hometown: `${PLACES[(index * 11 + 2) % PLACES.length]}, Vietnam`,
@@ -139,7 +176,7 @@ export function buildCrowdSeed(existing: { people: SeedPerson[]; posts: SeedPost
     return {
       slug, name: `${theme.groupNames[Math.floor(index / THEMES.length) % theme.groupNames.length]} ${Math.floor(index / THEMES.length) + 1}`,
       description: `A welcoming community for ${theme.label.toLowerCase()}: practical advice, local meetups and member stories.`,
-      cover: photoId(theme.topic, `${slug}:cover`), privacy: index % 9 === 0 ? 'private' : 'public', groupType: theme.topic === 'work' ? 'work' : theme.topic === 'gaming' ? 'gaming' : theme.topic === 'study' ? 'learning' : 'hobbies',
+      cover: nextPhoto(theme.topic) ?? photoId(theme.topic, `${slug}:cover`), privacy: index % 9 === 0 ? 'private' : 'public', groupType: theme.topic === 'work' ? 'work' : theme.topic === 'gaming' ? 'gaming' : theme.topic === 'study' ? 'learning' : 'hobbies',
       location: index % 4 ? 'Vietnam' : PLACES[index % PLACES.length]!, tags: theme.tags,
       rules: [{ title: 'Be kind and useful', details: 'Share respectfully, give context and welcome newcomers.' }, { title: 'Stay on topic', details: `Posts should relate to ${theme.label.toLowerCase()}.` }],
       members: [...members].map(([key, role]) => [key, role])
@@ -156,21 +193,11 @@ export function buildCrowdSeed(existing: { people: SeedPerson[]; posts: SeedPost
     const groupSeed = `${person.key}:group`;
     posts.push({
       key: `crowd-personal-${String(index + 1).padStart(4, '0')}`, author: person.key, topic: theme.topic,
-      text: fill(pick(theme.personal, personalSeed), theme, personalSeed), hoursAgo: 2 + ((index * 19) % (24 * 90)), photos: [topicPhoto(theme.topic, personalSeed)], engagement: 'light'
+      text: uniqueCaption(theme.personal, PERSONAL_ENDINGS, theme, personalSeed), hoursAgo: 2 + ((index * 19) % (24 * 90)), photos: photoList(theme.topic), engagement: 'light'
     });
     posts.push({
       key: `crowd-group-${String(index + 1).padStart(4, '0')}`, author: person.key, topic: theme.topic, group: group.slug,
-      text: fill(pick(theme.group, groupSeed), theme, groupSeed), hoursAgo: 1 + ((index * 23) % (24 * 75)), photos: [topicPhoto(theme.topic, groupSeed)], engagement: 'light'
-    });
-    const personalSeed2 = `${person.key}:personal:2`;
-    const groupSeed2 = `${person.key}:group:2`;
-    posts.push({
-      key: `crowd-personal-${String(index + 1).padStart(4, '0')}-2`, author: person.key, topic: theme.topic,
-      text: fill(pick(theme.personal, personalSeed2), theme, personalSeed2), hoursAgo: 6 + ((index * 31) % (24 * 180)), photos: [topicPhoto(theme.topic, personalSeed2)], engagement: 'light'
-    });
-    posts.push({
-      key: `crowd-group-${String(index + 1).padStart(4, '0')}-2`, author: person.key, topic: theme.topic, group: group.slug,
-      text: fill(pick(theme.group, groupSeed2), theme, groupSeed2), hoursAgo: 4 + ((index * 41) % (24 * 150)), photos: [topicPhoto(theme.topic, groupSeed2)], engagement: 'light'
+      text: uniqueCaption(theme.group, GROUP_ENDINGS, theme, groupSeed), hoursAgo: 1 + ((index * 23) % (24 * 75)), photos: photoList(theme.topic), engagement: 'light'
     });
   });
 
@@ -182,11 +209,11 @@ export function buildCrowdSeed(existing: { people: SeedPerson[]; posts: SeedPost
     const group = groups[themeIndex]!;
     if (!existing.posts.some((post) => post.author === person.key && !post.group)) {
       const seed = `${person.key}:supplemental:personal`;
-      posts.push({ key: `supplemental-personal-${person.key}`, author: person.key, topic: theme.topic, text: fill(pick(theme.personal, seed), theme, seed), hoursAgo: 12 + index * 3, photos: [topicPhoto(theme.topic, seed)], engagement: 'light' });
+      posts.push({ key: `supplemental-personal-${person.key}`, author: person.key, topic: theme.topic, text: uniqueCaption(theme.personal, PERSONAL_ENDINGS, theme, seed), hoursAgo: 12 + index * 3, photos: photoList(theme.topic), engagement: 'light' });
     }
     if (!existing.posts.some((post) => post.author === person.key && post.group)) {
       const seed = `${person.key}:supplemental:group`;
-      posts.push({ key: `supplemental-group-${person.key}`, author: person.key, topic: theme.topic, group: group.slug, text: fill(pick(theme.group, seed), theme, seed), hoursAgo: 8 + index * 5, photos: [topicPhoto(theme.topic, seed)], engagement: 'light' });
+      posts.push({ key: `supplemental-group-${person.key}`, author: person.key, topic: theme.topic, group: group.slug, text: uniqueCaption(theme.group, GROUP_ENDINGS, theme, seed), hoursAgo: 8 + index * 5, photos: photoList(theme.topic), engagement: 'light' });
     }
   });
 
@@ -194,8 +221,30 @@ export function buildCrowdSeed(existing: { people: SeedPerson[]; posts: SeedPost
     const personIndex = storyIndex * 3;
     const theme = THEMES[personIndex % THEMES.length]!;
     const seed = `${person.key}:story`;
-    return { author: person.key, minutesAgo: 5 + ((storyIndex * 37) % 1380), photo: photoId(theme.topic, seed), text: fill(pick(theme.stories, seed), theme, seed) };
+    const place = PLACES[storyIndex % PLACES.length]!;
+    const text = `${fill(pick(theme.stories, seed), theme, seed)} · ${place}`;
+    const minutesAgo = 5 + ((storyIndex * 37) % 1380);
+    // A third of the stories are just words on a color, written the way people use the story composer.
+    const background = pick([...STORY_BACKGROUNDS], `${seed}:background`);
+    const textOnly = storyIndex % 3 === 0 ? { background, style: { font: pick([...STORY_FONTS], `${seed}:font`), color: LIGHT_BACKGROUNDS.has(background) ? '#000000' : '#ffffff', effect: LIGHT_BACKGROUNDS.has(background) ? 'none' : 'shadow', size: 1.3 } } : null;
+    return textOnly ? { author: person.key, minutesAgo, text, ...textOnly } : { author: person.key, minutesAgo, photo: nextPhoto(theme.topic), text, background };
   });
+
+  // Hand-written fixtures keep their chosen photo the first time it appears. A repeat gets a fresh one of the same topic.
+  const seenCurated = new Set<string>();
+  const firstUse = (value: SeedPhoto) => {
+    const id = String(Array.isArray(value) ? value[0] : value);
+    if (seenCurated.has(id)) return false;
+    seenCurated.add(id);
+    return true;
+  };
+  const curatedPosts = existing.posts.map((post) => ({
+    ...post,
+    photos: post.photos?.flatMap((value) => (firstUse(value) ? [value] : photoList(themeByTopic(post.topic).topic)))
+  }));
+  const curatedStories = existing.stories.map((story) => (story.photo === undefined || firstUse(story.photo)
+    ? story
+    : { ...story, photo: nextPhoto((curatedTheme.get(story.author) || THEMES[0]!).topic) }));
 
   const friendSet = new Set<string>();
   const friends: Array<[string, string]> = [];
@@ -214,6 +263,6 @@ export function buildCrowdSeed(existing: { people: SeedPerson[]; posts: SeedPost
     follows.push([person.key, people[(index + 5) % people.length]!.key], [person.key, people[(index + THEMES.length * 2) % people.length]!.key]);
   });
 
-  return { people, groups, posts, stories, friends, follows };
+  return { people, groups, posts, stories, curatedPosts, curatedStories, friends, follows };
 }
 

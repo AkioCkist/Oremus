@@ -32,8 +32,8 @@ describe('authentication boundaries', () => {
     const response = await request(app).get('/login').set('Accept', 'text/html');
 
     expect(response.status).toBe(200);
-    expect(response.text.indexOf('id="email"')).toBeLessThan(response.text.indexOf('id="password"'));
-    expect(response.text.indexOf('id="password"')).toBeLessThan(response.text.indexOf('href="/reset-password"'));
+    expect(response.text.indexOf('id="login-email"')).toBeLessThan(response.text.indexOf('id="login-password"'));
+    expect(response.text.indexOf('id="login-password"')).toBeLessThan(response.text.indexOf('href="/reset-password"'));
   });
 
   it('does not upgrade local HTTP assets to unavailable HTTPS URLs', async () => {

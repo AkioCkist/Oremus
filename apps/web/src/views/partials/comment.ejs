@@ -7,8 +7,8 @@
   <div class="min-w-0 flex-1">
     <div class="group/comment flex items-center gap-1">
       <div class="comment-bubble min-w-0" data-comment-bubble>
-        <a class="block text-[0.8125rem] font-semibold hover:underline" href="/profile/<%= who.username %>"><%= who.displayName %></a>
-        <p class="whitespace-pre-wrap break-words text-15 leading-snug" data-comment-text><%= comment.content %></p>
+        <a class="text-footnote font-semibold hover:text-muted" href="/profile/<%= who.username %>"><%= who.displayName %></a>
+        <p class="whitespace-pre-wrap break-words text-subheadline" data-comment-text><%= comment.content %></p>
       </div>
       <% if (canDelete) { %>
       <details class="group/menu relative shrink-0" data-menu data-comment-menu>
@@ -20,7 +20,7 @@
       </details>
       <% } %>
     </div>
-    <div class="mt-0.5 flex gap-3 px-3 text-xs font-semibold text-muted" data-comment-meta>
+    <div class="mt-0.5 flex gap-3 text-caption1 font-semibold text-muted" data-comment-meta>
       <time datetime="<%= new Date(comment.createdAt).toISOString() %>" title="<%= longTime(comment.createdAt) %>" class="font-normal"><%= timeAgo(comment.createdAt) %></time>
       <% if (currentUser) { %><button type="button" class="hover:underline" data-toggle="reply-<%= comment._id %>">Reply</button><% } %>
       <span class="font-normal <%= comment.editedAt ? '' : 'hidden' %>" data-comment-edited <% if (comment.editedAt) { %>title="Edited <%= longTime(comment.editedAt) %>"<% } %>>Edited</span>

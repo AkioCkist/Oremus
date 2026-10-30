@@ -36,6 +36,26 @@ Then either register a new account in the browser, or load the sample data:
 npm run seed
 ```
 
+### When the app runs in Docker
+
+MongoDB and Redis only `expose` their ports inside the Docker network, so the commands above fail from the host with `ECONNREFUSED` on port 6379 or 27017. Nothing is deleted in that case: the script connects before it wipes.
+
+Run them in the one-shot `seed` container instead. It connects to the same MongoDB, Redis and `uploads` volume as `web`:
+
+```bash
+docker compose run --rm --build seed npm run wipe:all -- --yes
+```
+
+`wipe:data` and `wipe:cache` work the same way. Then restart the app and load the sample data if you want it:
+
+```bash
+docker compose restart web media
+```
+
+```bash
+npm run seed
+```
+
 ## What `wipe:data` does
 
 ```mermaid
@@ -101,12 +121,12 @@ The scripts clean the server only. Browsers that visited the site still keep:
 
 | Data | Amount |
 |---|---|
-| People | 2,000. The original 39 curated accounts stay unchanged; 1,961 deterministic crowd accounts add bios, locations, work, languages, interests, covers and locally generated abstract avatars |
+| People | 2,000. The original 39 curated accounts stay unchanged; 1,961 deterministic crowd accounts add bios, locations, work, languages, interests and real portraits matched to the first name |
 | Relationships | ~5,960 friendships, ~15,850 follows and 4 pending friend requests |
-| Groups | 137 seed groups across 20 subjects (public/private, rules, moderators and roughly 45 members per generated group) |
-| Posts | ~7,985. Every account has at least one personal post and one group post; crowd accounts have two of each. Generated posts always include an image |
+| Groups | 137 seed groups across 20 subjects (public/private, rules, moderators and roughly 45 members per generated group). Generated covers are all different |
+| Posts | ~4,060, about 4,000 with a photo (the rest are hand-written text posts). Every account has at least one personal post and one group post. No two posts share a photo or a caption |
 | Reactions / comments | ~194,000 reactions and ~5,500 comments/replies. Generated posts use bounded engagement so database size stays practical |
-| Stories | ~690 active photo stories inside the 24-hour window |
+| Stories | ~690 active stories inside the 24-hour window: about two thirds with their own photo, the rest text on varied backgrounds |
 | Chats | 11 conversations, ~40 messages (some unread) |
 | Interests | Every sample account has survey answers (Maya's are hand-picked, the rest derived from bio, hobbies and posts). `new@example.com` has none, so signing in opens the interest survey |
 | Behaviour signals | A short history for `mai@example.com` (AI, IELTS, gaming) and `olivia@example.com` (pets, baking). Maya starts with none |
@@ -120,17 +140,20 @@ Every sample account uses the password `CircleSpace123`. The demo account is **`
 |---|---|
 | [`seed-data.ts`](../apps/web/src/scripts/seed-data.ts) | The content: people, groups, posts, stories, chats, comment pools. Edit this file to change the sample |
 | [`seed-data-topics.ts`](../apps/web/src/scripts/seed-data-topics.ts) | Topic-focused people, groups, posts, stories and behaviour signals for testing recommendations |
-| [`seed-data-crowd.ts`](../apps/web/src/scripts/seed-data-crowd.ts) | Deterministically generates the large crowd, social graph, 120 extra groups, posts and stories without replacing curated fixtures |
+| [`seed-data-crowd.ts`](../apps/web/src/scripts/seed-data-crowd.ts) | Deterministically generates the large crowd, social graph, 120 extra groups, posts and stories without replacing curated fixtures. Hands out each library photo once |
+| [`seed-photo-library.json`](../apps/web/src/scripts/seed-photo-library.json) | The crowd's photos per topic, with author, license and source of each. Rebuild with `npm run seed:photos` (slow, Commons rate-limits it) |
 | [`seed-media.ts`](../apps/web/src/scripts/seed-media.ts) | Downloads and compresses photos |
 | [`seed.ts`](../apps/web/src/scripts/seed.ts) | Inserts everything, generates reactions, comments and notifications |
+| [`seed-stories.ts`](../apps/web/src/scripts/seed-stories.ts) | Refreshes only the sample stories |
 
 ### Photos
 
-Photos are downloaded once on the first run, converted to WebP and stored in the Docker `uploads` volume as `seed-photo-<id>-<size>.webp` and `seed-avatar-<id>.webp`. Later runs reuse these files. A warm large seed takes about one minute on the development machine.
+Photos are downloaded once on the first run, converted to WebP and stored in the Docker `uploads` volume. Later runs reuse these files. The first run downloads about 4,700 photos from Wikimedia Commons, which takes around half an hour. A warm seed takes about one minute.
 
-- **Post, cover and story photos** come from [Lorem Picsum](https://picsum.photos) (Unsplash photos). Generated content uses narrow, hand-audited pools per subject—trail images cannot be selected for coffee posts, flower images cannot be selected for hiking captions, and so on.
-- **Avatars** for curated accounts come from [Pravatar](https://pravatar.cc). The crowd cycles through 240 deterministic abstract WebP avatars generated locally, avoiding thousands of network requests.
-- **Offline:** photos fall back to generated gradients and avatars to initials, so the seed still finishes.
+- **Crowd posts, stories and group covers** come from [Wikimedia Commons](https://commons.wikimedia.org), limited to photos Commons rates as Quality Images. Each is used once. They are freely licensed, and many licenses ask for attribution: the author and license of every photo are in `seed-photo-library.json`. Keep that in mind before using the sample data outside a demo.
+- **Curated posts** use hand-picked [Lorem Picsum](https://picsum.photos) photos (Unsplash). A photo that would repeat is swapped for a library photo of the same topic.
+- **Avatars** for curated accounts come from [Pravatar](https://pravatar.cc). The crowd cycles through 358 portraits from [xsgames](https://xsgames.co/randomusers) and [randomuser.me](https://randomuser.me), matched to the first name, so a face can repeat across the 1,961 accounts.
+- **Offline or rate-limited:** a post without its photo stays text-only and a person shows initials. No placeholder images are generated, so the seed still finishes.
 
 ### When the app runs in Docker
 
@@ -157,7 +180,17 @@ npm run seed:copy-docker
 
 For host-only development, use `npm run seed:local`. To apply database migrations through Docker, use `npm run db:migrate:docker`.
 
-The same applies to `wipe:data`: run from the host, it clears `apps/web/uploads` and not the container volume. Use the `docker compose exec` commands in [Safety checks](#safety-checks).
+The same applies to the wipe scripts: they cannot reach the containers' database from the host, and `uploads` on the host is not the container volume. Use the commands in [When the app runs in Docker](#when-the-app-runs-in-docker).
+
+### Refreshing only the stories
+
+Stories expire after 24 hours, so the sample stories disappear a day after seeding. This brings them back without touching people, posts, groups or chats:
+
+```bash
+npm run seed:stories
+```
+
+It replaces the stories a previous seed created, along with their views and reaction notifications. Stories posted by hand are kept. It needs the sample people, so run `npm run seed` once first. For host-only development, use `npm run seed:stories:local`.
 
 ### Running it again
 
@@ -171,6 +204,6 @@ Re-running is safe and gives the same result:
 For a fully clean start with sample data:
 
 ```bash
-npm run wipe:all -- --yes
+docker compose run --rm --build seed npm run wipe:all -- --yes
 npm run seed
 ```

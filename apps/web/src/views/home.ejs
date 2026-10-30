@@ -1,51 +1,45 @@
 <%- include('partials/head') %><%- include('partials/nav') %>
-<main id="main" class="app-shell">
+<main id="main" class="home-layout">
 
-  <section class="mx-auto w-full max-w-feed space-y-4" aria-label="Home feed">
-    <header class="page-header">
-      <h1 class="page-title">Home</h1>
-      <p class="page-subtitle">Stories, posts and updates from people you follow</p>
-    </header>
+  <section class="home-feed" aria-label="Home feed">
     <%- include('partials/story-tray', { suggestedStories: locals.suggestedStories || [] }) %>
-    <div class="px-0 sm:px-0"><%- include('partials/composer') %></div>
     <% if (posts.length) { %>
-      <div class="space-y-4" data-infinite="feed" data-infinite-next="<%= next || '' %>">
+      <div data-infinite="feed" data-infinite-next="<%= next || '' %>">
         <%- include('partials/chunks/feed', { items: posts.slice(0, 2) }) %>
         <%- include('partials/suggested-posts', { posts: locals.suggestedPosts }) %>
         <%- include('partials/chunks/feed', { items: posts.slice(2) }) %>
       </div>
-      <p class="<%= next ? 'hidden' : '' %> py-6 text-center text-sm text-muted" data-infinite-done="feed">You're all caught up · <a class="font-semibold text-brand-600 hover:underline" href="/groups">Discover groups</a></p>
+      <p class="<%= next ? 'hidden' : '' %> py-8 text-center text-footnote text-muted" data-infinite-done="feed">You're all caught up · <a class="font-semibold text-brand-600 hover:underline" href="/groups">Discover groups</a></p>
     <% } else { %>
     <section class="empty-state">
-      <div class="empty-icon"><svg class="icon size-7"><use href="#i-feed"/></svg></div>
-      <h2 class="mt-4 text-xl font-bold">Your feed is waiting for its first post</h2>
-      <p class="mx-auto mt-2 max-w-sm text-muted">Follow people you know or share something to get the conversation started.</p>
+      <div class="empty-icon"><svg class="icon size-7"><use href="#i-image"/></svg></div>
+      <h2 class="mt-4 text-title3 font-semibold">Your feed is waiting for its first post</h2>
+      <p class="mx-auto mt-2 max-w-sm text-subheadline text-muted">Follow people you know or share something to get the conversation started.</p>
       <div class="mt-5 flex justify-center gap-2"><a class="btn-primary" href="/search?kind=user">Find friends</a><button class="btn-secondary" type="button" data-open-composer>Create post</button></div>
     </section>
     <%- include('partials/suggested-posts', { posts: locals.suggestedPosts }) %>
     <% } %>
   </section>
 
-  <aside class="inspector hidden xl:block" aria-label="Contacts and suggestions">
+  <aside class="home-rail" aria-label="Suggestions">
+    <a class="rail-row" href="/profile/<%= currentUser.username %>">
+      <%- include('partials/avatar', { person: currentUser, size: 'size-11 text-sm' }) %>
+      <span class="min-w-0 flex-1 leading-tight"><span class="block truncate text-footnote font-semibold"><%= currentUser.username %></span><span class="block truncate text-footnote text-muted"><%= currentUser.displayName %></span></span>
+    </a>
+
     <% if (suggestions.length) { %>
     <section data-suggestions>
-      <div class="inspector-heading"><h2>People you may know</h2><a class="normal-case text-subheadline font-normal text-brand-600 hover:underline" href="/discover#people">See all</a></div>
-      <ul class="inset-group">
-        <% suggestions.forEach(function (person) { %>
-        <li class="inset-row group/suggestion items-start py-3" data-suggestion="<%= person._id %>">
+      <div class="rail-section-head"><h2 class="rail-section-title">Suggested for you</h2><a class="text-caption1 font-semibold text-ink hover:text-muted" href="/discover#people">See all</a></div>
+      <ul>
+        <% suggestions.slice(0, 5).forEach(function (person) { %>
+        <li class="rail-row group/suggestion" data-suggestion="<%= person._id %>">
           <a href="/profile/<%= person.username %>" class="shrink-0" tabindex="-1" aria-hidden="true"><%- include('partials/avatar', { person, size: 'size-11 text-sm' }) %></a>
-          <div class="min-w-0 flex-1">
-            <a href="/profile/<%= person.username %>" class="block truncate pr-6 text-callout font-semibold leading-tight hover:underline"><%= person.displayName %></a>
-            <p class="mt-0.5 line-clamp-2 text-footnote text-muted" title="<%= person.reason ? person.reason.text : '' %>">
-              <% if (person.reason) { %><%= person.reason.text %><% } else if (person.mutualFriends) { %><%= plural(person.mutualFriends, 'mutual friend') %><% } else { %>@<%= person.username %><% } %>
-            </p>
-            <%# Buttons share one row; icons are hidden here so both labels fit the narrow column. -%>
-            <div class="mt-2 grid grid-cols-2 gap-1.5 [&_button>svg]:hidden [&_button]:h-7 [&_button]:px-2 [&_button]:text-footnote [&_summary>svg]:hidden [&_summary]:h-7 [&_summary]:px-2 [&_summary]:text-footnote">
-              <%- include('partials/friend-controls', { person, state: person.friendState, compact: true, full: true, soft: true }) %>
-              <%- include('partials/follow-button', { person, following: person.isFollowing, compact: true, full: true }) %>
-            </div>
+          <div class="min-w-0 flex-1 leading-tight">
+            <a href="/profile/<%= person.username %>" class="block truncate text-footnote font-semibold hover:text-muted"><%= person.displayName %></a>
+            <p class="truncate text-caption1 text-muted" title="<%= person.reason ? person.reason.text : '' %>"><% if (person.reason) { %><%= person.reason.text %><% } else if (person.mutualFriends) { %><%= plural(person.mutualFriends, 'mutual friend') %><% } else { %>@<%= person.username %><% } %></p>
           </div>
-          <button type="button" class="absolute right-2 top-2 grid size-7 place-items-center rounded-full text-subtle transition-opacity hover:bg-control focus-visible:opacity-100 group-hover/suggestion:opacity-100 xl:opacity-0" data-dismiss-suggestion="<%= person._id %>" aria-label="Remove <%= person.displayName %> from suggestions" title="Remove"><svg class="icon size-4"><use href="#i-x"/></svg></button>
+          <button type="button" class="btn-text" data-follow="<%= person._id %>" data-following="<%= person.isFollowing %>"><%= person.isFollowing ? 'Following' : 'Follow' %></button>
+          <button type="button" class="grid size-6 place-items-center rounded-full text-subtle opacity-0 transition-opacity hover:text-ink focus-visible:opacity-100 group-hover/suggestion:opacity-100" data-dismiss-suggestion="<%= person._id %>" aria-label="Remove <%= person.displayName %> from suggestions" title="Remove"><svg class="icon size-3.5"><use href="#i-x"/></svg></button>
         </li>
         <% }) %>
       </ul>
@@ -55,50 +49,25 @@
 
     <% if (locals.suggestedGroups && suggestedGroups.length) { %>
     <section data-suggested-groups>
-      <div class="inspector-heading"><h2>Groups for you</h2><a class="normal-case text-subheadline font-normal text-brand-600 hover:underline" href="/discover#groups">See all</a></div>
-      <ul class="inset-group">
-        <% suggestedGroups.forEach(function (g) { %>
-        <li class="inset-row items-start py-3">
+      <div class="rail-section-head"><h2 class="rail-section-title">Groups for you</h2><a class="text-caption1 font-semibold text-ink hover:text-muted" href="/discover#groups">See all</a></div>
+      <ul>
+        <% suggestedGroups.slice(0, 3).forEach(function (g) { %>
+        <li class="rail-row">
           <a href="/groups/<%= g.slug %>" class="shrink-0" tabindex="-1" aria-hidden="true"><span class="grid size-11 place-items-center overflow-hidden rounded-[0.625rem] <%= g.coverUrl ? 'bg-field' : toneOf(g.name) %>"><% if (g.coverUrl) { %><img class="size-full object-cover" src="<%= g.coverUrl %>" alt="" loading="lazy"><% } else { %><span class="text-xs font-bold text-white"><%= initials(g.name) %></span><% } %></span></a>
-          <div class="min-w-0 flex-1">
-            <a href="/groups/<%= g.slug %>" class="block truncate text-callout font-semibold leading-tight hover:underline"><%= g.name %></a>
-            <p class="mt-0.5 line-clamp-2 text-footnote text-muted" title="<%= g.reason.text %>"><%= g.reason.text %></p>
-            <% if (g.pending) { %><button type="button" class="btn-soft mt-2 h-7 w-full px-2 text-footnote" disabled>Request sent</button>
-            <% } else if (g.privacy === 'private') { %><a class="btn-soft mt-2 h-7 w-full px-2 text-footnote" href="/groups/<%= g.slug %>">Request to join</a>
-            <% } else { %><button type="button" class="btn-soft mt-2 h-7 w-full px-2 text-footnote" data-group-join="<%= g._id %>">Join group</button><% } %>
+          <div class="min-w-0 flex-1 leading-tight">
+            <a href="/groups/<%= g.slug %>" class="block truncate text-footnote font-semibold hover:text-muted"><%= g.name %></a>
+            <p class="truncate text-caption1 text-muted" title="<%= g.reason.text %>"><%= g.reason.text %></p>
           </div>
+          <% if (g.pending) { %><span class="text-footnote text-muted">Requested</span>
+          <% } else if (g.privacy === 'private') { %><a class="btn-text" href="/groups/<%= g.slug %>">Request</a>
+          <% } else { %><button type="button" class="btn-text" data-group-join="<%= g._id %>">Join</button><% } %>
         </li>
         <% }) %>
       </ul>
     </section>
     <% } %>
 
-    <% if (groups.length) { %>
-    <section>
-      <h2 class="inspector-heading">Group chats</h2>
-      <ul class="inset-group">
-        <% groups.slice(0, 5).forEach(function (g) { %>
-        <li class="inset-row p-0"><a class="flex w-full items-center gap-3 px-4 py-2 text-callout hover:bg-ink/[0.03]" href="/groups/<%= g.slug %>">
-          <span class="grid size-8 shrink-0 place-items-center overflow-hidden rounded-[0.5rem] <%= g.coverUrl ? 'bg-field' : toneOf(g.name) %>"><% if (g.coverUrl) { %><img class="size-full object-cover" src="<%= g.coverUrl %>" alt=""><% } else { %><span class="text-xs font-bold text-white"><%= initials(g.name) %></span><% } %></span>
-          <span class="flex-1 truncate"><%= g.name %></span><svg class="icon size-4 text-subtle"><use href="#i-chevron-right"/></svg>
-        </a></li>
-        <% }) %>
-      </ul>
-    </section>
-    <% } %>
-
-    <section>
-      <div class="inspector-heading"><h2>Contacts</h2><a href="/messages" class="normal-case text-subheadline font-normal text-brand-600 hover:underline">Open chats</a></div>
-      <% if (contacts.length) { %>
-      <ul class="inset-group">
-        <% contacts.forEach(function (person) { %>
-        <li class="inset-row p-0"><button type="button" class="flex w-full items-center gap-3 px-4 py-2 text-left text-callout hover:bg-ink/[0.03]" data-message-user="<%= person._id %>" aria-label="Message <%= person.displayName %>">
-          <%- include('partials/avatar', { person, size: 'size-8 text-xs' }) %><span class="flex-1 truncate"><%= person.displayName %></span><svg class="icon size-4 text-ios-blue"><use href="#i-chat"/></svg>
-        </button></li>
-        <% }) %>
-      </ul>
-      <% } else { %><p class="inset-group px-4 py-3 text-subheadline text-muted">People you follow will show up here so you can message them quickly.</p><% } %>
-    </section>
+    <p class="mt-8 text-caption2 text-subtle">Oremus © <%= new Date().getFullYear() %></p>
   </aside>
 </main>
 <%- include('partials/foot') %>

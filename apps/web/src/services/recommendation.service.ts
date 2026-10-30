@@ -1,9 +1,9 @@
 import mongoose from 'mongoose';
 import { Comment, Follow, Friendship, Group, GroupJoinRequest, GroupMember, Post, Reaction, Story, StoryView, User } from '../models/index.js';
-import { groupText, postText, storyText, userText } from '../recommender/documents.js';
+import { groupText, postPreview, postText, storyText, userText } from '../recommender/documents.js';
 import { declaredSignals } from '../recommender/interests.js';
 import { interestOption } from '../shared/interests.js';
-import { buildProfile, computeIdf, decay, diversify, rankDocuments, topInterests, type Candidate, type Interest, type Profile, type Reason } from '../recommender/engine.js';
+import { buildProfile, computeIdf, decay, diversify, mixKinds, rankDocuments, topInterests, type Candidate, type Interest, type Profile, type Reason } from '../recommender/engine.js';
 import { analyze, type Vector } from '../recommender/text.js';
 import { plural } from '../utils/view-helpers.js';
 import { loadSignals, recommendationCacheKey } from './activity.service.js';
@@ -163,7 +163,8 @@ function rankGroups(corpus: Corpus, profile: Profile, joined: Set<string>, frien
 function rankPosts(corpus: Corpus, profile: Profile, userId: string, hiddenAuthors: Set<string>, joined: Set<string>, seen: Set<string>) {
   const engagement = relativeLog(corpus.posts.map((doc) => doc.engagement));
   const now = Date.now();
-  const candidates = corpus.posts.filter((doc) => doc.authorId !== userId && !hiddenAuthors.has(String(doc.authorId)) && !(doc.groupId && joined.has(doc.groupId)) && !seen.has(doc.id))
+  // Suggestions are shown as a photo grid, so a post needs a picture to be suggested.
+  const candidates = corpus.posts.filter((doc) => doc.authorId !== userId && !hiddenAuthors.has(String(doc.authorId)) && !(doc.groupId && joined.has(doc.groupId)) && !seen.has(doc.id) && postPreview(doc.post.media))
     .map((doc) => ({ ...doc, popularity: engagement(doc.engagement), freshness: decay(now - new Date(doc.createdAt).getTime(), 3) }));
   const ranked = rankDocuments(candidates, profile, corpus.idf, (doc) => (doc.popularity || 0) > 0.6 ? { code: 'popular', text: 'Popular on Oremus' } : { code: 'new', text: 'Recent post you might like' });
   return diversify(ranked, (doc) => String(doc.authorId), 2, LIMITS.posts);
@@ -175,7 +176,8 @@ function rankStories(corpus: Corpus, profile: Profile, userId: string, hiddenAut
   const candidates = corpus.stories.filter((doc) => doc.authorId !== userId && !hiddenAuthors.has(String(doc.authorId)))
     .map((doc) => ({ ...doc, popularity: views(doc.viewCount), freshness: Math.max(0, 1 - (now - new Date(doc.createdAt).getTime()) / DAY), penalty: viewed.has(doc.id) ? 1 : 0 }));
   const ranked = rankDocuments(candidates, profile, corpus.idf, () => ({ code: 'new', text: 'Public story' }));
-  return diversify(ranked, (doc) => String(doc.authorId), 1, LIMITS.stories);
+  // Photo stories and text stories both get a place, whichever kind happens to rank higher.
+  return mixKinds(diversify(ranked, (doc) => String(doc.authorId), 1, ranked.length), (doc) => !!doc.story.media, LIMITS.stories);
 }
 
 /* ---------- Public API ---------- */
@@ -227,11 +229,9 @@ export async function getRecommendations(userId: string): Promise<Recommendation
       tags: doc.group.tags || [], description: doc.group.description || '', reason: doc.reason, score: doc.score, friendsInGroup: friendsIn.get(doc.id) || 0, pending: pending.has(doc.id)
     })),
     posts: posts.filter((doc) => corpus.usersById.has(String(doc.authorId))).map((doc) => {
-      const first = (doc.post.media || [])[0];
-      const video = !!first && String(first.mimeType).startsWith('video/');
       const group = doc.groupId ? corpus.groupsById.get(doc.groupId) : null;
       return {
-        _id: doc.id, content: String(doc.post.content || '').slice(0, 280), media: first ? { url: video ? first.poster || '' : first.url, video } : null, mediaCount: (doc.post.media || []).length,
+        _id: doc.id, content: String(doc.post.content || '').slice(0, 280), media: postPreview(doc.post.media), mediaCount: (doc.post.media || []).length,
         author: personOf(corpus.usersById.get(String(doc.authorId))), group: group ? { name: group.name, slug: group.slug } : null,
         reactionCount: doc.post.reactionCount || 0, commentCount: doc.post.commentCount || 0, createdAt: doc.createdAt, reason: doc.reason, score: doc.score
       };

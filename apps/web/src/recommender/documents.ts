@@ -21,6 +21,16 @@ export const joinRecent = (texts: string[]) => {
   return out.slice(0, RECENT_TEXT_LIMIT);
 };
 
+/** The picture that represents a post in a grid: the first photo, or the poster of a video. Null when it has none. */
+export function postPreview(media: Array<{ url?: string; mimeType?: string; poster?: string }> = []) {
+  for (const item of media) {
+    const video = String(item.mimeType).startsWith('video/');
+    const url = video ? item.poster : item.url;
+    if (url) return { url, video };
+  }
+  return null;
+}
+
 export function postText(post: any, group?: { name?: string; tags?: string[] } | null, shared?: any): WeightedText[] {
   // Moods ("feeling excited") say nothing about a subject; activities do ("listening to Trịnh Công Sơn").
   const activity = post.feeling?.type === 'activity' ? describeFeeling(post.feeling) : null;

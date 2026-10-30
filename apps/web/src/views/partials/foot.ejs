@@ -26,64 +26,70 @@
   <div class="flex justify-end gap-2 px-4 pb-4"><button class="btn text-brand-600 hover:bg-hover" value="cancel">Cancel</button><button class="btn-primary px-6" value="confirm" data-confirm-label>Delete</button></div>
 </dialog>
 
-<dialog id="lightbox" class="dialog-dark m-0 h-dvh max-h-none w-screen max-w-none overflow-hidden bg-black p-0" aria-label="Photo viewer" data-photo-viewer>
-  <div class="flex h-full">
-    <!-- Stage: the photo always fits between top and bottom; empty space stays black -->
-    <div class="relative flex min-w-0 flex-1 select-none items-center justify-center overflow-hidden bg-black" data-viewer-stage>
+<%# Post modal: photo on the left, the conversation on the right, the page stays behind it. Used for every post and photo. -%>
+<dialog id="lightbox" class="post-modal dialog-dark" aria-label="Post" data-photo-viewer>
+  <button type="button" class="post-modal-close" data-close-dialog="lightbox" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button>
+  <button type="button" class="post-modal-step left-4" data-viewer-post="-1" aria-label="Previous post"><svg class="icon"><use href="#i-chevron-left"/></svg></button>
+  <button type="button" class="post-modal-step right-4" data-viewer-post="1" aria-label="Next post"><svg class="icon"><use href="#i-chevron-right"/></svg></button>
+
+  <div class="post-modal-card" data-viewer-card>
+    <div class="post-modal-stage group/stage" data-viewer-stage>
       <img class="size-full object-contain transition-transform duration-150 will-change-transform" alt="" draggable="false" data-lightbox-image>
       <video class="hidden size-full object-contain" controls playsinline preload="metadata" data-lightbox-video></video>
-      <div class="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/60 to-transparent"></div>
-      <div class="absolute left-3 top-3 flex items-center gap-2">
-        <button type="button" class="grid size-10 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20" data-close-dialog="lightbox" aria-label="Close photo viewer"><svg class="icon"><use href="#i-x"/></svg></button>
-        <img src="/assets/brand/logo.svg" alt="" class="size-10">
+      <div class="post-modal-tools">
+        <button type="button" class="post-modal-tool" data-viewer-zoom="in" aria-label="Zoom in" title="Zoom in"><svg class="icon size-[1.125rem]"><use href="#i-zoom-in"/></svg></button>
+        <button type="button" class="post-modal-tool" data-viewer-zoom="out" aria-label="Zoom out" title="Zoom out"><svg class="icon size-[1.125rem]"><use href="#i-zoom-out"/></svg></button>
+        <button type="button" class="post-modal-tool" data-viewer-fullscreen aria-label="Enter full screen" title="Full screen"><svg class="icon size-[1.125rem]"><use href="#i-expand"/></svg></button>
       </div>
-      <div class="absolute right-3 top-3 flex items-center gap-1.5">
-        <button type="button" class="grid size-10 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20 disabled:opacity-40" data-viewer-zoom="in" aria-label="Zoom in" title="Zoom in"><svg class="icon"><use href="#i-zoom-in"/></svg></button>
-        <button type="button" class="grid size-10 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20 disabled:opacity-40" data-viewer-zoom="out" aria-label="Zoom out" title="Zoom out"><svg class="icon"><use href="#i-zoom-out"/></svg></button>
-        <button type="button" class="grid size-10 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20" data-viewer-fullscreen aria-label="Enter full screen" title="Full screen"><svg class="icon"><use href="#i-expand"/></svg></button>
-        <button type="button" class="hidden size-10 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20 lg:hidden" data-viewer-toggle-panel aria-label="Show comments" title="Comments"><svg class="icon"><use href="#i-comment"/></svg></button>
-      </div>
-      <button type="button" class="absolute left-4 top-1/2 hidden size-12 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white hover:bg-white/25" data-viewer-nav="-1" aria-label="Previous photo"><svg class="icon size-6"><use href="#i-chevron-left"/></svg></button>
-      <button type="button" class="absolute right-4 top-1/2 hidden size-12 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white hover:bg-white/25" data-viewer-nav="1" aria-label="Next photo"><svg class="icon size-6"><use href="#i-chevron-right"/></svg></button>
-      <span class="absolute bottom-4 left-1/2 hidden -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-[0.8125rem] font-semibold text-white" data-viewer-counter></span>
+      <button type="button" class="carousel-nav left-3 hidden" data-viewer-nav="-1" aria-label="Previous photo"><svg class="icon size-4"><use href="#i-chevron-left"/></svg></button>
+      <button type="button" class="carousel-nav right-3 hidden" data-viewer-nav="1" aria-label="Next photo"><svg class="icon size-4"><use href="#i-chevron-right"/></svg></button>
+      <div class="post-modal-dots hidden" data-viewer-dots aria-hidden="true"></div>
     </div>
 
-    <!-- Post panel (Facebook-style right column) -->
-    <aside class="hidden w-full shrink-0 flex-col bg-surface text-ink max-lg:absolute max-lg:inset-x-0 max-lg:bottom-0 max-lg:top-16 max-lg:rounded-t-2xl lg:w-[22.5rem]" data-viewer-panel aria-label="Post details">
-      <div class="flex items-center gap-2.5 px-4 pb-2 pt-4">
+    <aside class="post-modal-panel" data-viewer-panel aria-label="Post details">
+      <header class="flex h-[3.75rem] shrink-0 items-center gap-3 border-b border-line px-4">
         <a data-viewer-author-link class="shrink-0"><span data-viewer-avatar></span></a>
         <div class="min-w-0 flex-1 leading-tight">
-          <p class="text-15" data-viewer-title></p>
-          <p class="mt-0.5 flex items-center gap-1 text-[0.8125rem] text-muted"><a class="hover:underline" data-viewer-time></a><span aria-hidden="true">·</span><svg class="icon size-3.5"><use href="#i-globe" data-viewer-privacy/></svg></p>
+          <p class="truncate text-subheadline" data-viewer-title></p>
+          <p class="truncate text-caption1 text-muted" data-viewer-sub></p>
         </div>
-        <button type="button" class="icon-btn-ghost lg:hidden" data-viewer-toggle-panel aria-label="Hide comments"><svg class="icon"><use href="#i-x"/></svg></button>
+        <details class="relative" data-menu>
+          <summary class="icon-btn-ghost -mr-2 cursor-pointer list-none text-ink" aria-label="Post options"><svg class="icon"><use href="#i-more"/></svg></summary>
+          <div class="menu right-0 top-10 w-56">
+            <button type="button" class="menu-item" data-viewer-copy><span class="menu-icon"><svg class="icon"><use href="#i-link"/></svg></span>Copy link</button>
+            <a class="menu-item" data-viewer-open-page><span class="menu-icon"><svg class="icon"><use href="#i-expand"/></svg></span>Open post page</a>
+          </div>
+        </details>
+      </header>
+
+      <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3" data-viewer-scroll>
+        <div class="mb-4 flex gap-3" data-viewer-caption>
+          <span class="shrink-0" data-viewer-caption-avatar></span>
+          <p class="min-w-0 whitespace-pre-wrap break-words text-subheadline"><a class="mr-1 font-semibold hover:text-muted" data-viewer-caption-name></a><span data-viewer-content></span></p>
+        </div>
+        <ul class="space-y-4" data-viewer-comments></ul>
       </div>
-      <div class="min-h-0 flex-1 overflow-y-auto" data-viewer-scroll>
-        <p class="whitespace-pre-wrap break-words px-4 text-15 leading-[1.4]" data-viewer-content></p>
-        <div class="mx-4 mt-2 flex min-h-[2.5rem] items-center justify-between gap-3 text-15 text-muted">
-          <button type="button" class="flex items-center gap-1.5 rounded-md hover:underline" data-viewer-reactions aria-label="See who reacted to this post" aria-haspopup="dialog"></button>
-          <span data-viewer-comment-count></span>
-        </div>
-        <div class="mx-4 flex gap-1 border-y border-line py-1">
-          <div class="reaction-wrap relative flex flex-1" data-viewer-react-wrap>
-            <button type="button" class="action-button" data-viewer-like><svg class="icon"><use href="#i-like"/></svg><span>Like</span></button>
+
+      <div class="shrink-0 border-t border-line px-4 pb-2 pt-1">
+        <div class="-ml-2 flex items-center">
+          <div class="reaction-wrap relative" data-viewer-react-wrap>
+            <button type="button" class="post-action" data-viewer-like aria-label="Love"><svg class="icon"><use href="#i-heart"/></svg></button>
             <div class="reaction-bar" role="toolbar" aria-label="Reactions" data-viewer-reaction-bar></div>
           </div>
-          <button type="button" class="action-button" data-viewer-focus-comment><svg class="icon"><use href="#i-comment"/></svg><span>Comment</span></button>
-          <button type="button" class="action-button" data-viewer-share><svg class="icon"><use href="#i-share"/></svg><span>Share</span></button>
+          <button type="button" class="post-action" data-viewer-focus-comment aria-label="Comment"><svg class="icon"><use href="#i-comment"/></svg></button>
+          <button type="button" class="post-action" data-viewer-share aria-label="Share"><svg class="icon"><use href="#i-send"/></svg></button>
         </div>
-        <ul class="space-y-3 px-4 py-3" data-viewer-comments></ul>
+        <button type="button" class="flex items-center gap-1.5 text-subheadline font-semibold disabled:cursor-default" data-viewer-reactions aria-label="See who reacted to this post" aria-haspopup="dialog"></button>
+        <p class="mt-0.5 flex items-center gap-1 text-caption1 text-muted"><a class="hover:text-ink" data-viewer-time></a><span aria-hidden="true">·</span><svg class="icon size-3"><use href="#i-globe" data-viewer-privacy/></svg><span class="ml-auto" data-viewer-comment-count></span></p>
       </div>
-      <form class="border-t border-line p-3" data-viewer-comment-form>
-        <p class="mb-1.5 hidden items-center justify-between text-xs text-muted" data-viewer-replying><span></span><button type="button" class="font-semibold hover:underline" data-viewer-cancel-reply>Cancel</button></p>
+
+      <form class="shrink-0 border-t border-line px-3 py-1.5" data-viewer-comment-form>
+        <p class="mb-1 hidden items-center justify-between px-1 pt-1 text-caption1 text-muted" data-viewer-replying><span></span><button type="button" class="font-semibold hover:text-ink" data-viewer-cancel-reply>Cancel</button></p>
         <div class="flex items-center gap-2">
-          <span data-viewer-me></span>
+          <button type="button" class="icon-btn-ghost text-ink" data-emoji-for="#viewer-comment" aria-label="Insert emoji"><svg class="icon"><use href="#i-smile"/></svg></button>
           <label class="sr-only" for="viewer-comment">Write a comment</label>
-          <div class="relative flex-1">
-            <input id="viewer-comment" class="pill-input h-9 pr-16" placeholder="Write a comment…" maxlength="1500" autocomplete="off" required>
-            <button type="button" class="absolute right-8 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-line" data-emoji-for="#viewer-comment" aria-label="Insert emoji"><svg class="icon size-4"><use href="#i-smile"/></svg></button>
-            <button type="submit" class="absolute right-1 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full text-brand-600 hover:bg-line" aria-label="Post comment"><svg class="icon size-4"><use href="#i-send"/></svg></button>
-          </div>
+          <input id="viewer-comment" class="post-comment-input" placeholder="Add a comment…" maxlength="1500" autocomplete="off" required>
+          <button type="submit" class="btn-text px-1 text-subheadline">Post</button>
         </div>
       </form>
     </aside>

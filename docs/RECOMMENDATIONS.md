@@ -117,10 +117,10 @@ The reason shown is the content match ("Because you searched “coffee”", "Bec
 |---|---|---|
 | People | Every active account | You, people you blocked or who blocked you, "see less" people, friends, people you follow |
 | Groups | Visible groups | Hidden groups, groups you joined |
-| Posts | Original posts from the last 120 days: public posts and posts in public groups | Your posts, shares, posts by people you follow or blocked, posts in your groups, posts you reacted to, commented on, opened or read |
+| Posts | Original posts from the last 120 days with a photo or video poster: public posts and posts in public groups | Your posts, shares, posts by people you follow or blocked, posts in your groups, posts you reacted to, commented on, opened or read |
 | Stories | Active public stories | Your stories, stories of people you follow (already in your tray) or blocked |
 
-At most 2 posts per author and 1 story per author are suggested. Limits: 8 people, 6 groups, 8 posts, 8 stories.
+At most 2 posts per author and 1 story per author are suggested. Every third suggested story is a text story when one is available, so the row shows both kinds. Limits: 8 people, 6 groups, 8 posts, 8 stories.
 
 ## Interest survey (onboarding)
 

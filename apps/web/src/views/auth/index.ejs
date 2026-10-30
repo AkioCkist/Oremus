@@ -1,0 +1,83 @@
+<%- include('../partials/head', { bodyClass: 'bg-canvas' }) %>
+<%# Log in and sign up live on one page, so switching never reloads the photo. /login and /register render this view with a different starting side. -%>
+<main id="main" class="auth-stage" data-auth-stage data-mode="<%= authMode %>">
+  <section class="auth-pane auth-pane-register" data-auth-pane="register" <%= authMode === 'register' ? '' : 'inert' %> aria-label="Sign up">
+    <a href="/" class="auth-brand" aria-label="Oremus home"><img src="/assets/brand/logo.svg" alt="" class="size-9"><span class="font-display text-title2 font-bold text-ink">Oremus</span></a>
+    <div class="auth-form">
+      <h1 class="text-center font-display text-large-title font-bold leading-tight">Create an account</h1>
+      <p class="mt-2 text-center text-15 text-muted">To continue, fill out your personal info</p>
+      <form class="mt-8 space-y-4" data-api-form data-validate="register" action="/auth/register" method="post" novalidate>
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="error-summary hidden" data-error-summary role="alert" tabindex="-1" aria-labelledby="register-error-title">
+          <p id="register-error-title" class="flex items-center gap-2 font-semibold"><svg class="icon size-[1.125rem] shrink-0"><use href="#i-info"/></svg><span data-error-summary-title>Please fix the following</span></p>
+          <ul class="mt-2 list-disc space-y-1 pl-7" data-error-summary-list></ul>
+        </div>
+        <div><label class="label" for="displayName">Full name <span class="text-ios-red" aria-hidden="true">*</span></label><input class="input mt-1.5 w-full" id="displayName" name="displayName" autocomplete="name" placeholder="Name Surname" required minlength="2" maxlength="60" aria-describedby="displayName-error"><p id="displayName-error" class="field-error hidden" data-field-error="displayName"></p></div>
+        <div><label class="label" for="username">Username <span class="text-ios-red" aria-hidden="true">*</span></label><input class="input mt-1.5 w-full" id="username" name="username" autocomplete="username" placeholder="best_wizard421" required pattern="[a-zA-Z0-9_]{3,24}" aria-describedby="username-error username-help"><p id="username-error" class="field-error hidden" data-field-error="username"></p><p id="username-help" class="helper">3–24 letters, numbers or underscores.</p></div>
+        <div><label class="label" for="email">E-mail <span class="text-ios-red" aria-hidden="true">*</span></label><input class="input mt-1.5 w-full" id="email" name="email" type="email" autocomplete="email" placeholder="email@email.com" required aria-describedby="email-error" data-auth-email><p id="email-error" class="field-error hidden" data-field-error="email"></p></div>
+        <div>
+          <label class="label" for="password">Password <span class="text-ios-red" aria-hidden="true">*</span></label>
+          <div class="input-icon relative mt-1.5">
+            <svg class="icon size-[1.125rem]"><use href="#i-key"/></svg>
+            <input class="input w-full pr-11" id="password" name="password" type="password" autocomplete="new-password" placeholder="••••••••••" required minlength="10" maxlength="128" pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{10,128}" aria-describedby="password-error password-help" data-password-source>
+            <button type="button" class="absolute right-1.5 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-hover" data-toggle-password="password" aria-label="Show password" aria-pressed="false"><svg class="icon size-[1.125rem]"><use href="#i-eye-off"/></svg></button>
+          </div>
+          <p id="password-error" class="field-error hidden" data-field-error="password"></p>
+          <p id="password-help" class="helper">At least 10 characters with upper- and lowercase letters and a number.</p>
+        </div>
+        <div>
+          <label class="label" for="password-repeat">Repeat password <span class="text-ios-red" aria-hidden="true">*</span></label>
+          <div class="input-icon relative mt-1.5">
+            <svg class="icon size-[1.125rem]"><use href="#i-key"/></svg>
+            <input class="input w-full pr-11" id="password-repeat" type="password" autocomplete="new-password" placeholder="••••••••••" required aria-describedby="password-repeat-error" data-password-repeat>
+            <button type="button" class="absolute right-1.5 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-hover" data-toggle-password="password-repeat" aria-label="Show password" aria-pressed="false"><svg class="icon size-[1.125rem]"><use href="#i-eye-off"/></svg></button>
+          </div>
+          <p id="password-repeat-error" class="field-error hidden" data-field-error="password-repeat"></p>
+        </div>
+        <p class="text-xs leading-relaxed text-muted">By clicking Sign up, you agree to our Terms and Conditions and confirm you have read our Privacy Notice.</p>
+        <p class="form-error hidden" data-form-error role="alert"></p>
+        <button class="btn-primary btn-lg w-full" type="submit">Sign up</button>
+      </form>
+      <p class="mt-6 text-center text-15 text-muted">Already have an account? <a class="font-semibold text-brand-600 hover:underline" href="/login" data-auth-switch="login">Log in</a></p>
+    </div>
+  </section>
+
+  <section class="auth-pane auth-pane-login" data-auth-pane="login" <%= authMode === 'login' ? '' : 'inert' %> aria-label="Log in">
+    <a href="/" class="auth-brand" aria-label="Oremus home"><img src="/assets/brand/logo.svg" alt="" class="size-9"><span class="font-display text-title2 font-bold text-ink">Oremus</span></a>
+    <div class="auth-form">
+      <h1 class="text-center font-display text-large-title font-bold leading-tight">Welcome back</h1>
+      <p class="mt-2 text-center text-15 text-muted">Log in to pick up where you left off</p>
+      <form class="mt-8 space-y-4" data-api-form action="/auth/login" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div>
+          <label class="label" for="login-email">E-mail <span class="text-ios-red" aria-hidden="true">*</span></label>
+          <div class="input-icon mt-1.5"><svg class="icon size-[1.125rem]"><use href="#i-mail"/></svg><input class="input w-full" id="login-email" name="email" type="email" autocomplete="email" placeholder="email@example.com" required data-auth-email></div>
+        </div>
+        <div class="relative">
+          <label class="label" for="login-password">Password <span class="text-ios-red" aria-hidden="true">*</span></label>
+          <div class="input-icon relative mt-1.5">
+            <svg class="icon size-[1.125rem]"><use href="#i-key"/></svg>
+            <input class="input w-full pr-11" id="login-password" name="password" type="password" autocomplete="current-password" placeholder="••••••••••" required>
+            <button type="button" class="absolute right-1.5 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-hover" data-toggle-password="login-password" aria-label="Show password" aria-pressed="false"><svg class="icon size-[1.125rem]"><use href="#i-eye-off"/></svg></button>
+          </div>
+          <a class="absolute right-0 top-0 text-[0.8125rem] font-semibold text-brand-600 hover:underline" href="/reset-password">Forgot password?</a>
+        </div>
+        <label class="flex cursor-pointer items-center gap-2.5 text-sm text-ink" for="remember"><input class="check" id="remember" name="remember" type="checkbox" value="true"><span>Remember me for 30 days</span></label>
+        <p class="form-error hidden" data-form-error role="alert"></p>
+        <button class="btn-primary btn-lg w-full" type="submit">Log in</button>
+      </form>
+      <div class="my-6 flex items-center gap-3 text-xs text-muted"><span class="h-px flex-1 bg-line"></span>New to Oremus?<span class="h-px flex-1 bg-line"></span></div>
+      <a class="btn-outline btn-lg w-full" href="/register" data-auth-switch="register">Create an account</a>
+    </div>
+  </section>
+
+  <%# One photo, one request: it slides over whichever form is not in use. -%>
+  <aside class="auth-photo" aria-hidden="true">
+    <img src="/assets/img/auth.jpg" alt="" class="auth-photo-image" fetchpriority="high">
+    <div class="auth-photo-text">
+      <p class="auth-photo-line auth-photo-line-login">Your people, closer.</p>
+      <p class="auth-photo-line auth-photo-line-register">Find your people.</p>
+    </div>
+  </aside>
+</main>
+<%- include('../partials/foot') %>

@@ -1,81 +1,83 @@
 <%
   const unreadN = locals.unreadNotifications || 0, unreadM = locals.unreadMessages || 0;
+  const onPath = (href) => href === '/' ? path === '/' : path.startsWith(href);
+  const isMe = currentUser && path === `/profile/${currentUser.username}`;
+  const tabClass = (active) => `rail-tab${active ? ' rail-tab-active' : ''}`;
+  const tabs = currentUser ? [
+    { href: '/', label: 'Home', icon: 'i-home', fill: true, active: onPath('/') },
+    { href: '/discover', label: 'For you', icon: 'i-compass', fill: true, active: onPath('/discover') },
+    { href: '/stories', label: 'Stories', icon: 'i-stories', fill: true, active: onPath('/stories') && !onPath('/stories/archive') },
+    { href: '/groups', label: 'Groups', icon: 'i-group', fill: true, active: onPath('/groups') },
+    { href: `/profile/${currentUser.username}`, label: 'Profile', icon: 'i-user', fill: true, active: isMe }
+  ] : [];
+  const chatPeople = (locals.headerConversations || []).slice(0, 3).map(function (c) { return c.memberIds.find(function (m) { return String(m._id) !== String(currentUser._id); }) || c.memberIds[0]; });
 -%>
 <% if (currentUser) { %>
-<%# One element, two layouts: a glass top bar on phones/tablets and, from lg up, the full-height app sidebar
-    (brand + toolbar, search, navigation rows, account) — the macOS / iPadOS split-view layout. -%>
-<%# From lg up the sidebar hides off-canvas and slides in over the page from this left-edge hot zone (Zen-style). -%>
-<div class="sidebar-hotzone" aria-hidden="true"></div>
+<%# Under lg: glass top bar. From lg: the kit's vertical tab bar (Tab Bar - iPhone Duo), floating and centered on the left edge. -%>
 <header class="app-sidebar">
-  <div class="app-sidebar-top">
-    <a href="/" class="flex shrink-0 items-center gap-2" aria-label="Oremus home">
-      <img src="/assets/brand/logo.svg" alt="" class="size-9 lg:size-7">
-      <span class="hidden text-headline font-semibold text-ink sm:inline">Oremus</span>
-    </a>
-    <a href="/search" class="icon-btn header-action ml-1 lg:hidden" aria-label="Search"><svg class="icon"><use href="#i-search"/></svg></a>
+  <a href="/" class="rail-brand" aria-label="Oremus home"><img src="/assets/brand/logo.svg" alt="" class="size-9"><span class="rail-brand-name">Oremus</span></a>
 
-    <div class="ml-auto flex items-center gap-2 lg:gap-3">
-      <!-- Toolbar: grouped Liquid Glass symbol buttons -->
-      <div class="toolbar-group">
-        <details class="group/menu relative" data-menu data-read-on-open="messages">
-          <summary class="toolbar-btn <%= path.startsWith('/messages') ? '!text-brand-600' : '' %> group-open/menu:text-brand-600" aria-label="Messages<%= unreadM ? `, ${unreadM} unread` : '' %>" data-badge-link="messages" data-badge-label="Messages">
-            <svg class="icon"><use href="#i-chat"/></svg>
-            <% if (unreadM) { %><span class="badge" data-badge><%= unreadM > 9 ? '9+' : unreadM %></span><% } %>
-          </summary>
-          <section class="header-popover" aria-label="Recent chats" data-live-panel="chats">
-            <%- include('header-chats') %>
-          </section>
-        </details>
-        <details class="group/menu relative" data-menu data-read-on-open="notifications">
-          <summary class="toolbar-btn <%= path === '/notifications' ? '!text-brand-600' : '' %> group-open/menu:text-brand-600" aria-label="Notifications<%= unreadN ? `, ${unreadN} unread` : '' %>" data-badge-link="notifications" data-badge-label="Notifications">
-            <svg class="icon"><use href="#i-bell"/></svg>
-            <% if (unreadN) { %><span class="badge" data-badge><%= unreadN > 9 ? '9+' : unreadN %></span><% } %>
-          </summary>
-          <section class="header-popover" aria-label="Recent notifications" data-live-panel="notifications">
-            <%- include('header-notifications') %>
-          </section>
-        </details>
-      </div>
-      <details class="relative" data-menu>
-        <summary class="glass grid size-11 cursor-pointer list-none place-items-center rounded-full p-[3px] lg:size-10" aria-label="Account menu">
-          <%- include('avatar', { person: currentUser, size: 'size-full text-sm' }) %>
-        </summary>
-        <div class="menu right-0 top-[3.25rem] w-[20rem] max-w-[calc(100vw-1.5rem)] lg:left-0 lg:right-auto lg:origin-top-left">
-          <a href="/profile/<%= currentUser.username %>" class="flex items-center gap-3 rounded-[1.25rem] bg-ink/[0.04] p-2 hover:bg-ink/[0.07]">
-            <%- include('avatar', { person: currentUser, size: 'size-10 text-sm' }) %>
-            <span class="min-w-0"><span class="block truncate font-semibold"><%= currentUser.displayName %></span><span class="block text-footnote text-muted">See your profile</span></span>
-          </a>
-          <div class="divider"></div>
-          <button type="button" class="menu-item" data-open-dialog="edit-profile-dialog"><span class="menu-icon"><svg class="icon"><use href="#i-edit"/></svg></span>Edit profile</button>
-          <button type="button" class="menu-item" role="switch" aria-checked="false" data-theme-toggle><span class="menu-icon"><svg class="icon"><use href="#i-moon"/></svg></span><span class="flex-1">Dark mode</span><span class="switch" data-theme-switch aria-hidden="true"></span></button>
-          <a class="menu-item" href="/settings"><span class="menu-icon"><svg class="icon"><use href="#i-settings"/></svg></span>Settings &amp; privacy</a>
-          <a class="menu-item" href="/stories/archive"><span class="menu-icon"><svg class="icon"><use href="#i-archive"/></svg></span>Story archive</a>
-          <div class="divider"></div>
-          <button class="menu-item text-ios-red" type="button" data-logout><span class="menu-icon text-ios-red"><svg class="icon"><use href="#i-logout"/></svg></span>Log out</button>
-        </div>
-      </details>
+  <nav class="rail-nav" aria-label="Main">
+    <div class="rail-tabs">
+      <% tabs.forEach(function (tab) { %>
+      <a class="<%= tabClass(tab.active) %>" href="<%= tab.href %>" aria-label="<%= tab.label %>" <%= tab.active ? 'aria-current=page' : '' %>><svg class="icon"><use href="#<%= tab.icon %><%= tab.active && tab.fill ? '-fill' : '' %>"/></svg><span class="rail-tip" aria-hidden="true"><%= tab.label %></span></a>
+      <% }) %>
     </div>
-  </div>
 
-  <!-- Sidebar search field + compose (lg and up) -->
-  <div class="app-sidebar-search">
-    <%- include('search-box', { boxId: 'site-search', formClass: 'min-w-0 flex-1', inputClass: 'w-full', iconClass: 'size-5', value: typeof q !== 'undefined' ? q : '' }) %>
-    <button type="button" class="compose-btn" data-open-composer aria-label="Create post" title="Create post"><svg class="icon size-[1.375rem]"><use href="#i-compose"/></svg></button>
-  </div>
+    <div class="rail-actions">
+      <details class="rail-search relative" data-menu>
+        <summary class="rail-circle" aria-label="Search"><svg class="icon"><use href="#i-search"/></svg><span class="rail-tip" aria-hidden="true">Search</span></summary>
+        <section class="header-popover search-panel" aria-label="Search">
+          <h2 class="page-title text-title1">Search</h2>
+          <%- include('search-box', { boxId: 'site-search', formClass: 'mt-3', inputClass: 'h-11 w-full', iconClass: 'size-5', panelClass: 'search-results', value: typeof q !== 'undefined' ? q : '' }) %>
+        </section>
+      </details>
+      <details class="group/menu relative" data-menu data-read-on-open="notifications">
+        <summary class="rail-circle group-open/menu:text-brand-600" aria-label="Notifications<%= unreadN ? `, ${unreadN} unread` : '' %>" data-badge-link="notifications" data-badge-label="Notifications">
+          <svg class="icon"><use href="#i-heart"/></svg><span class="rail-tip" aria-hidden="true">Notifications</span>
+          <% if (unreadN) { %><span class="badge" data-badge><%= unreadN > 9 ? '9+' : unreadN %></span><% } %>
+        </summary>
+        <section class="header-popover" aria-label="Recent notifications" data-live-panel="notifications">
+          <%- include('header-notifications') %>
+        </section>
+      </details>
+      <button type="button" class="rail-circle" data-open-composer aria-label="Create post"><svg class="icon"><use href="#i-plus"/></svg><span class="rail-tip" aria-hidden="true">Create</span></button>
+    </div>
+  </nav>
 
-  <div class="app-sidebar-body">
-    <%- include('sidebar') %>
-  </div>
-
-  <a href="/profile/<%= currentUser.username %>" class="app-sidebar-account">
-    <%- include('avatar', { person: currentUser, size: 'size-8 text-xs' }) %>
-    <span class="min-w-0 flex-1"><span class="block truncate text-subheadline font-semibold"><%= currentUser.displayName %></span><span class="block truncate text-footnote text-muted">@<%= currentUser.username %></span></span>
-    <svg class="icon size-4 text-subtle"><use href="#i-chevron-right"/></svg>
-  </a>
+  <details class="relative" data-menu>
+    <summary class="rail-circle" aria-label="More"><svg class="icon"><use href="#i-menu"/></svg><span class="rail-tip" aria-hidden="true">More</span></summary>
+    <div class="menu right-0 top-[3.25rem] w-[18rem] max-w-[calc(100vw-1.5rem)] lg:bottom-0 lg:left-[calc(100%+0.75rem)] lg:right-auto lg:top-auto lg:origin-bottom-left">
+      <a class="menu-item lg:hidden" href="/groups"><span class="menu-icon"><svg class="icon"><use href="#i-group"/></svg></span>Groups</a>
+      <a class="menu-item lg:hidden" href="/stories"><span class="menu-icon"><svg class="icon"><use href="#i-stories"/></svg></span>Stories</a>
+      <a class="menu-item" href="/search?kind=user"><span class="menu-icon"><svg class="icon"><use href="#i-users"/></svg></span>Find friends</a>
+      <a class="menu-item" href="/stories/archive"><span class="menu-icon"><svg class="icon"><use href="#i-archive"/></svg></span>Story archive</a>
+      <a class="menu-item" href="/settings"><span class="menu-icon"><svg class="icon"><use href="#i-settings"/></svg></span>Settings</a>
+      <button type="button" class="menu-item" data-open-dialog="edit-profile-dialog"><span class="menu-icon"><svg class="icon"><use href="#i-edit"/></svg></span>Edit profile</button>
+      <button type="button" class="menu-item" role="switch" aria-checked="false" data-theme-toggle><span class="menu-icon"><svg class="icon"><use href="#i-moon"/></svg></span><span class="flex-1">Dark mode</span><span class="switch" data-theme-switch aria-hidden="true"></span></button>
+      <div class="divider"></div>
+      <button class="menu-item text-ios-red" type="button" data-logout><span class="menu-icon text-ios-red"><svg class="icon"><use href="#i-logout"/></svg></span>Log out</button>
+    </div>
+  </details>
 </header>
+
+<% if (!onPath('/messages')) { %>
+<%# Chats stay one click away from every page and open in place as mini chats. -%>
+<details class="messages-dock" data-menu data-read-on-open="messages">
+  <summary class="messages-pill" aria-label="Messages<%= unreadM ? `, ${unreadM} unread` : '' %>" data-badge-link="messages" data-badge-label="Messages">
+    <svg class="icon size-[1.375rem]"><use href="#i-chat"/></svg>
+    <span class="text-subheadline font-semibold">Messages</span>
+    <% if (chatPeople.length) { %><span class="flex -space-x-1.5"><% chatPeople.forEach(function (person) { %><%- include('avatar', { person, size: 'size-6 text-[0.5rem] ring-2 ring-surface' }) %><% }) %></span><% } %>
+    <% if (unreadM) { %><span class="badge" data-badge><%= unreadM > 9 ? '9+' : unreadM %></span><% } %>
+  </summary>
+  <section class="header-popover" aria-label="Recent chats" data-live-panel="chats">
+    <%- include('header-chats') %>
+  </section>
+</details>
+<% } %>
 <% } else { %>
 <header class="glass-bar sticky top-0 z-40 flex h-14 items-center gap-2 px-3 sm:px-4">
-  <a href="/" class="flex shrink-0 items-center gap-2" aria-label="Oremus home"><img src="/assets/brand/logo.svg" alt="" class="size-9"><span class="text-headline font-semibold text-ink">Oremus</span></a>
-  <div class="ml-auto flex items-center gap-2"><a class="btn-secondary" href="/login">Log in</a><a class="btn-primary" href="/register">Sign up</a></div>
+  <a href="/" class="flex shrink-0 items-center gap-2" aria-label="Oremus home"><img src="/assets/brand/logo.svg" alt="" class="size-8"><span class="font-display text-title3 font-semibold text-ink">Oremus</span></a>
+  <div class="ml-auto flex items-center gap-2"><a class="btn-primary" href="/login">Log in</a><a class="btn-ghost" href="/register">Sign up</a></div>
 </header>
 <% } %>

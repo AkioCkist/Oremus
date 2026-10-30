@@ -244,6 +244,18 @@ export function rankDocuments<T extends Candidate>(candidates: T[], profile: Pro
 }
 
 /** Keeps the ranking but allows at most `perKey` results that share a key (e.g. the same author). */
+/** Keeps rank order within each kind but shows both: every third spot goes to the second kind while it lasts. */
+export function mixKinds<T>(items: T[], isFirstKind: (item: T) => boolean, limit: number): T[] {
+  const first = items.filter(isFirstKind), second = items.filter((item) => !isFirstKind(item));
+  const mixed: T[] = [];
+  while (mixed.length < limit && (first.length || second.length)) {
+    const secondsTurn = (mixed.length + 1) % 3 === 0;
+    const source = secondsTurn ? (second.length ? second : first) : (first.length ? first : second);
+    mixed.push(source.shift()!);
+  }
+  return mixed;
+}
+
 export function diversify<T>(items: T[], keyOf: (item: T) => string | null | undefined, perKey: number, limit: number): T[] {
   const counts = new Map<string, number>();
   const picked: T[] = [];

@@ -1,15 +1,14 @@
 <%- include('partials/head') %><%- include('partials/nav') %>
-<main id="main" class="mx-auto max-w-feed space-y-4 px-0 py-4 pb-24 sm:px-4">
-  <a class="btn-ghost ml-2 sm:ml-0" href="/"><svg class="icon"><use href="#i-arrow-left"/></svg>Back to feed</a>
+<main id="main" class="post-detail mx-auto max-w-feed px-0 pb-24 pt-2 sm:px-4 lg:pb-10 lg:pt-6">
   <%- include('partials/post-card', { item: post, hideViewAll: true }) %>
-  <section id="comments" class="card p-4" aria-labelledby="comments-title">
-    <div class="flex items-center justify-between"><h2 id="comments-title" class="card-title">Comments</h2><span class="text-sm text-muted" data-comments-total><%= plural(post.commentCount || 0, 'comment') %></span></div>
+  <section id="comments" class="post-pad pt-4" aria-labelledby="comments-title">
+    <div class="flex items-center justify-between"><h2 id="comments-title" class="text-subheadline font-semibold">Comments</h2><span class="text-footnote text-muted" data-comments-total><%= plural(post.commentCount || 0, 'comment') %></span></div>
     <% if (comments.length) { %>
     <ul class="mt-4 space-y-3" data-infinite="comments" data-infinite-next="<%= commentsNext || '' %>" data-infinite-query="post=<%= post._id %>">
       <%- include('partials/chunks/comments', { items: comments }) %>
     </ul>
     <% } else { %>
-    <div class="py-8 text-center"><div class="empty-icon"><svg class="icon size-7"><use href="#i-comment"/></svg></div><p class="mt-3 font-semibold">No comments yet</p><p class="text-sm text-muted">Be the first to comment.</p></div>
+    <div class="py-8 text-center"><p class="text-title3 font-semibold">No comments yet</p><p class="mt-1 text-footnote text-muted">Be the first to comment.</p></div>
     <% } %>
     <% if (!currentUser) { %><p class="mt-4 text-center text-15"><a class="font-semibold text-brand-600 hover:underline" href="/login">Log in</a> to join the conversation.</p><% } %>
   </section>

@@ -5,7 +5,7 @@ A profile at `/profile/:username` has three tabs: **Posts**, **About** and **Med
 Main files:
 
 - [`views/profile.ejs`](../apps/web/src/views/profile.ejs) — header, tabs, posts and media
-- [`views/partials/profile-intro.ejs`](../apps/web/src/views/partials/profile-intro.ejs) — the Intro card in the left column
+- [`views/partials/profile-actions.ejs`](../apps/web/src/views/partials/profile-actions.ejs) — header buttons
 - [`views/partials/profile-about.ejs`](../apps/web/src/views/partials/profile-about.ejs) — the About tab with inline editors
 - [`views/partials/profile-dialogs.ejs`](../apps/web/src/views/partials/profile-dialogs.ejs) — Edit profile, Edit details, photo picker
 - [`views/partials/media-tile.ejs`](../apps/web/src/views/partials/media-tile.ejs) — one photo or video square

@@ -10,7 +10,8 @@ import { analyze, topFeatures } from '../recommender/text.js';
 import { seedInterests } from './seed-interests.js';
 import { invalidateByPrefix, invalidateFeedCaches } from '../services/cache.service.js';
 import { CHATS, COMMENTS, DEMO_ACCOUNT, EXTRA_FOLLOWS, FRIENDS, GROUPS, PENDING_REQUESTS, PEOPLE, POSTS, REPLIES, SEED_PASSWORD, SIGNALS, STORIES, type SeedPhoto, type SeedSignal } from './seed-data.js';
-import { avatar, isServedBy, photo, prepareSeedImages, type SeedImageRequest } from './seed-media.js';
+import { avatar, isServedBy, library, photo, prepareSeedImages, storyImage, type SeedImageRequest } from './seed-media.js';
+import { pick, rng, shuffle } from './seed-random.js';
 import { env } from '../config/env.js';
 
 /**
@@ -31,24 +32,6 @@ const MINUTE = 60_000;
 const now = Date.now();
 const ago = (ms: number) => new Date(now - ms);
 
-/* ---------- Deterministic randomness ---------- */
-
-function rng(seed: string) {
-  let state = [...seed].reduce((hash, char) => Math.imul(hash ^ char.charCodeAt(0), 16777619), 2166136261) >>> 0;
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = state;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-const shuffle = <T>(items: T[], random: () => number) => {
-  const copy = [...items];
-  for (let i = copy.length - 1; i > 0; i -= 1) { const j = Math.floor(random() * (i + 1)); [copy[i], copy[j]] = [copy[j]!, copy[i]!]; }
-  return copy;
-};
-const pick = <T>(items: T[], random: () => number) => items[Math.floor(random() * items.length)]!;
 const REACTION_WEIGHTS: Array<[string, number]> = [['like', 0.5], ['love', 0.28], ['haha', 0.1], ['wow', 0.08], ['sad', 0.04]];
 const reactionType = (random: () => number) => {
   let roll = random();
@@ -58,9 +41,14 @@ const reactionType = (random: () => number) => {
 
 /* ---------- Images ---------- */
 
-const photoRequest = (value: SeedPhoto) => (Array.isArray(value) ? photo(value[0], value[1], value[2]) : photo(value));
-const coverRequest = (id: number) => photo(id, 1600, 600);
-const storyRequest = (id: number) => photo(id, 1080, 1920);
+// Strings are Commons photos (`commons-<pageid>`), numbers are curated Lorem Picsum ids.
+const libraryId = (value: string) => Number(value.replace('commons-', ''));
+const photoRequest = (value: SeedPhoto) => {
+  if (typeof value === 'string') return library(libraryId(value));
+  return Array.isArray(value) ? photo(value[0], value[1], value[2]) : photo(value);
+};
+const coverRequest = (id: number | string) => (typeof id === 'string' ? library(libraryId(id), 1600, 600) : photo(id, 1600, 600));
+const storyRequest = storyImage;
 
 function imageRequests(): SeedImageRequest[] {
   return [
@@ -183,7 +171,7 @@ async function seed() {
     const createdAt = ago(post.hoursAgo * HOUR);
     return {
       _id, seedKey: post.key, authorId: id(post.author), groupId: post.group ? groupIds.get(post.group)! : null, content: post.text,
-      media: (post.photos || []).map((value) => ({ _id: new ObjectId(), url: url(photoRequest(value)), mimeType: 'image/webp', alt: '', status: 'ready', poster: '' })),
+      media: (post.photos || []).map((value) => ({ _id: new ObjectId(), url: url(photoRequest(value)), mimeType: 'image/webp', alt: '', status: 'ready', poster: '' })).filter((item) => item.url),
       visibility: post.visibility || 'public', feeling: post.feeling ? { text: '', ...post.feeling } : null, place: post.place ? { id: `seed:${post.key}`, ...post.place } : null,
       groupStatus: 'approved', reactionCount: 0, commentCount: 0, deletedAt: null, createdAt, updatedAt: createdAt
     };
@@ -251,7 +239,7 @@ async function seed() {
     const audience = String(person.profile.storyAudience) === 'public' ? PEOPLE.map((p) => p.key) : [...followerOf.get(story.author)!];
     const viewers = shuffle(audience.filter((key) => key !== story.author), random).slice(0, 3 + Math.floor(random() * 9));
     const doc = await Story.create({
-      seedKey: `story-${index}`, authorId: id(story.author), media: story.photo ? { url: url(storyRequest(story.photo)), mimeType: 'image/webp' } : null,
+      seedKey: `story-${index}`, authorId: id(story.author), media: story.photo && url(storyRequest(story.photo)) ? { url: url(storyRequest(story.photo)), mimeType: 'image/webp' } : null,
       text: story.text || '', background: story.background || 'ocean', style: story.text ? { ...story.style } : null,
       audience: String(person.profile.storyAudience) === 'public' ? 'public' : 'followers', viewCount: viewers.length, deletedAt: null,
       createdAt, updatedAt: createdAt, expiresAt: new Date(createdAt.getTime() + STORY_TTL_MS)

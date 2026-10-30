@@ -1,48 +1,40 @@
 <%
   const author = item.authorId || {};
   const isOwner = currentUser && String(author._id) === String(currentUser._id);
-  // Feed shows at most 5 tiles (Facebook layout); the rest is behind a "+N" overlay and reachable in the viewer.
   const allMedia = item.media || [];
-  const media = allMedia.slice(0, 5);
-  const extraMedia = allMedia.length - media.length;
   const isVideo = function (m) { return String(m.mimeType || '').startsWith('video/'); };
-  const gridClass = media.length === 1 ? '' : media.length === 3 ? 'grid-cols-2 grid-rows-2 aspect-[4/3]' : media.length === 5 ? 'grid-cols-6' : 'grid-cols-2';
-  const tileClass = function (i) {
-    if (media.length === 3) return i === 0 ? 'row-span-2' : '';
-    if (media.length === 5) return i < 2 ? 'col-span-3 aspect-square' : 'col-span-2 aspect-square';
-    return 'aspect-square';
-  };
   const reaction = item.myReaction ? REACTION_LABELS[item.myReaction] : null;
   const top = item.topReactions && item.topReactions.length ? item.topReactions : (item.reactionCount ? ['like'] : []);
   const group = item.groupId && item.groupId.name ? item.groupId : null;
-  const bigText = !media.length && item.content && item.content.length < 90;
+  const bigText = !allMedia.length && item.content && item.content.length < 90;
   const visibilityIcon = item.visibility === 'private' ? 'i-lock' : item.visibility === 'followers' ? 'i-users' : 'i-globe';
   const feelingInfo = describeFeeling(item.feeling);
   const mapLink = item.place ? `https://www.openstreetmap.org/?mlat=${item.place.lat}&mlon=${item.place.lon}#map=17/${item.place.lat}/${item.place.lon}` : '';
   const visibilityLabel = item.visibility === 'private' ? 'Only me' : item.visibility === 'followers' ? 'Followers' : 'Public';
   const isShare = !!item.sharedPostId;
-  // What the share dialog shares: the original for a share (as on Facebook), else this post.
+  // Long captions under a photo fold to two lines behind "more".
+  const foldCaption = !!allMedia.length && item.content && item.content.length > 120;
+  // What the share dialog shares: the original for a share, else this post.
   const shareSource = isShare ? (item.shared || null) : item;
   const shareGroup = shareSource && shareSource.groupId && shareSource.groupId.name ? shareSource.groupId : null;
   const shareInfo = shareSource ? { id: String(shareSource._id), author: (shareSource.authorId || {}).displayName || '', authorId: String((shareSource.authorId || {})._id || shareSource.authorId || ''), visibility: shareSource.visibility, group: !!shareSource.groupId, groupPrivate: shareSource.groupId ? (shareSource.groupPrivacy || (shareGroup && shareGroup.privacy)) === 'private' : null } : null;
 -%>
-<article class="card" data-post-id="<%= item._id %>" data-post-author="<%= author._id %>"<% if (isOwner) { %> data-post-media="<%= JSON.stringify(allMedia.map(function (m) { return { id: String(m._id), url: m.url, mimeType: m.mimeType }; })) %>" data-post-edit="<%= JSON.stringify({ visibility: item.visibility, feeling: item.feeling || null, place: item.place || null, group: item.groupId ? (group ? group.name : 'Group') : '' }) %>"<% } %>>
-  <header class="flex items-start gap-2.5 px-4 pt-3">
-    <a href="/profile/<%= author.username %>" class="shrink-0" aria-label="<%= author.displayName %>'s profile"><%- include('avatar', { person: author, size: 'size-10 text-sm' }) %></a>
+<article class="post" data-post-id="<%= item._id %>" data-post-author="<%= author._id %>"<% if (isOwner) { %> data-post-media="<%= JSON.stringify(allMedia.map(function (m) { return { id: String(m._id), url: m.url, mimeType: m.mimeType }; })) %>" data-post-edit="<%= JSON.stringify({ visibility: item.visibility, feeling: item.feeling || null, place: item.place || null, group: item.groupId ? (group ? group.name : 'Group') : '' }) %>"<% } %>>
+  <header class="post-pad flex items-center gap-2.5 py-2.5">
+    <a href="/profile/<%= author.username %>" class="shrink-0" aria-label="<%= author.displayName %>'s profile"><%- include('avatar', { person: author, size: 'size-8 text-xs' }) %></a>
     <div class="min-w-0 flex-1 leading-tight">
-      <p class="text-15">
-        <a class="font-semibold hover:underline" href="/profile/<%= author.username %>"><%= author.displayName %></a>
-        <% if (group) { %><svg class="icon -mt-0.5 inline size-3.5 text-muted"><use href="#i-chevron-right"/></svg> <a class="font-semibold hover:underline" href="/groups/<%= group.slug %>"><%= group.name %></a><% } %>
-        <% if (feelingInfo || item.place) { %><span> is<% if (feelingInfo) { %> <%= feelingInfo.emoji %> <%= feelingInfo.text %><% } %><% if (item.place) { %> at <a class="font-semibold hover:underline" href="<%= mapLink %>" target="_blank" rel="noopener noreferrer"><%= item.place.name %></a><% } %>.</span><% } %>
+      <p class="flex min-w-0 items-center gap-1 text-footnote">
+        <a class="truncate font-semibold hover:text-muted" href="/profile/<%= author.username %>"><%= author.displayName %></a>
+        <% if (group) { %><svg class="icon size-3 shrink-0 text-muted"><use href="#i-chevron-right"/></svg><a class="truncate font-semibold hover:text-muted" href="/groups/<%= group.slug %>"><%= group.name %></a><% } %>
+        <span class="shrink-0 text-muted" aria-hidden="true">·</span>
+        <a class="shrink-0 text-muted hover:text-ink" href="/posts/<%= item._id %>" title="<%= longTime(item.createdAt) %>"><time datetime="<%= new Date(item.createdAt).toISOString() %>"><%= timeAgo(item.createdAt) %></time></a>
+        <% if (item.editedAt) { %><span class="shrink-0 text-muted">· Edited</span><% } %>
+        <svg class="icon size-3 shrink-0 text-muted" role="img" aria-label="<%= visibilityLabel %>"><use href="#<%= visibilityIcon %>"/></svg>
       </p>
-      <p class="mt-0.5 flex items-center gap-1 text-[0.8125rem] text-muted">
-        <a class="hover:underline" href="/posts/<%= item._id %>" title="<%= longTime(item.createdAt) %>"><time datetime="<%= new Date(item.createdAt).toISOString() %>"><%= timeAgo(item.createdAt) %></time></a>
-        <% if (item.editedAt) { %><span aria-hidden="true">·</span><span>Edited</span><% } %>
-        <span aria-hidden="true">·</span><svg class="icon size-3.5" role="img" aria-label="<%= visibilityLabel %>"><use href="#<%= visibilityIcon %>"/></svg>
-      </p>
+      <% if (feelingInfo || item.place) { %><p class="mt-0.5 truncate text-caption1 text-muted"><% if (feelingInfo) { %><%= feelingInfo.emoji %> <%= feelingInfo.text %><% } %><% if (feelingInfo && item.place) { %> · <% } %><% if (item.place) { %><a class="hover:text-ink" href="<%= mapLink %>" target="_blank" rel="noopener noreferrer"><%= item.place.name %></a><% } %></p><% } %>
     </div>
     <details class="relative" data-menu>
-      <summary class="icon-btn-ghost -mr-2 cursor-pointer list-none" aria-label="Post options"><svg class="icon"><use href="#i-more"/></svg></summary>
+      <summary class="icon-btn-ghost -mr-2 cursor-pointer list-none text-ink" aria-label="Post options"><svg class="icon"><use href="#i-more"/></svg></summary>
       <div class="menu right-0 top-10 w-64">
         <% if (isOwner) { %>
         <button type="button" class="menu-item" data-edit-post="<%= item._id %>"><span class="menu-icon"><svg class="icon"><use href="#i-edit"/></svg></span>Edit post</button>
@@ -53,79 +45,92 @@
     </details>
   </header>
 
-  <% if (item.content) { %><p class="whitespace-pre-wrap break-words px-4 pb-3 pt-2.5 <%= bigText && !isShare ? 'font-display text-title2 font-medium' : 'text-body' %>" data-post-content><%= item.content %></p><% } else { %><div class="h-3"></div><% } %>
+  <%# Without media the words are the content, so they come first. With media they become the caption below the actions. -%>
+  <% if (item.content && !allMedia.length) { %><p class="post-pad whitespace-pre-wrap break-words pb-2 <%= bigText && !isShare ? 'font-display text-title2 font-medium' : 'text-body' %>" data-post-content><%= item.content %></p><% } %>
 
   <% if (isShare) { %><%- include('shared-post', { shared: item.shared }) %><% } %>
 
-  <% if (media.length === 1 && isVideo(media[0])) { const m = media[0]; %>
-  <div class="group/photo relative bg-black">
-    <video class="mx-auto block max-h-[40rem] w-full" src="<%= m.url %>"<% if (m.poster) { %> poster="<%= m.poster %>" preload="none"<% } else { %> preload="metadata"<% } %> controls playsinline aria-label="<%= m.alt || ('Video shared by ' + author.displayName) %>"></video>
+  <% if (allMedia.length === 1) { const m = allMedia[0]; const video = isVideo(m); %>
+  <div class="post-media post-media-single group/photo <%= video ? 'bg-black' : '' %>">
+    <% if (video) { %>
+    <video src="<%= m.url %>"<% if (m.poster) { %> poster="<%= m.poster %>" preload="none"<% } else { %> preload="metadata"<% } %> controls playsinline aria-label="<%= m.alt || ('Video shared by ' + author.displayName) %>"></video>
     <% if (isOwner && m.status === 'processing') { %><span class="pointer-events-none absolute left-2 top-2 rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white">Optimizing video…</span><% } %>
-    <% if (isOwner) { %><button type="button" class="absolute right-2 top-2 grid size-9 place-items-center rounded-full bg-surface/90 text-ink shadow-float transition-opacity hover:bg-surface sm:opacity-0 sm:group-hover/photo:opacity-100 sm:focus-visible:opacity-100" data-photo-menu="post" data-post="<%= item._id %>" data-media="<%= m._id %>" data-url="<%= m.url %>" aria-label="Video options"><svg class="icon size-5"><use href="#i-more"/></svg></button><% } %>
+    <% } else { %>
+    <button type="button" class="block w-full" data-lightbox="<%= m.url %>" aria-label="Open photo"><img class="cursor-zoom-in" src="<%= m.url %>" alt="<%= m.alt || ('Photo shared by ' + author.displayName) %>" loading="lazy" decoding="async"></button>
+    <% } %>
+    <% if (isOwner) { %><button type="button" class="glass absolute right-2 top-2 grid size-9 place-items-center rounded-full text-ink transition-opacity sm:opacity-0 sm:group-hover/photo:opacity-100 sm:focus-visible:opacity-100" data-photo-menu="post" data-post="<%= item._id %>" data-media="<%= m._id %>" data-url="<%= m.url %>" aria-label="<%= video ? 'Video' : 'Photo' %> options"><svg class="icon"><use href="#i-more"/></svg></button><% } %>
   </div>
-  <% } else if (media.length) { %>
-  <div class="media-grid <%= gridClass %>">
-    <% media.forEach(function (m, i) { const video = isVideo(m); const label = video ? 'video' : 'photo'; %>
-    <div class="group/photo relative overflow-hidden <%= media.length === 1 ? 'max-h-[40rem]' : tileClass(i) %>">
-      <button type="button" class="relative block size-full overflow-hidden" data-lightbox="<%= m.url %>" aria-label="Open <%= label %> <%= i + 1 %> of <%= allMedia.length %>">
-        <% if (video) { %>
-        <% if (m.poster) { %><img src="<%= m.poster %>" alt="" loading="lazy" decoding="async"><% } else { %><video src="<%= m.url %>#t=0.1" muted playsinline preload="metadata" tabindex="-1" aria-hidden="true"></video><% } %>
-        <span class="pointer-events-none absolute inset-0 grid place-items-center"><span class="grid size-14 place-items-center rounded-full bg-black/55 text-white ring-2 ring-white/80"><svg class="icon size-7 translate-x-0.5 fill-current"><use href="#i-play"/></svg></span></span>
-        <% } else { %>
-        <img src="<%= m.url %>" alt="<%= m.alt || ('Photo shared by ' + author.displayName) %>" loading="lazy" decoding="async" class="<%= media.length === 1 ? 'max-h-[40rem]' : '' %>">
-        <% } %>
-        <% if (i === media.length - 1 && extraMedia > 0) { %><span class="absolute inset-0 grid place-items-center bg-black/45 font-display text-3xl font-bold text-white">+<%= extraMedia %></span><% } %>
-      </button>
-      <% if (isOwner) { %><button type="button" class="absolute right-2 top-2 grid size-9 place-items-center rounded-full bg-surface/90 text-ink shadow-float transition-opacity hover:bg-surface sm:opacity-0 sm:group-hover/photo:opacity-100 sm:focus-visible:opacity-100" data-photo-menu="post" data-post="<%= item._id %>" data-media="<%= m._id %>" data-url="<%= m.url %>" aria-label="<%= video ? 'Video' : 'Photo' %> options"><svg class="icon size-5"><use href="#i-more"/></svg></button><% } %>
+  <% } else if (allMedia.length) { %>
+  <div class="post-media" data-carousel>
+    <div class="carousel-track" data-carousel-track>
+      <% allMedia.forEach(function (m, i) { const video = isVideo(m); const label = video ? 'video' : 'photo'; %>
+      <div class="carousel-slide group/photo">
+        <button type="button" class="relative block size-full" data-lightbox="<%= m.url %>" aria-label="Open <%= label %> <%= i + 1 %> of <%= allMedia.length %>">
+          <% if (video) { %>
+          <% if (m.poster) { %><img src="<%= m.poster %>" alt="" loading="lazy" decoding="async"><% } else { %><video class="pointer-events-none" src="<%= m.url %>#t=0.1" muted playsinline preload="metadata" tabindex="-1" aria-hidden="true"></video><% } %>
+          <span class="pointer-events-none absolute inset-0 grid place-items-center"><span class="glass grid size-14 place-items-center rounded-full text-ink"><svg class="icon size-7 translate-x-0.5 fill-current"><use href="#i-play"/></svg></span></span>
+          <% } else { %>
+          <img class="cursor-zoom-in" src="<%= m.url %>" alt="<%= m.alt || ('Photo shared by ' + author.displayName) %>" loading="lazy" decoding="async">
+          <% } %>
+        </button>
+        <% if (isOwner) { %><button type="button" class="glass absolute bottom-2 right-2 grid size-9 place-items-center rounded-full text-ink transition-opacity sm:opacity-0 sm:group-hover/photo:opacity-100 sm:focus-visible:opacity-100" data-photo-menu="post" data-post="<%= item._id %>" data-media="<%= m._id %>" data-url="<%= m.url %>" aria-label="<%= video ? 'Video' : 'Photo' %> options"><svg class="icon"><use href="#i-more"/></svg></button><% } %>
+      </div>
+      <% }) %>
     </div>
-    <% }) %>
+    <span class="carousel-count" data-carousel-count>1/<%= allMedia.length %></span>
+    <button type="button" class="carousel-nav left-2" data-carousel-nav="-1" aria-label="Previous" disabled><svg class="icon size-4"><use href="#i-chevron-left"/></svg></button>
+    <button type="button" class="carousel-nav right-2" data-carousel-nav="1" aria-label="Next"><svg class="icon size-4"><use href="#i-chevron-right"/></svg></button>
   </div>
   <% } %>
 
-  <% if (item.place && !media.length) { %>
-  <a class="block border-y border-line" href="<%= mapLink %>" target="_blank" rel="noopener noreferrer" aria-label="Open <%= item.place.name %> on the map">
+  <% if (item.place && !allMedia.length) { %>
+  <a class="post-media mb-1 block" href="<%= mapLink %>" target="_blank" rel="noopener noreferrer" aria-label="Open <%= item.place.name %> on the map">
     <div class="relative h-52 overflow-hidden bg-field" data-map data-lat="<%= item.place.lat %>" data-lon="<%= item.place.lon %>"></div>
-    <div class="flex items-center gap-3 bg-canvas px-4 py-3"><span class="icon-btn shrink-0 bg-surface text-[#ff383c]"><svg class="icon"><use href="#i-pin"/></svg></span><span class="min-w-0"><span class="block truncate font-semibold"><%= item.place.name %></span><span class="block truncate text-[0.8125rem] text-muted"><%= item.place.address %></span></span></div>
+    <div class="flex items-center gap-3 bg-field px-4 py-3"><svg class="icon shrink-0 text-ios-red"><use href="#i-pin"/></svg><span class="min-w-0"><span class="block truncate text-subheadline font-semibold"><%= item.place.name %></span><span class="block truncate text-footnote text-muted"><%= item.place.address %></span></span></div>
   </a>
   <% } %>
-  <div class="mx-4 flex min-h-[2.5rem] items-center justify-between gap-3 text-15 text-muted">
-    <<%= currentUser ? 'button type="button"' : 'span' %> class="flex items-center gap-1.5 rounded-md <%= currentUser ? 'hover:underline' : '' %> <%= item.reactionCount ? '' : 'invisible' %>" data-reaction-summary<% if (currentUser) { %> data-open-reactions="<%= item._id %>" aria-label="See who reacted to this post" aria-haspopup="dialog"<% } %>>
-      <span class="flex -space-x-1" data-reaction-icons><% top.forEach(function (type) { %><svg class="size-[1.125rem] rounded-full ring-2 ring-surface"><use href="#r-<%= type %>"/></svg><% }) %></span>
-      <span data-reaction-count><%= compact(item.reactionCount || 0) %></span>
-    </<%= currentUser ? 'button' : 'span' %>>
-    <span class="flex items-center gap-3">
-      <a class="hover:underline <%= item.commentCount ? '' : 'hidden' %>" href="/posts/<%= item._id %>#comments" data-comment-count-label><span data-comment-count><%= item.commentCount || 0 %></span> <%= item.commentCount === 1 ? 'comment' : 'comments' %></a>
-      <span class="<%= item.shareCount ? '' : 'hidden' %>" data-share-count-label><span data-share-count><%= item.shareCount || 0 %></span> <%= item.shareCount === 1 ? 'share' : 'shares' %></span>
-    </span>
+
+  <div class="post-pad relative mt-1 grid grid-cols-[1fr_auto_1fr] items-center">
+    <div class="-ml-2 flex items-center">
+    <% if (currentUser) { %>
+      <div class="reaction-wrap relative">
+        <button type="button" class="post-action <%= reaction ? reaction.color : '' %>" data-react="<%= item.myReaction || 'love' %>" data-post="<%= item._id %>" data-reaction-toggle aria-pressed="<%= item.myReaction ? 'true' : 'false' %>" aria-label="<%= reaction ? reaction.label : 'Love' %>">
+          <% if (reaction) { %><svg><use href="#r-<%= item.myReaction %>"/></svg><% } else { %><svg class="icon"><use href="#i-heart"/></svg><% } %>
+        </button>
+        <div class="reaction-bar" role="toolbar" aria-label="Reactions">
+          <% Object.keys(REACTION_LABELS).forEach(function (type) { %>
+          <button type="button" class="reaction-choice" data-react="<%= type %>" data-post="<%= item._id %>" aria-label="<%= REACTION_LABELS[type].label %>"><svg><use href="#r-<%= type %>"/></svg></button>
+          <% }) %>
+        </div>
+      </div>
+      <button type="button" class="post-action" data-focus-comment="<%= item._id %>" aria-label="Comment"><svg class="icon"><use href="#i-comment"/></svg></button>
+      <% if (shareInfo) { %><button type="button" class="post-action" data-share-post="<%= JSON.stringify(shareInfo) %>" aria-haspopup="dialog" aria-label="Share"><svg class="icon"><use href="#i-send"/></svg></button><% } else { %><button type="button" class="post-action" disabled aria-label="Share" title="The original post isn't available"><svg class="icon"><use href="#i-send"/></svg></button><% } %>
+    <% } %>
+    </div>
+    <% if (allMedia.length > 1) { %><div class="carousel-dots" data-carousel-dots aria-hidden="true"><% allMedia.forEach(function (m, i) { %><span class="carousel-dot <%= i === 0 ? 'carousel-dot-on' : '' %>"></span><% }) %></div><% } else { %><span></span><% } %>
+    <span></span>
   </div>
 
-  <% if (currentUser) { %>
-  <div class="mx-4 flex gap-1 border-t border-line py-1">
-    <div class="reaction-wrap relative flex flex-1">
-      <button type="button" class="action-button <%= reaction ? reaction.color : '' %>" data-react="<%= item.myReaction || 'like' %>" data-post="<%= item._id %>" data-reaction-toggle aria-pressed="<%= item.myReaction ? 'true' : 'false' %>">
-        <% if (reaction) { %><svg class="size-[1.125rem]"><use href="#r-<%= item.myReaction %>"/></svg><% } else { %><svg class="icon"><use href="#i-like"/></svg><% } %>
-        <span><%= reaction ? reaction.label : 'Like' %></span>
-      </button>
-      <div class="reaction-bar" role="toolbar" aria-label="Reactions">
-        <% Object.keys(REACTION_LABELS).forEach(function (type) { %>
-        <button type="button" class="reaction-choice" data-react="<%= type %>" data-post="<%= item._id %>" aria-label="<%= REACTION_LABELS[type].label %>"><svg><use href="#r-<%= type %>"/></svg></button>
-        <% }) %>
-      </div>
-    </div>
-    <button type="button" class="action-button" data-focus-comment="<%= item._id %>"><svg class="icon"><use href="#i-comment"/></svg><span>Comment</span></button>
-    <% if (shareInfo) { %><button type="button" class="action-button" data-share-post="<%= JSON.stringify(shareInfo) %>" aria-haspopup="dialog"><svg class="icon"><use href="#i-share"/></svg><span>Share</span></button><% } else { %><button type="button" class="action-button" disabled title="The original post isn't available"><svg class="icon"><use href="#i-share"/></svg><span>Share</span></button><% } %>
-  </div>
-  <div class="border-t border-line px-4 pb-3 pt-2">
-    <ul class="space-y-2 pb-1 empty:hidden" data-comment-list></ul>
-    <% if (item.commentCount > 0 && !locals.hideViewAll) { %><a class="mb-2 inline-block text-15 font-semibold text-muted hover:underline" href="/posts/<%= item._id %>#comments">View all comments</a><% } %>
+  <div class="post-pad space-y-1 text-subheadline">
+    <p class="flex items-center gap-3">
+      <<%= currentUser ? 'button type="button"' : 'span' %> class="flex items-center gap-1.5 font-semibold <%= item.reactionCount ? '' : 'hidden' %>" data-reaction-summary<% if (currentUser) { %> data-open-reactions="<%= item._id %>" aria-label="See who reacted to this post" aria-haspopup="dialog"<% } %>>
+        <span class="flex -space-x-1" data-reaction-icons><% top.forEach(function (type) { %><svg class="size-4 rounded-full ring-2 ring-canvas"><use href="#r-<%= type %>"/></svg><% }) %></span>
+        <span data-reaction-count><%= compact(item.reactionCount || 0) %></span>
+      </<%= currentUser ? 'button' : 'span' %>>
+      <span class="text-footnote text-muted <%= item.shareCount ? '' : 'hidden' %>" data-share-count-label><span data-share-count><%= item.shareCount || 0 %></span> <%= item.shareCount === 1 ? 'share' : 'shares' %></span>
+    </p>
+    <% if (item.content && allMedia.length) { %>
+    <p class="whitespace-pre-wrap break-words <%= foldCaption ? 'post-caption-clamp' : '' %>" <%= foldCaption ? 'data-caption-fold' : '' %>><a class="font-semibold hover:text-muted" href="/profile/<%= author.username %>"><%= author.displayName %></a> <span data-post-content><%= item.content %></span></p>
+    <% if (foldCaption) { %><button type="button" class="text-muted" data-caption-more>more</button><% } %>
+    <% } %>
+    <% if (!locals.hideViewAll) { %><a class="block text-muted <%= item.commentCount ? '' : 'hidden' %>" href="/posts/<%= item._id %>#comments" data-comment-count-label>View all <span data-comment-count><%= item.commentCount || 0 %></span> <%= item.commentCount === 1 ? 'comment' : 'comments' %></a><% } %>
+    <% if (currentUser) { %>
+    <ul class="space-y-2 empty:hidden" data-comment-list></ul>
     <form class="flex items-center gap-2" data-comment-form action="/api/posts/<%= item._id %>/comments" method="post">
-      <%- include('avatar', { person: currentUser, size: 'size-8 text-xs' }) %>
       <label class="sr-only" for="comment-<%= item._id %>">Write a comment</label>
-      <div class="relative flex-1">
-        <input id="comment-<%= item._id %>" name="content" class="pill-input h-9 pr-10" placeholder="Write a comment…" maxlength="1500" autocomplete="off" required>
-        <button type="submit" class="absolute right-1 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full text-brand-600 hover:bg-line" aria-label="Post comment"><svg class="icon size-4"><use href="#i-send"/></svg></button>
-      </div>
+      <input id="comment-<%= item._id %>" name="content" class="post-comment-input" placeholder="Add a comment…" maxlength="1500" autocomplete="off" required>
+      <button type="submit" class="btn-text" aria-label="Post comment">Post</button>
     </form>
+    <% } %>
   </div>
-  <% } else { %><div class="h-2"></div><% } %>
 </article>

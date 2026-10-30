@@ -22,6 +22,7 @@ for (const list of ['work', 'education', 'links'] as const) {
   apiRoutes.delete(`/profile/${list}/:itemId`, asyncHandler(controller.saveProfileItem(list)));
 }
 apiRoutes.post('/profile/photo', rateLimit('upload', 30, 3600), upload.single('photo'), compressUploadedImages, asyncHandler(controller.updatePhoto));
+apiRoutes.get('/users/:username/card', asyncHandler(controller.userCard));
 apiRoutes.post('/users/:userId/follow', asyncHandler(controller.toggleFollow));
 apiRoutes.post('/users/:userId/friendship', asyncHandler(controller.changeFriendship));
 apiRoutes.get('/users/:userId/break', asyncHandler(controller.breakState));

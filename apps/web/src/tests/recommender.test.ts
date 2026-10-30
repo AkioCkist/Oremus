@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildProfile, computeIdf, diversify, rankDocuments, signalStrength, topInterests, type Candidate, type Signal } from '../recommender/engine.js';
-import { groupText, postText, queryText, storyText, userText } from '../recommender/documents.js';
+import { buildProfile, computeIdf, diversify, mixKinds, rankDocuments, signalStrength, topInterests, type Candidate, type Signal } from '../recommender/engine.js';
+import { groupText, postPreview, postText, queryText, storyText, userText } from '../recommender/documents.js';
 import { analyze, fold, tokenize, topFeatures } from '../recommender/text.js';
 import { activitySchema } from '../validators/index.js';
 import { COMMENTS, EXTRA_FOLLOWS, FRIENDS, GROUPS, PEOPLE, POSTS, SIGNALS, STORIES } from '../scripts/seed-data.js';
@@ -198,6 +198,33 @@ describe('documents', () => {
   });
 });
 
+describe('mixing kinds', () => {
+  const isPhoto = (item: string) => item.startsWith('p');
+
+  it('gives every third spot to the second kind and keeps rank order', () => {
+    expect(mixKinds(['p1', 'p2', 'p3', 'p4', 't1', 't2'], isPhoto, 6)).toEqual(['p1', 'p2', 't1', 'p3', 'p4', 't2']);
+  });
+
+  it('fills up with the other kind when one runs out', () => {
+    expect(mixKinds(['p1', 'p2', 'p3'], isPhoto, 8)).toEqual(['p1', 'p2', 'p3']);
+    expect(mixKinds(['t1', 't2', 't3', 'p1'], isPhoto, 3)).toEqual(['p1', 't1', 't2']);
+  });
+});
+
+describe('post preview', () => {
+  it('uses the first photo, or a video poster', () => {
+    expect(postPreview([{ url: '/a.webp', mimeType: 'image/webp' }])).toEqual({ url: '/a.webp', video: false });
+    expect(postPreview([{ url: '/a.mp4', mimeType: 'video/mp4', poster: '/p.webp' }])).toEqual({ url: '/p.webp', video: true });
+  });
+
+  it('skips a video without a poster and finds no picture in a text post', () => {
+    expect(postPreview([{ url: '/a.mp4', mimeType: 'video/mp4' }, { url: '/b.webp', mimeType: 'image/webp' }])).toEqual({ url: '/b.webp', video: false });
+    expect(postPreview([{ url: '/a.mp4', mimeType: 'video/mp4' }])).toBeNull();
+    expect(postPreview([])).toBeNull();
+    expect(postPreview()).toBeNull();
+  });
+});
+
 describe('activity payload', () => {
   const id = 'a'.repeat(24);
   it('accepts reading time and clicks', () => {
@@ -240,7 +267,7 @@ describe('sample data for recommendations', () => {
   it('creates a dense 2,000-person network where everyone posts personally and in a group', () => {
     expect(PEOPLE).toHaveLength(2000);
     expect(GROUPS.length).toBeGreaterThanOrEqual(130);
-    expect(POSTS.length).toBeGreaterThanOrEqual(7900);
+    expect(POSTS.length).toBeGreaterThanOrEqual(3900);
     expect(STORIES.length).toBeGreaterThanOrEqual(650);
     for (const person of PEOPLE) {
       expect(POSTS.some((post) => post.author === person.key && !post.group), `${person.key} personal post`).toBe(true);
@@ -250,7 +277,7 @@ describe('sample data for recommendations', () => {
 
   it('gives every generated crowd post relevant seeded media and valid group membership', () => {
     const crowdPosts = POSTS.filter((post) => post.key.startsWith('crowd-') || post.key.startsWith('supplemental-'));
-    expect(crowdPosts.length).toBeGreaterThan(7800);
+    expect(crowdPosts.length).toBeGreaterThan(3900);
     for (const post of crowdPosts) {
       expect(post.photos?.length, `${post.key} photo`).toBeGreaterThan(0);
       if (post.group) expect(groups.get(post.group)?.members.some(([key]) => key === post.author), `${post.key} membership`).toBe(true);

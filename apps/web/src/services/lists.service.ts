@@ -79,7 +79,7 @@ const MIME_BY_TYPE: Record<string, RegExp> = { photos: /^image\//, videos: /^vid
 
 /** One tile per photo/video across posts; videos that failed to transcode are only shown to their owner. */
 export const flattenMedia = (posts: any[], isOwner: boolean, type = 'all') => posts.flatMap((post) => (post.media || [])
-  .map((media: any) => ({ ...media, postId: post._id, mediaId: media._id, createdAt: post.createdAt, isVideo: String(media.mimeType).startsWith('video/') }))
+  .map((media: any) => ({ ...media, postId: post._id, mediaId: media._id, createdAt: post.createdAt, reactionCount: post.reactionCount, commentCount: post.commentCount, isVideo: String(media.mimeType).startsWith('video/') }))
   .filter((media: any) => (media.isVideo || String(media.mimeType).startsWith('image/')) && (isOwner || media.status !== 'failed'))
   .filter((media: any) => type === 'all' || media.isVideo === (type === 'videos')));
 
@@ -100,7 +100,8 @@ export async function profileMediaCounts(username: string, viewerId?: string) {
   const { profile, filter } = await profileAccess(username, viewerId);
   if (!filter) return { all: 0, photos: 0, videos: 0 };
   const rows = await Post.aggregate([
-    { $match: { ...filter, 'media.0': { $exists: true } } },
+    // Aggregations skip schema casting, and the author id reaches here as a string.
+    { $match: { ...filter, authorId: new mongoose.Types.ObjectId(String(filter.authorId)), 'media.0': { $exists: true } } },
     { $unwind: '$media' },
     { $match: { 'media.mimeType': /^(image|video)\//, ...(profile.isSelf ? {} : { 'media.status': { $ne: 'failed' } }) } },
     { $group: { _id: { $cond: [{ $regexMatch: { input: '$media.mimeType', regex: /^video\// } }, 'videos', 'photos'] }, count: { $sum: 1 } } }

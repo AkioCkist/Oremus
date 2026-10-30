@@ -65,8 +65,8 @@ export function onboarding(req: Request, res: Response) {
   });
 }
 
-export function loginPage(req: Request, res: Response) { if (req.user) return res.redirect('/'); res.render('auth/login', base(req, 'Log in')); }
-export function registerPage(req: Request, res: Response) { if (req.user) return res.redirect('/'); res.render('auth/register', base(req, 'Create an account')); }
+export function loginPage(req: Request, res: Response) { if (req.user) return res.redirect('/'); res.render('auth/index', { ...base(req, 'Log in'), authMode: 'login' }); }
+export function registerPage(req: Request, res: Response) { if (req.user) return res.redirect('/'); res.render('auth/index', { ...base(req, 'Create an account'), authMode: 'register' }); }
 export function resetPage(req: Request, res: Response) { res.render('auth/reset', { ...base(req, 'Reset password'), token: req.query.token || '' }); }
 
 export async function home(req: Request, res: Response) {
@@ -87,17 +87,18 @@ export async function profile(req: Request, res: Response) {
   if (!profile.blockedByMe) trackSignal(req.user?.id, { type: 'open', targetType: 'user', targetId: String(profile._id) });
   if (profile.blockedByMe) return res.render('profile', { ...base(req, profile.displayName), profile, posts: [], postsNext: null, photos: [], photosNext: null, mediaCounts: { all: 0, photos: 0, videos: 0 }, mediaFilter: { type: 'all', sort: 'newest' }, hasStory: false, friendsPreview: [], tab: 'posts', profileQuery: '', aboutSection: 'overview' });
   const profileQuery = String(req.query.q || '').trim().slice(0, 80);
-  const tab = profileQuery ? 'posts' : req.query.tab === 'about' ? 'about' : ['media', 'photos', 'videos'].includes(String(req.query.tab)) ? 'media' : 'posts';
+  const username = profile.username as string;
+  const mediaCounts = await profileMediaCounts(username, req.user?.id);
+  // The grid is the default view; someone with only text posts lands on their posts instead.
+  const tab = profileQuery || req.query.tab === 'posts' ? 'posts' : req.query.tab === 'about' ? 'about' : ['media', 'photos', 'videos'].includes(String(req.query.tab)) || mediaCounts.all ? 'media' : 'posts';
   const mediaFilter = {
     type: MEDIA_TYPES.includes(String(req.query.type)) ? String(req.query.type) : req.query.tab === 'photos' ? 'photos' : req.query.tab === 'videos' ? 'videos' : 'all',
     sort: String(req.query.sort) in MEDIA_SORTS ? String(req.query.sort) : 'newest'
   };
-  const username = profile.username as string;
   // Posts and media tiles load in chunks (first chunk here, the rest via /api/lists).
-  const [postChunk, mediaChunk, mediaCounts] = await Promise.all([
+  const [postChunk, mediaChunk] = await Promise.all([
     tab === 'posts' ? profilePosts(username, req.user?.id, profileQuery, null) : Promise.resolve({ items: [], next: null }),
-    profileMedia(username, req.user?.id, tab === 'media' ? mediaFilter.type : 'all', tab === 'media' ? mediaFilter.sort : 'newest', null),
-    profileMediaCounts(username, req.user?.id)
+    profileMedia(username, req.user?.id, tab === 'media' ? mediaFilter.type : 'all', tab === 'media' ? mediaFilter.sort : 'newest', null)
   ]);
   const photos = tab === 'media' ? mediaChunk.items : mediaChunk.items.slice(0, 9);
   const tray = req.user ? await getStoryTray(req.user.id, [String(profile._id)]) : [];

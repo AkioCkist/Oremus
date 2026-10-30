@@ -1,0 +1,23 @@
+<%# Profile header buttons, rendered once for the phone row and once beside the name on larger screens. Locals: isSelf. -%>
+<% if (isSelf) { %>
+  <button type="button" class="btn-secondary" data-open-dialog="edit-profile-dialog">Edit profile</button>
+  <button type="button" class="btn-secondary" data-open-story-composer>Add to story</button>
+<% } else if (currentUser) { %>
+  <%- include('friend-controls', { person: profile, state: profile.friendState, compact: false, full: false }) %>
+  <button type="button" class="btn-secondary" data-follow="<%= profile._id %>" data-follow-style data-following="<%= profile.isFollowing %>"><svg class="icon size-4"><use href="#<%= profile.isFollowing ? 'i-check' : 'i-user-plus' %>"/></svg><span><%= profile.isFollowing ? 'Following' : 'Follow' %></span></button>
+  <button type="button" class="btn-primary <%= profile.friendState === 'friends' ? '' : 'hidden' %>" data-friend-message="<%= profile._id %>" data-message-user="<%= profile._id %>">Message</button>
+<% } else { %>
+  <a class="btn-primary" href="/login">Log in to add friend</a>
+<% } %>
+<button type="button" class="btn-secondary px-2.5" data-open-dialog="profile-search-dialog" aria-label="Search this profile"><svg class="icon size-[1.125rem]"><use href="#i-search"/></svg></button>
+<% if (!isSelf && currentUser) { %>
+<details class="relative" data-menu>
+  <summary class="btn-secondary cursor-pointer list-none px-2.5" aria-label="More profile actions"><svg class="icon size-[1.125rem]"><use href="#i-more"/></svg></summary>
+  <div class="menu right-0 top-full mt-2">
+    <button type="button" class="menu-item" data-open-break="<%= profile._id %>" data-user-name="<%= profile.displayName %>"><svg class="icon"><use href="#i-pause"/></svg><span data-break-label><%= profile.seeLess || profile.restrictPosts ? 'Edit break settings' : 'Take a break' %></span></button>
+    <button type="button" class="menu-item" data-copy-profile="/profile/<%= profile.username %>"><svg class="icon"><use href="#i-link"/></svg>Copy profile link</button>
+    <div class="divider"></div>
+    <button type="button" class="menu-item" data-block-user="<%= profile._id %>" data-user-name="<%= profile.displayName %>"><svg class="icon"><use href="#i-lock"/></svg>Block</button>
+  </div>
+</details>
+<% } %>

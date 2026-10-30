@@ -8,18 +8,18 @@
   const questions = group.questions || [];
   const needsJoinForm = group.privacy === 'private' && !(invite && invite.byAdmin) && (rules.length || questions.length);
 -%>
-<main id="main" class="pb-24 md:pb-10">
-  <section class="bg-surface shadow-card">
+<main id="main" class="pb-28 lg:pb-10">
+  <section>
     <div class="mx-auto max-w-[71.25rem]">
-      <div class="relative aspect-[16/6] max-h-[25rem] overflow-hidden bg-field sm:rounded-b-xl">
+      <div class="relative aspect-[16/6] max-h-[22rem] w-full overflow-hidden bg-field lg:mt-4 lg:rounded-2xl">
         <img class="size-full object-cover" src="<%= group.coverUrl || '/assets/img/default-cover.svg' %>" alt="">
-        <% if (isAdmin) { %><button type="button" class="btn absolute bottom-4 right-4 bg-surface text-ink shadow-card hover:bg-hover" data-open-group-dialog data-group-step-open="personalize"><svg class="icon"><use href="#i-camera"/></svg><span class="hidden sm:inline">Edit cover</span></button><% } %>
+        <% if (isAdmin) { %><button type="button" class="btn-outline absolute bottom-4 right-4" data-open-group-dialog data-group-step-open="personalize"><svg class="icon"><use href="#i-camera"/></svg><span class="hidden sm:inline">Edit cover</span></button><% } %>
       </div>
       <div class="px-4 lg:px-8">
-        <div class="flex flex-col gap-4 border-b border-line py-5 md:flex-row md:items-end md:justify-between">
+        <div class="flex flex-col gap-4 py-5 md:flex-row md:items-end md:justify-between">
           <div class="min-w-0">
-            <h1 class="text-balance font-display text-large-title font-bold leading-tight"><%= group.name %></h1>
-            <p class="mt-1 flex flex-wrap items-center gap-1.5 font-semibold text-muted"><svg class="icon size-4"><use href="#<%= privacyIcon %>"/></svg><%= privacyLabel %> group · <%= plural(group.memberCount, 'member') %><% if (group.groupType && group.groupType !== 'general') { %> · <%= groupTypes[group.groupType] %><% } %></p>
+            <h1 class="page-title text-balance"><%= group.name %></h1>
+            <p class="mt-1 flex flex-wrap items-center gap-1.5 text-subheadline text-muted"><svg class="icon size-4"><use href="#<%= privacyIcon %>"/></svg><%= privacyLabel %> group · <%= plural(group.memberCount, 'member') %><% if (group.groupType && group.groupType !== 'general') { %> · <%= groupTypes[group.groupType] %><% } %></p>
             <% if (members.length) { %>
             <div class="mt-3 flex -space-x-2"><% members.forEach(function (p) { %><a href="/profile/<%= p.username %>" title="<%= p.displayName %>"><%- include('../partials/avatar', { person: p, size: 'size-9 text-xs ring-2 ring-surface' }) %></a><% }) %></div>
             <% } %>
@@ -49,7 +49,7 @@
            const tabs = [['discussion', 'Discussion'], ['about', 'About'], ['members', 'Members']];
            if (canApprove) tabs.push(['requests', 'Member requests' + (requests.length ? ` (${requests.length})` : '')]);
            if (canManage) tabs.push(['pending', 'Pending posts' + (pendingPosts.length ? ` (${pendingPosts.length})` : '')]); -%>
-        <nav aria-label="Group sections" class="scrollbar-none flex overflow-x-auto" data-group-tabs>
+        <nav aria-label="Group sections" class="segmented mt-2" data-group-tabs>
           <% tabs.forEach(function ([key, label]) { %><a class="tab shrink-0 <%= tab === key ? 'tab-active' : '' %>" href="<%= groupTab(key) %>" <%= tab === key ? 'aria-current=page' : '' %>><%= label %></a><% }) %>
         </nav>
       </div>
@@ -58,7 +58,7 @@
 
   <div class="mx-auto mt-4 grid max-w-[71.25rem] gap-4 px-0 sm:px-4 lg:grid-cols-[minmax(0,1fr)_22rem] lg:px-8">
   <% if (tab === 'discussion') { %>
-    <section class="min-w-0 space-y-4" aria-label="Discussion">
+    <section class="min-w-0 space-y-3" aria-label="Discussion">
       <% if (invite && !member) { %>
       <div class="card flex flex-wrap items-center gap-3 p-4">
         <%- include('../partials/avatar', { person: invite.invitedBy, size: 'size-10 text-sm' }) %>
@@ -81,7 +81,7 @@
 
       <% if (!canSee) { %>
         <div class="empty-state"><div class="empty-icon"><svg class="icon size-7"><use href="#i-lock"/></svg></div><h2 class="mt-4 text-xl font-bold">This group is private</h2><p class="mt-1 text-muted">Join to see who's in it and what they post.</p></div>
-      <% } else if (posts.length) { %><div class="space-y-4" data-infinite="group-posts" data-infinite-next="<%= postsNext || '' %>" data-infinite-query="group=<%= group._id %>"><%- include('../partials/chunks/group-posts', { items: posts }) %></div><% } else { %>
+      <% } else if (posts.length) { %><div data-infinite="group-posts" data-infinite-next="<%= postsNext || '' %>" data-infinite-query="group=<%= group._id %>"><%- include('../partials/chunks/group-posts', { items: posts }) %></div><% } else { %>
         <div class="empty-state"><div class="empty-icon"><svg class="icon size-7"><use href="#i-comment"/></svg></div><h2 class="mt-4 text-xl font-bold">No posts yet</h2><p class="mt-1 text-muted"><%= member ? 'Start the first conversation in this group.' : 'Join the group to take part.' %></p></div>
       <% } %>
     </section>

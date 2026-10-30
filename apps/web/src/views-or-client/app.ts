@@ -2,6 +2,8 @@ import { ACTIVITIES, FEELINGS, describeFeeling } from '../shared/feelings.js';
 import { STORY_VIDEO_MAX_SECONDS, storyTextAttrs, type StoryStyle } from '../shared/story-style.js';
 import { EMOJI_CATEGORIES } from './emoji-data.js';
 import './search-box.js';
+import './carousel.js';
+import { initHoverCards } from './hover-card.js';
 import { optimizeFormUploads, optimizeUpload, runImageJob } from './workers.js';
 import { createInfiniteList, htmlNodes, initInfiniteLists, type InfiniteList } from './infinite.js';
 import { initActivityTracking } from './activity.js';
@@ -407,6 +409,34 @@ breakForm?.addEventListener('submit', async (event) => {
   finally { save.disabled = false; breakForm.removeAttribute('aria-busy'); socialActionPending = false; }
 });
 
+/* ---------- Log in / sign up: one page, the photo slides between the two forms ---------- */
+
+const authStage = $<HTMLElement>('[data-auth-stage]');
+if (authStage) {
+  const TITLES: Record<string, string> = { login: 'Log in · Oremus', register: 'Create an account · Oremus' };
+  const showAuth = (mode: string, focus: boolean) => {
+    const from = authStage.dataset.mode;
+    if (from === mode) return;
+    // Whatever was typed as the e-mail comes along, so nobody types it twice.
+    const typed = $<HTMLInputElement>(`[data-auth-pane="${from}"] [data-auth-email]`, authStage)?.value;
+    const target = $<HTMLInputElement>(`[data-auth-pane="${mode}"] [data-auth-email]`, authStage);
+    if (typed && target && !target.value) target.value = typed;
+    authStage.dataset.mode = mode;
+    $$<HTMLElement>('[data-auth-pane]', authStage).forEach((pane) => { pane.inert = pane.dataset.authPane !== mode; });
+    document.title = TITLES[mode] || document.title;
+    if (focus) $<HTMLInputElement>(`[data-auth-pane="${mode}"] input:not([type="hidden"])`, authStage)?.focus({ preventScroll: true });
+  };
+  authStage.addEventListener('click', (event) => {
+    const link = (event.target as Element).closest<HTMLAnchorElement>('[data-auth-switch]');
+    if (!link || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    history.pushState(null, '', link.getAttribute('href'));
+    // The on-screen keyboard would cover the slide on a phone, so only larger screens move the focus.
+    showAuth(link.dataset.authSwitch!, window.matchMedia('(min-width: 1024px)').matches);
+  });
+  window.addEventListener('popstate', () => showAuth(window.location.pathname === '/register' ? 'register' : 'login', false));
+}
+
 /* ---------- Menus (<details data-menu>) ---------- */
 
 document.addEventListener('click', (event) => {
@@ -424,23 +454,26 @@ const REACTION_STYLE: Record<string, { label: string; color: string }> = {
   wow: { label: 'Wow', color: 'text-[#e9a811]' }, sad: { label: 'Sad', color: 'text-[#e9a811]' }, angry: { label: 'Angry', color: 'text-[#e9710f]' }
 };
 
+/** One short spring on the symbol that changed. Added on demand so it never plays on page load. */
+function popHeart(button: Element) { button.classList.remove('is-popping'); void (button as HTMLElement).offsetWidth; button.classList.add('is-popping'); }
+
 function paintReaction(card: Element, active: string | null, count: number) {
   const toggle = $<HTMLButtonElement>('[data-reaction-toggle]', card);
   if (toggle) {
     Object.values(REACTION_STYLE).forEach((style) => toggle.classList.remove(style.color));
     toggle.replaceChildren();
-    if (active) { toggle.classList.add(REACTION_STYLE[active]!.color); toggle.appendChild(svgUse(`r-${active}`, 'size-[1.125rem]')); }
-    else toggle.appendChild(svgUse('i-like', 'icon'));
-    const label = document.createElement('span'); label.textContent = active ? REACTION_STYLE[active]!.label : 'Like'; toggle.appendChild(label);
-    toggle.dataset.react = active || 'like'; toggle.setAttribute('aria-pressed', String(!!active));
+    if (active) { toggle.classList.add(REACTION_STYLE[active]!.color); toggle.appendChild(svgUse(`r-${active}`, '')); }
+    else toggle.appendChild(svgUse('i-heart', 'icon'));
+    toggle.setAttribute('aria-label', active ? REACTION_STYLE[active]!.label : 'Love');
+    toggle.dataset.react = active || 'love'; toggle.setAttribute('aria-pressed', String(!!active)); popHeart(toggle);
   }
   const summary = $('[data-reaction-summary]', card);
   const icons = $('[data-reaction-icons]', card);
   const countLabel = $('[data-reaction-count]', card);
   if (countLabel) countLabel.textContent = new Intl.NumberFormat('en', { notation: 'compact' }).format(count);
-  summary?.classList.toggle('invisible', count === 0);
+  summary?.classList.toggle('hidden', count === 0);
   if (icons && active && !$(`use[href="#r-${active}"]`, icons)) {
-    icons.prepend(svgUse(`r-${active}`, 'size-[1.125rem] rounded-full ring-2 ring-surface'));
+    icons.prepend(svgUse(`r-${active}`, 'size-4 rounded-full ring-2 ring-canvas'));
     while (icons.children.length > 3) icons.lastElementChild?.remove();
   }
   if (icons && count === 0) icons.replaceChildren();
@@ -448,6 +481,19 @@ function paintReaction(card: Element, active: string | null, count: number) {
   const wrap = $('.reaction-wrap', card);
   if (wrap) { wrap.classList.add('reaction-done'); wrap.addEventListener('mouseleave', () => wrap.classList.remove('reaction-done'), { once: true }); }
 }
+
+let feedPhotoTimer = 0;
+document.addEventListener('dblclick', (event) => {
+  const photo = (event.target as Element).closest<HTMLElement>('.post [data-lightbox]');
+  if (!photo) return;
+  window.clearTimeout(feedPhotoTimer);
+  const card = photo.closest('.post')!;
+  const toggle = $<HTMLButtonElement>('[data-reaction-toggle]', card);
+  if (toggle?.getAttribute('aria-pressed') === 'false') toggle.click();
+  const burst = svgUse('i-heart-fill', 'heart-burst');
+  burst.addEventListener('animationend', () => burst.remove(), { once: true });
+  photo.closest('.post-media')?.appendChild(burst);
+});
 
 type ReactionFilter = 'all' | 'like' | 'love' | 'haha' | 'wow' | 'sad' | 'angry';
 type ReactionPerson = { type: string; createdAt: string; user: { _id: string; username: string; displayName: string; avatarUrl: string } };
@@ -1448,7 +1494,7 @@ if (photoViewer) {
   const stage = $('[data-viewer-stage]', photoViewer)!;
   const image = $<HTMLImageElement>('[data-lightbox-image]', photoViewer)!;
   const video = $<HTMLVideoElement>('[data-lightbox-video]', photoViewer)!;
-  const panel = $('[data-viewer-panel]', photoViewer)!;
+  const card = $('[data-viewer-card]', photoViewer)!;
   const commentsList = $('[data-viewer-comments]', photoViewer)!;
   const commentForm = $<HTMLFormElement>('[data-viewer-comment-form]', photoViewer)!;
   const commentInput = $<HTMLInputElement>('#viewer-comment', photoViewer)!;
@@ -1462,6 +1508,9 @@ if (photoViewer) {
   let canModerate = false;
   let zoom = 1, panX = 0, panY = 0;
   let loadToken = 0;
+  let ratioLocked = false;
+  let currentPostId = '';
+  let returnTo: string | null = null;
 
   /* Photo + zoom */
   const applyZoom = () => {
@@ -1473,8 +1522,17 @@ if (photoViewer) {
   };
   const setZoom = (value: number) => { zoom = Math.min(MAX_ZOOM, Math.max(1, Math.round(value * 100) / 100)); applyZoom(); };
   const stopVideo = () => { video.pause(); video.removeAttribute('src'); video.load(); };
+  // The first photo sets the shape of the card, so moving through a carousel never resizes it.
+  const lockRatio = (width: number, height: number) => {
+    if (ratioLocked || !width || !height) return;
+    ratioLocked = true;
+    card.style.setProperty('--viewer-ratio', String(Math.min(1.6, Math.max(0.75, width / height))));
+  };
+  image.addEventListener('load', () => lockRatio(image.naturalWidth, image.naturalHeight));
+  video.addEventListener('loadedmetadata', () => lockRatio(video.videoWidth, video.videoHeight));
   const showPhoto = (next: number) => {
-    index = (next + photos.length) % photos.length;
+    if (!photos.length) { image.removeAttribute('src'); stopVideo(); return; }
+    index = Math.max(0, Math.min(next, photos.length - 1));
     const url = photos[index]!;
     const isVideo = isVideoUrl(url);
     image.classList.toggle('hidden', isVideo); video.classList.toggle('hidden', !isVideo);
@@ -1486,8 +1544,12 @@ if (photoViewer) {
     } else { stopVideo(); image.src = url; image.alt = post?.media?.[index]?.alt || `Photo ${index + 1}`; }
     zoom = 1; applyZoom();
     const multiple = photos.length > 1;
-    $$('[data-viewer-nav]', photoViewer).forEach((button) => { button.classList.toggle('hidden', !multiple); button.classList.toggle('grid', multiple); });
-    const counter = $('[data-viewer-counter]', photoViewer)!; counter.classList.toggle('hidden', !multiple); counter.textContent = `${index + 1} / ${photos.length}`;
+    $$<HTMLButtonElement>('[data-viewer-nav]', photoViewer).forEach((button) => {
+      button.classList.toggle('hidden', !multiple);
+      button.disabled = Number(button.dataset.viewerNav) < 0 ? index === 0 : index === photos.length - 1;
+    });
+    const dots = $('[data-viewer-dots]', photoViewer)!; dots.classList.toggle('hidden', !multiple);
+    dots.replaceChildren(...photos.map((_, i) => Object.assign(document.createElement('span'), { className: `post-modal-dot${i === index ? ' post-modal-dot-on' : ''}` })));
   };
   $$('[data-viewer-nav]', photoViewer).forEach((button) => button.addEventListener('click', () => showPhoto(index + Number(button.dataset.viewerNav))));
   $$('[data-viewer-zoom]', photoViewer).forEach((button) => button.addEventListener('click', () => setZoom(zoom + (button.dataset.viewerZoom === 'in' ? 0.5 : -0.5))));
@@ -1509,24 +1571,63 @@ if (photoViewer) {
   });
   photoViewer.addEventListener('keydown', (event) => {
     if ((event.target as HTMLElement).closest('input, textarea')) return;
-    if (event.key === 'ArrowRight' && photos.length > 1) showPhoto(index + 1);
-    else if (event.key === 'ArrowLeft' && photos.length > 1) showPhoto(index - 1);
+    if (event.key === 'ArrowRight') { if (index < photos.length - 1) showPhoto(index + 1); else stepPost(1); }
+    else if (event.key === 'ArrowLeft') { if (index > 0) showPhoto(index - 1); else stepPost(-1); }
     else if ((event.target as HTMLElement).closest('video')) return;
     else if (event.key === '+' || event.key === '=') setZoom(zoom + 0.5);
     else if (event.key === '-') setZoom(zoom - 0.5);
   });
   // `close` fires asynchronously; skip the reset if the viewer was reopened in the meantime.
-  photoViewer.addEventListener('close', () => { if (document.fullscreenElement) void document.exitFullscreen(); if (!photoViewer.open) { image.removeAttribute('src'); stopVideo(); loadToken++; } });
+  photoViewer.addEventListener('close', () => {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    if (photoViewer.open) return;
+    image.removeAttribute('src'); stopVideo(); loadToken++;
+    if (returnTo !== null) { returnTo = null; if (history.state?.viewer) history.back(); }
+  });
+  // Clicking outside the card dismisses, Back closes it, and the address always points at the open post.
+  photoViewer.addEventListener('click', (event) => { if (event.target === photoViewer) photoViewer.close(); });
+  window.addEventListener('popstate', () => { if (photoViewer.open && returnTo !== null) { returnTo = null; photoViewer.close(); } });
+  const syncAddress = (postId: string) => {
+    const address = `/posts/${postId}`;
+    if (window.location.pathname === address) return;
+    if (returnTo === null) { returnTo = window.location.pathname + window.location.search; history.pushState({ viewer: true }, '', address); }
+    else history.replaceState({ viewer: true }, '', address);
+  };
+
+  /* Moving between the posts on the page */
+  const postsOnPage = () => {
+    const found = new Map<string, string>();
+    $$<HTMLElement>('article[data-post-id], [data-lightbox][data-post], a[href^="/posts/"]').forEach((node) => {
+      if (node.closest('[data-photo-viewer], .header-popover')) return;
+      const id = node.dataset.postId || node.dataset.post || postIdFromLink(node);
+      if (!id || found.has(id)) return;
+      found.set(id, node.dataset.lightbox || node.querySelector<HTMLElement>('[data-lightbox]')?.dataset.lightbox || node.querySelector('img')?.src || '');
+    });
+    return [...found];
+  };
+  const paintSteps = () => {
+    const list = postsOnPage();
+    const at = list.findIndex(([id]) => id === String(post?._id || currentPostId));
+    $$<HTMLButtonElement>('[data-viewer-post]', photoViewer).forEach((button) => {
+      const target = list[at + Number(button.dataset.viewerPost)];
+      button.classList.toggle('hidden', at < 0 || !target);
+      if (target?.[1]) new Image().src = target[1]; // ready before the click
+    });
+  };
+  const stepPost = (delta: number) => {
+    const list = postsOnPage();
+    const at = list.findIndex(([id]) => id === String(post?._id || currentPostId));
+    const target = at < 0 ? undefined : list[at + delta];
+    if (target) openPhotoViewer(target[1], target[0]);
+  };
+  $$<HTMLButtonElement>('[data-viewer-post]', photoViewer).forEach((button) => button.addEventListener('click', () => stepPost(Number(button.dataset.viewerPost))));
 
   /* Post column */
-  const togglePanelButtons = $$('[data-viewer-toggle-panel]', photoViewer);
-  togglePanelButtons.forEach((button) => button.addEventListener('click', () => panel.classList.toggle('max-lg:hidden')));
-
   const paintReactions = () => {
     const holder = $<HTMLButtonElement>('[data-viewer-reactions]', photoViewer)!;
     const top: string[] = post.topReactions?.length ? post.topReactions : post.reactionCount ? ['like'] : [];
     const icons = document.createElement('span'); icons.className = 'flex -space-x-1';
-    top.forEach((type) => icons.appendChild(svgUse(`r-${type}`, 'size-[1.125rem] rounded-full ring-2 ring-surface')));
+    top.forEach((type) => icons.appendChild(svgUse(`r-${type}`, 'size-4 rounded-full ring-2 ring-surface')));
     holder.replaceChildren(...(post.reactionCount ? [icons, document.createTextNode(new Intl.NumberFormat('en', { notation: 'compact' }).format(post.reactionCount))] : []));
     holder.dataset.openReactions = String(post._id);
     holder.disabled = !post.reactionCount;
@@ -1534,27 +1635,27 @@ if (photoViewer) {
     const like = $<HTMLButtonElement>('[data-viewer-like]', photoViewer)!;
     Object.values(REACTION_STYLE).forEach((style) => like.classList.remove(style.color));
     like.replaceChildren();
-    if (post.myReaction) { like.classList.add(REACTION_STYLE[post.myReaction]!.color); like.appendChild(svgUse(`r-${post.myReaction}`, 'size-[1.125rem]')); }
-    else like.appendChild(svgUse('i-like', 'icon'));
-    like.append(Object.assign(document.createElement('span'), { textContent: post.myReaction ? REACTION_STYLE[post.myReaction]!.label : 'Like' }));
+    if (post.myReaction) { like.classList.add(REACTION_STYLE[post.myReaction]!.color); like.appendChild(svgUse(`r-${post.myReaction}`, '')); }
+    else like.appendChild(svgUse('i-heart', 'icon'));
+    like.setAttribute('aria-label', post.myReaction ? REACTION_STYLE[post.myReaction]!.label : 'Love');
     like.setAttribute('aria-pressed', String(!!post.myReaction));
   };
 
   const commentNode = (comment: any, isReply: boolean) => {
     const author = comment.authorId || {};
-    const item = document.createElement('li'); item.className = `flex gap-2 ${isReply ? 'ml-10' : ''}`;
+    const item = document.createElement('li'); item.className = `flex gap-3 ${isReply ? 'ml-11' : ''}`;
     item.dataset.commentId = String(comment._id); item.dataset.commentPost = String(post?._id || '');
     const link = Object.assign(document.createElement('a'), { href: `/profile/${author.username}`, className: 'shrink-0' });
     link.appendChild(avatarEl({ displayName: author.displayName, avatarUrl: author.profile?.avatarUrl || author.avatarUrl }, isReply ? 'size-7 text-2xs' : 'size-8 text-xs'));
     const body = document.createElement('div'); body.className = 'min-w-0 flex-1';
     const bubble = document.createElement('div'); bubble.className = 'comment-bubble';
-    const text = Object.assign(document.createElement('p'), { className: 'whitespace-pre-wrap break-words text-15 leading-snug', textContent: comment.content }); text.dataset.commentText = '';
-    bubble.append(Object.assign(document.createElement('a'), { href: `/profile/${author.username}`, className: 'block text-[0.8125rem] font-semibold hover:underline', textContent: author.displayName }), text);
+    const text = Object.assign(document.createElement('p'), { className: 'inline whitespace-pre-wrap break-words text-subheadline', textContent: comment.content }); text.dataset.commentText = '';
+    bubble.append(Object.assign(document.createElement('a'), { href: `/profile/${author.username}`, className: 'mr-1 text-subheadline font-semibold hover:text-muted', textContent: author.displayName }), text);
     const own = !!me.id && String(author._id || '') === me.id;
     const menu = commentMenu(String(comment._id), own, own || canModerate);
-    const meta = document.createElement('div'); meta.className = 'mt-0.5 flex gap-3 px-3 text-xs font-semibold text-muted'; meta.dataset.commentMeta = '';
+    const meta = document.createElement('div'); meta.className = 'mt-0.5 flex gap-3 text-caption1 font-semibold text-muted'; meta.dataset.commentMeta = '';
     meta.append(Object.assign(document.createElement('span'), { className: 'font-normal', textContent: timeAgo(comment.createdAt) }));
-    const reply = Object.assign(document.createElement('button'), { type: 'button', className: 'hover:underline', textContent: 'Reply' });
+    const reply = Object.assign(document.createElement('button'), { type: 'button', className: 'hover:text-ink', textContent: 'Reply' });
     reply.addEventListener('click', () => {
       replyTo = { id: String(comment.parentId || comment._id), name: author.displayName };
       const banner = $('[data-viewer-replying]', photoViewer)!; banner.classList.remove('hidden'); banner.classList.add('flex');
@@ -1581,7 +1682,7 @@ if (photoViewer) {
   });
   const paintComments = () => {
     const nodes = threadNodes(comments);
-    commentsList.replaceChildren(...(nodes.length ? nodes : [Object.assign(document.createElement('li'), { className: 'py-6 text-center text-15 text-muted', textContent: 'No comments yet. Be the first to comment.' })]));
+    commentsList.replaceChildren(...(nodes.length ? nodes : [Object.assign(document.createElement('li'), { className: 'py-10 text-center text-subheadline text-muted', textContent: 'No comments yet. Start the conversation.' })]));
     commentsFeed?.refresh();
   };
   const clearReply = () => { replyTo = null; const banner = $('[data-viewer-replying]', photoViewer)!; banner.classList.add('hidden'); banner.classList.remove('flex'); };
@@ -1589,17 +1690,20 @@ if (photoViewer) {
 
   const paintPanel = () => {
     const author = post.authorId || {};
-    const avatarHolder = $('[data-viewer-avatar]', photoViewer)!;
-    avatarHolder.replaceChildren(avatarEl({ displayName: author.displayName, avatarUrl: author.profile?.avatarUrl }, 'size-10 text-sm'));
+    const person = { displayName: author.displayName, avatarUrl: author.profile?.avatarUrl };
+    $('[data-viewer-avatar]', photoViewer)!.replaceChildren(avatarEl(person, 'size-8 text-xs'));
     $<HTMLAnchorElement>('[data-viewer-author-link]', photoViewer)!.href = `/profile/${author.username}`;
-    const title = $('[data-viewer-title]', photoViewer)!;
-    title.replaceChildren(Object.assign(document.createElement('a'), { href: `/profile/${author.username}`, className: 'font-semibold hover:underline', textContent: author.displayName }));
+    $('[data-viewer-title]', photoViewer)!.replaceChildren(Object.assign(document.createElement('a'), { href: `/profile/${author.username}`, className: 'font-semibold hover:text-muted', textContent: author.displayName }));
     const feeling = describeFeeling(post.feeling);
-    if (feeling || post.place) title.append(` is${feeling ? ` ${feeling.emoji} ${feeling.text}` : ''}${post.place ? ` at ${post.place.name}` : ''}.`);
-    const time = $<HTMLAnchorElement>('[data-viewer-time]', photoViewer)!; time.href = `/posts/${post._id}`; time.textContent = timeAgo(post.createdAt);
+    $('[data-viewer-sub]', photoViewer)!.textContent = [feeling ? `${feeling.emoji} ${feeling.text}` : '', post.place?.name || ''].filter(Boolean).join(' · ');
+    const time = $<HTMLAnchorElement>('[data-viewer-time]', photoViewer)!; time.href = `/posts/${post._id}`; time.textContent = timeAgo(post.createdAt); time.dataset.noModal = '';
     $('[data-viewer-privacy]', photoViewer)!.setAttribute('href', post.visibility === 'private' ? '#i-lock' : post.visibility === 'followers' ? '#i-users' : '#i-globe');
-    const content = $('[data-viewer-content]', photoViewer)!; content.textContent = post.content || ''; content.classList.toggle('hidden', !post.content);
-    $('[data-viewer-me]', photoViewer)!.replaceChildren(avatarEl({ displayName: me.name, avatarUrl: me.avatar }, 'size-8 text-xs'));
+    $('[data-viewer-caption]', photoViewer)!.classList.toggle('hidden', !post.content);
+    $('[data-viewer-caption-avatar]', photoViewer)!.replaceChildren(avatarEl(person, 'size-8 text-xs'));
+    const captionName = $<HTMLAnchorElement>('[data-viewer-caption-name]', photoViewer)!; captionName.href = `/profile/${author.username}`; captionName.textContent = author.displayName;
+    $('[data-viewer-content]', photoViewer)!.textContent = post.content || '';
+    $('[data-viewer-copy]', photoViewer)!.dataset.copy = String(post._id);
+    const pageLink = $<HTMLAnchorElement>('[data-viewer-open-page]', photoViewer)!; pageLink.href = `/posts/${post._id}`; pageLink.dataset.noModal = '';
     paintReactions(); paintComments(); clearReply();
   };
 
@@ -1623,7 +1727,7 @@ if (photoViewer) {
       const wrap = $('[data-viewer-react-wrap]', photoViewer)!; wrap.classList.add('reaction-done'); wrap.addEventListener('mouseleave', () => wrap.classList.remove('reaction-done'), { once: true });
     } catch (caught) { showToast(caught instanceof Error ? caught.message : 'Could not react.', 'error'); }
   }
-  $('[data-viewer-like]', photoViewer)!.addEventListener('click', () => void react(post?.myReaction || 'like'));
+  $('[data-viewer-like]', photoViewer)!.addEventListener('click', () => { popHeart($('[data-viewer-like]', photoViewer)!); void react(post?.myReaction || 'love'); });
   $('[data-viewer-share]', photoViewer)!.addEventListener('click', () => {
     if (!post) return;
     // Reuse the card's share details when the post is on the page; otherwise derive them from the post itself.
@@ -1631,7 +1735,7 @@ if (photoViewer) {
     const author = post.authorId || {};
     openShare(fromCard ? JSON.parse(fromCard) : { id: String(post._id), author: author.displayName || '', authorId: String(author._id || post.authorId || ''), visibility: post.visibility, group: !!post.groupId, groupPrivate: null });
   });
-  $('[data-viewer-focus-comment]', photoViewer)!.addEventListener('click', () => { panel.classList.remove('max-lg:hidden'); commentInput.focus(); });
+  $('[data-viewer-focus-comment]', photoViewer)!.addEventListener('click', () => commentInput.focus());
 
   commentForm.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -1652,17 +1756,25 @@ if (photoViewer) {
 
   openPhotoViewer = (url: string, postId?: string) => {
     const token = ++loadToken;
-    photos = [url]; post = null; comments = []; canModerate = false;
-    panel.classList.add('hidden'); panel.classList.remove('flex');
-    togglePanelButtons[0]?.classList.add('hidden');
+    photos = url ? [url] : []; post = null; comments = []; canModerate = false; ratioLocked = false; currentPostId = postId || '';
+    const withPost = !!postId && !!me.id;
+    card.classList.toggle('is-media-only', !withPost);
+    card.classList.toggle('is-text', !url);
     showPhoto(0);
+    // Same size and place while the post loads, so nothing jumps.
+    commentsFeed?.destroy(); commentsFeed = null;
+    commentsList.replaceChildren(...['w-3/4', 'w-1/2', 'w-2/3'].map((width) => Object.assign(document.createElement('li'), { className: `h-4 ${width} animate-pulse rounded-full bg-field` })));
+    $('[data-viewer-caption]', photoViewer)!.classList.add('hidden');
+    $('[data-viewer-title]', photoViewer)!.textContent = ''; $('[data-viewer-sub]', photoViewer)!.textContent = '';
+    $('[data-viewer-avatar]', photoViewer)!.replaceChildren();
     if (!photoViewer.open) photoViewer.showModal();
-    if (!postId || !me.id) return;
+    paintSteps();
+    if (!withPost) return;
+    syncAddress(postId);
     request(`/api/posts/${postId}`).then((data) => {
       if (token !== loadToken) return;
       post = data.post; comments = data.comments || []; canModerate = !!data.canModerate;
       // Older comments load in chunks as the reader scrolls the side panel.
-      commentsFeed?.destroy();
       commentsFeed = createInfiniteList({
         list: commentsList, root: $('[data-viewer-scroll]', photoViewer), next: data.commentsNext || null,
         load: async (cursor) => {
@@ -1674,13 +1786,31 @@ if (photoViewer) {
         }
       });
       const urls = (post.media || []).map((media: any) => media.url);
+      card.classList.toggle('is-text', !urls.length);
       if (urls.length) { photos = urls; showPhoto(Math.max(0, urls.indexOf(url))); }
-      panel.classList.remove('hidden'); panel.classList.add('flex', 'max-lg:hidden');
-      togglePanelButtons[0]?.classList.remove('hidden'); togglePanelButtons[0]?.classList.add('grid');
-      paintPanel();
-    }).catch(() => { /* photo still viewable without the post column */ });
+      paintPanel(); paintSteps();
+      $('[data-viewer-scroll]', photoViewer)!.scrollTop = 0;
+    }).catch(() => {
+      if (token !== loadToken) return;
+      if (url) { card.classList.add('is-media-only'); return; }
+      photoViewer.close(); showToast('This post is not available.', 'error');
+    });
   };
 }
+
+/* Any plain click on a link to a post opens the modal; new-tab clicks and the explicit page link still go to the page. */
+const postIdFromLink = (node: Element) => /^\/posts\/([a-f\d]{24})(?:[#?].*)?$/i.exec(node.getAttribute('href') || '')?.[1];
+document.addEventListener('click', (event) => {
+  if (!me.id || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  const link = (event.target as Element).closest<HTMLAnchorElement>('a[href^="/posts/"]');
+  if (!link || link.dataset.noModal !== undefined) return;
+  const id = postIdFromLink(link);
+  if (!id || window.location.pathname === `/posts/${id}`) return;
+  event.preventDefault();
+  link.closest<HTMLDetailsElement>('details[data-menu]')?.removeAttribute('open');
+  const article = document.querySelector(`article[data-post-id="${id}"]`);
+  openPhotoViewer(article?.querySelector<HTMLElement>('[data-lightbox]')?.dataset.lightbox || link.querySelector('img')?.src || '', id);
+});
 
 /* ---------- Group create / edit popup ---------- */
 
@@ -1967,7 +2097,13 @@ document.addEventListener('click', async (event) => {
     }
     if (data.openComposer !== undefined) { openComposer(target); return; }
     if (data.openStoryComposer !== undefined) { storyDialog?.showModal(); $<HTMLTextAreaElement>('[data-story-text]', storyDialog!)?.focus(); return; }
-    if (data.lightbox) { openPhotoViewer(data.lightbox, data.post || target.closest<HTMLElement>('[data-post-id]')?.dataset.postId); return; }
+    if (data.lightbox) {
+      const open = () => openPhotoViewer(data.lightbox!, data.post || target.closest<HTMLElement>('[data-post-id]')?.dataset.postId);
+      window.clearTimeout(feedPhotoTimer);
+      // Feed photos wait a beat, because a second click means "love this".
+      if (target.closest('.post')) feedPhotoTimer = window.setTimeout(open, 220); else open();
+      return;
+    }
     if (data.togglePassword) {
       const input = document.getElementById(data.togglePassword) as HTMLInputElement | null; if (!input) return;
       const show = input.type === 'password'; input.type = show ? 'text' : 'password';
@@ -1978,7 +2114,12 @@ document.addEventListener('click', async (event) => {
       const field = (target.closest('form, dialog')?.querySelector<HTMLInputElement | HTMLTextAreaElement>('textarea[name="content"], input[name="content"]')) || null;
       if (field) { field.value += data.insertEmoji; field.focus(); } return;
     }
-    if (data.focusComment) { $<HTMLInputElement>(`#comment-${data.focusComment}`)?.focus(); return; }
+    if (data.focusComment) {
+      const article = target.closest('[data-post-id]');
+      openPhotoViewer(article?.querySelector<HTMLElement>('[data-lightbox]')?.dataset.lightbox || '', data.focusComment);
+      $<HTMLInputElement>('#viewer-comment')?.focus();
+      return;
+    }
     if (data.scrollRail !== undefined) { (target.closest('[data-rail-wrap]')?.querySelector('[data-rail]') || $('[data-story-rail]'))?.scrollBy({ left: 360, behavior: 'smooth' }); return; }
     if (data.toggleDetails !== undefined) {
       const panel = $('[data-chat-details]'); if (!panel) return;
@@ -2472,6 +2613,12 @@ $<HTMLInputElement>('[data-group-filter]')?.addEventListener('input', (event) =>
 });
 
 /* ---------- Messenger ---------- */
+
+document.addEventListener('toggle', (event) => {
+  const menu = event.target;
+  if (menu instanceof HTMLDetailsElement && menu.open) menu.querySelector<HTMLInputElement>('.search-panel input[type="search"]')?.focus();
+}, true);
+initHoverCards({ request, avatarEl });
 
 const miniChatDock = $('[data-mini-chat-dock]');
 const miniChatPanel = (conversationId: string) => miniChatDock?.querySelector<HTMLElement>(`[data-mini-conversation="${CSS.escape(conversationId)}"]`) || null;

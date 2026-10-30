@@ -16,6 +16,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run src/tests",
     "seed": "tsx src/scripts/seed.ts",
+    "seed:photos": "tsx src/scripts/seed-photos-build.ts",
+    "seed:stories": "tsx src/scripts/seed-stories.ts",
     "migrate": "tsx src/scripts/migrate.ts",
     "migrate:status": "tsx src/scripts/migrate.ts --status",
     "db:setup": "npm run migrate && npm run seed",
