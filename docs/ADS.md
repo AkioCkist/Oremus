@@ -41,6 +41,10 @@ All money is in whole VND.
 - **Charging:** a worker settles views every minute. A campaign is only charged up to its total budget and wallet balance, so views served just before it stops cost the advertiser nothing. The daily budget is checked on serving from a live counter, so it can be slightly exceeded.
 - **Ledger:** `LedgerEntry` is the record of truth and is append-only. MongoDB here runs without transactions, so the entry is written first under a unique key (repeats do nothing), then the balance. If the process dies between the two, a job rebuilds the balance from the ledger within 15 minutes.
 
+## Free test credit
+
+While there is no payment provider, members can add credit to their own wallet from `/ads/manage`. `ADS_SELF_TOPUP` controls this: unset means on, except when `NODE_ENV=production`. It is free advertising for anyone who asks, so leave it off on a real launch. Each use is recorded in the ledger with the note "Free test credit" and in the audit log.
+
 ## VNPay
 
 Set `VNPAY_TMN_CODE` and `VNPAY_HASH_SECRET` from your [sandbox account](https://sandbox.vnpayment.vn/devreg). Without them, the wallet page says online payment is not set up, and an admin can credit a wallet by hand (*Ad Account → Adjust balance*).

@@ -17,7 +17,7 @@ import { needsOnboarding, safeNext } from '../services/interest.service.js';
 import { INTEREST_OPTIONS, MIN_INTERESTS, KEYWORD_MAX_LENGTH, MAX_KEYWORDS } from '../shared/interests.js';
 import { DISCOVERABLE } from '../moderation/visibility.js';
 import { myCases } from '../services/moderation.service.js';
-import { getAccount, listCampaigns, preferencesForSettings, withAds } from '../services/ads.service.js';
+import { getAccount, listCampaigns, preferencesForSettings, selfTopUpEnabled, withAds } from '../services/ads.service.js';
 import { paymentsEnabled } from '../services/payment.service.js';
 import { AD_CTA_LABELS, LedgerEntry } from '../models/index.js';
 
@@ -234,7 +234,7 @@ export async function settings(req: Request, res: Response) {
 export async function adsManage(req: Request, res: Response) {
   const userId = req.user!.id;
   const [account, campaigns, ledger] = await Promise.all([getAccount(userId), listCampaigns(userId), LedgerEntry.find({ userId }).sort({ createdAt: -1 }).limit(20).lean()]);
-  res.render('ads/manage', { ...base(req, 'Advertise'), account, campaigns, ledger, topics: INTEREST_OPTIONS, ctaLabels: AD_CTA_LABELS, paymentsEnabled: paymentsEnabled(), paymentResult: ['success', 'failed'].includes(String(req.query.payment)) ? req.query.payment : null });
+  res.render('ads/manage', { ...base(req, 'Advertise'), account, campaigns, ledger, topics: INTEREST_OPTIONS, ctaLabels: AD_CTA_LABELS, paymentsEnabled: paymentsEnabled(), selfTopUp: selfTopUpEnabled(), paymentResult: ['success', 'failed'].includes(String(req.query.payment)) ? req.query.payment : null });
 }
 
 export async function stories(req: Request, res: Response) {

@@ -72,6 +72,16 @@ export async function adjustBalance(actorId: string, userId: string, amount: num
   await audit('ads.adjust', actorId, 'User', userId, { amount, reason });
 }
 
+export const selfTopUpEnabled = () => (env.ADS_SELF_TOPUP ? env.ADS_SELF_TOPUP === 'true' : env.NODE_ENV !== 'production');
+
+/** Free credit for running without a payment provider. Ledgered and audited like real money, so it can be told apart later. */
+export async function selfTopUp(userId: string, amount: number) {
+  if (!selfTopUpEnabled()) throw new AppError(403, 'Adding your own credit is turned off.', 'SELF_TOPUP_DISABLED');
+  await applyLedger({ userId, type: 'topup', amount, key: `self:${crypto.randomUUID()}`, note: 'Free test credit' });
+  await audit('ads.self_topup', userId, 'User', userId, { amount });
+  return { balance: (await getAccount(userId)).balance };
+}
+
 /* ---------- Campaigns ---------- */
 
 export type CampaignInput = { name: string; headline: string; body: string; ctaLabel: string; ctaUrl: string; topics: string[]; dailyBudget: number; totalBudget: number; cpm: number; startAt?: Date | null; endAt?: Date | null };

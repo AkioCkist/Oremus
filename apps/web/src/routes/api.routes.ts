@@ -84,6 +84,7 @@ apiRoutes.get('/ads/campaigns/:campaignId/stats', asyncHandler(ads.campaignStats
 apiRoutes.post('/ads/impression', rateLimit('ad-impression', 240, 60), asyncHandler(ads.impression));
 apiRoutes.post('/ads/preferences', rateLimit('ad-preference', 120, 60), asyncHandler(ads.preferences));
 apiRoutes.post('/ads/top-up', rateLimit('ad-top-up', 20, 3600), asyncHandler(ads.topUp));
+apiRoutes.post('/ads/self-top-up', rateLimit('ad-top-up', 20, 3600), asyncHandler(ads.selfTopUp));
 apiRoutes.post('/reports', rateLimit('report', 20, 3600), asyncHandler(moderation.report));
 apiRoutes.post('/moderation/cases/:caseId/appeal', rateLimit('appeal', 10, 3600), asyncHandler(moderation.appeal));
 apiRoutes.get('/search', asyncHandler(controller.search));

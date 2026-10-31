@@ -119,6 +119,29 @@ describe('wallet ledger', () => {
   });
 });
 
+describe('self top-up', () => {
+  const load = async (env: Record<string, string>) => {
+    vi.resetModules();
+    vi.unstubAllEnvs();
+    vi.stubEnv('ADS_SELF_TOPUP', env.ADS_SELF_TOPUP as string);
+    if (env.NODE_ENV) vi.stubEnv('NODE_ENV', env.NODE_ENV);
+    if (!env.ADS_SELF_TOPUP) delete process.env.ADS_SELF_TOPUP;
+    return import('../services/ads.service.js');
+  };
+
+  beforeEach(() => vi.unstubAllEnvs());
+
+  it('is on by default outside production', async () => {
+    expect((await load({ NODE_ENV: 'test' })).selfTopUpEnabled()).toBe(true);
+  });
+
+  it('can be turned off, and refuses when off', async () => {
+    const service = await load({ ADS_SELF_TOPUP: 'false' });
+    expect(service.selfTopUpEnabled()).toBe(false);
+    await expect(service.selfTopUp(id(1), 100_000)).rejects.toMatchObject({ status: 403 });
+  });
+});
+
 describe('campaign validation', () => {
   const valid = { name: 'n', headline: 'h', ctaUrl: 'https://example.com', topics: ['coffee'], cpm: 20_000, dailyBudget: 50_000, totalBudget: 100_000 };
 

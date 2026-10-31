@@ -50,6 +50,11 @@ export async function topUp(req: Request, res: Response) {
   res.json({ ok: true, data: await startTopUp(req.user!.id, amount, req.ip || '127.0.0.1') });
 }
 
+export async function selfTopUp(req: Request, res: Response) {
+  const { amount } = topUpSchema.parse(req.body);
+  res.json({ ok: true, data: await ads.selfTopUp(req.user!.id, amount) });
+}
+
 export async function vnpayIpn(req: Request, res: Response) {
   res.json(await handleIpn(req.query));
 }

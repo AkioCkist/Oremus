@@ -161,6 +161,15 @@ form?.addEventListener('submit', async (event) => {
   } catch (error) { showError(form, error); }
 });
 
+const selfTopUp = document.querySelector<HTMLFormElement>('[data-self-topup-form]');
+selfTopUp?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  try {
+    await postJson('/api/ads/self-top-up', { amount: Number(new FormData(selfTopUp).get('amount')) });
+    window.location.reload();
+  } catch (error) { showError(selfTopUp, error); }
+});
+
 const topUp = document.querySelector<HTMLFormElement>('[data-topup-form]');
 topUp?.addEventListener('submit', async (event) => {
   event.preventDefault();

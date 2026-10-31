@@ -41,6 +41,8 @@ const schema = z.object({
   MODERATION_SECRET: z.string().default(''),
   // Signs ad impression and click tokens. Falls back to a key derived from the access secret.
   AD_TOKEN_SECRET: z.string().default(''),
+  /** Lets members add credit to their own ad wallet for free. Unset: on, except in production. */
+  ADS_SELF_TOPUP: z.enum(['true', 'false']).optional(),
   VNPAY_TMN_CODE: z.string().default(''),
   VNPAY_HASH_SECRET: z.string().default(''),
   VNPAY_HOST: z.string().url().default('https://sandbox.vnpayment.vn'),
