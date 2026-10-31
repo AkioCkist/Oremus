@@ -160,7 +160,7 @@ services:
         condition: service_healthy
 
   # The AI models. Optional so a small machine can run the rest: `docker compose --profile moderation up -d`.
-  # The first start downloads about 2.5 GB into the volume; scans wait for it.
+  # The first start downloads about 2.5 GB into the volume; scans wait for it. Measured at 1.45 GB of memory once loaded.
   moderation:
     build: ./apps/moderation
     profiles: ["moderation"]
@@ -172,7 +172,7 @@ services:
       - "8010"
     volumes:
       - moderation-models:/models
-    mem_limit: ${MODERATION_MEMORY:-5g}
+    mem_limit: ${MODERATION_MEMORY:-3g}
     init: true
     read_only: true
     tmpfs:

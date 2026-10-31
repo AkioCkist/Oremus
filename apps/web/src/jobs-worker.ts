@@ -5,6 +5,7 @@ import { connectInfrastructure, disconnectInfrastructure } from './config/databa
 import { env } from './config/env.js';
 import { logger } from './config/logger.js';
 import { moderationProcessor, onScanFailed } from './jobs/moderation.job.js';
+import { adsProcessor } from './jobs/ads.job.js';
 import { JOB_PREFIX, jobConnection, jobQueue, QUEUES } from './jobs/queues.js';
 import { setNotifier, setSessionTerminator } from './services/notification.service.js';
 
@@ -24,10 +25,12 @@ async function start() {
   // One at a time: the moderation service runs inference serially, so more would only queue up there.
   const moderation = new Worker(QUEUES.moderation, moderationProcessor, { ...shared, concurrency: 1 });
   moderation.on('failed', (job, error) => { onScanFailed(job, error).catch((failure) => logger.error({ failure }, 'Could not settle a failed scan')); });
-  const workers = [moderation];
+  const workers = [moderation, new Worker(QUEUES.ads, adsProcessor, shared)];
   workers.forEach((worker) => worker.on('error', (error) => logger.error({ error }, 'Job worker error')));
 
   await jobQueue(QUEUES.moderation).upsertJobScheduler('moderation-sweep', { every: 5 * 60_000 }, { name: 'sweep' });
+  await jobQueue(QUEUES.ads).upsertJobScheduler('ads-settle', { every: 60_000 }, { name: 'settle' });
+  await jobQueue(QUEUES.ads).upsertJobScheduler('ads-reconcile', { every: 15 * 60_000 }, { name: 'reconcile' });
   logger.info('Jobs worker is ready');
 
   const shutdown = async () => {

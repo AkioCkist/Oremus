@@ -12,6 +12,7 @@
         <a class="side-link shrink-0" href="#privacy"><span class="tile-icon bg-subtle"><svg class="icon"><use href="#i-shield"/></svg></span>Privacy</a>
         <a class="side-link shrink-0" href="#display"><span class="tile-icon bg-ios-indigo"><svg class="icon"><use href="#i-moon"/></svg></span>Display</a>
         <a class="side-link shrink-0" href="#interests"><span class="tile-icon bg-ios-purple"><svg class="icon"><use href="#i-sparkles"/></svg></span>Interests</a>
+        <a class="side-link shrink-0" href="#ads"><span class="tile-icon bg-ios-green"><svg class="icon"><use href="#i-megaphone"/></svg></span>Ads</a>
         <a class="side-link shrink-0" href="#safety"><span class="tile-icon bg-ios-red"><svg class="icon"><use href="#i-flag"/></svg></span>Account status</a>
         <a class="side-link shrink-0" href="#stories"><span class="tile-icon bg-ios-pink"><svg class="icon"><use href="#i-stories"/></svg></span>Stories</a>
         <a class="side-link shrink-0" href="#session"><span class="tile-icon bg-ios-teal"><svg class="icon"><use href="#i-key"/></svg></span>Session</a>
@@ -74,6 +75,32 @@
         <% const myInterests = (currentUser.interests && currentUser.interests.completedAt) ? currentUser.interests.topics || [] : []; %>
         <p class="mt-1 text-15 text-muted"><%= myInterests.length ? `${myInterests.length} interests picked. They shape the people, posts, groups and stories suggested to you.` : 'Tell us what you like to get better suggestions for people, posts, groups and stories.' %></p>
         <div class="mt-4 flex flex-wrap gap-2"><a class="btn-primary" href="/onboarding?next=/settings%23interests"><svg class="icon"><use href="#i-sparkles"/></svg><%= myInterests.length ? 'Edit interests' : 'Choose interests' %></a><a class="btn-secondary" href="/discover">See suggestions</a></div>
+      </section>
+
+      <section id="ads" class="card scroll-mt-20 p-5">
+        <h2 class="text-headline font-semibold">Ads</h2>
+        <p class="mt-1 text-15 text-muted">Choose what you'd rather not see. Ads never use your private messages.</p>
+        <label class="mt-4 flex cursor-pointer items-start gap-3 rounded-lg border border-line p-3">
+          <input type="checkbox" class="check mt-1 shrink-0" data-ad-personalized <%= adPreferences.personalized ? 'checked' : '' %>>
+          <span><span class="block font-semibold">Use my interests</span><span class="mt-1 block text-pretty text-sm text-muted">Show ads related to the interests you picked. Turned off, you still see ads, but they aren't chosen for you.</span></span>
+        </label>
+        <h3 class="mt-4 text-15 font-semibold">Advertisers you've stopped</h3>
+        <% if (adPreferences.blockedAdvertisers.length) { %>
+        <ul class="mt-2 divide-y divide-line">
+          <% adPreferences.blockedAdvertisers.forEach(function (person) { %><li class="flex items-center justify-between gap-3 py-2"><span class="min-w-0 truncate text-15"><%= person.name %></span><button type="button" class="btn-secondary shrink-0" data-ad-undo="unblock_advertiser" data-ad-value="<%= person.id %>">Allow again</button></li><% }) %>
+        </ul>
+        <% } else { %><p class="mt-1 text-15 text-muted">None. Use the menu on any ad to stop an advertiser.</p><% } %>
+        <h3 class="mt-4 text-15 font-semibold">Topics you've turned off</h3>
+        <% if (adPreferences.blockedTopics.length) { %>
+        <ul class="mt-2 divide-y divide-line">
+          <% adPreferences.blockedTopics.forEach(function (topic) { %><li class="flex items-center justify-between gap-3 py-2"><span class="min-w-0 truncate text-15"><%= topic.label %></span><button type="button" class="btn-secondary shrink-0" data-ad-undo="unblock_topic" data-ad-value="<%= topic.key %>">Allow again</button></li><% }) %>
+        </ul>
+        <% } %>
+        <form class="mt-3 flex flex-wrap items-end gap-3" data-ad-topic-form>
+          <div class="min-w-[14rem] flex-1"><label class="label" for="ad-topic-block">Turn off a topic</label><select class="input mt-1.5 w-full" id="ad-topic-block" name="topic"><% adTopicOptions.filter(function (option) { return !adPreferences.blockedTopics.some(function (topic) { return topic.key === option.key; }); }).forEach(function (option) { %><option value="<%= option.key %>"><%= option.label %></option><% }) %></select></div>
+          <button class="btn-secondary" type="submit">Turn off</button>
+        </form>
+        <a class="mt-4 inline-flex items-center gap-1 text-15 font-semibold text-brand-600 hover:underline" href="/ads/manage">Run your own ads<svg class="icon size-4"><use href="#i-chevron-right"/></svg></a>
       </section>
 
       <section id="safety" class="card scroll-mt-20 p-5">

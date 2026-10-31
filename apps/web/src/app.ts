@@ -19,6 +19,7 @@ import { optionalAuth } from './middleware/auth.js';
 import { asyncHandler } from './utils/async-handler.js';
 import { viewHelpers } from './utils/view-helpers.js';
 import { ADMIN_PATH, adminEntry, adminHelmet } from './admin/mount.js';
+import { vnpayIpn, vnpayReturn } from './controllers/ads.controller.js';
 
 // Built client bundles: served with ?v=<hash>, so they can be cached forever.
 const BUNDLES = ['styles.css', 'app.js', 'image-worker.js'];
@@ -80,6 +81,9 @@ export function createApp() {
   }));
   // Precached by the service worker, so it is rendered without any session data.
   app.get('/offline', (_req, res) => res.render('offline', { title: 'Offline', csrfToken: '', currentUser: null }));
+  // Called by VNPay's servers and the buyer's browser, so they carry no session; every parameter is verified by signature.
+  app.get('/payments/vnpay/ipn', asyncHandler(vnpayIpn));
+  app.get('/payments/vnpay/return', vnpayReturn);
   app.use(requireCsrf);
   app.use('/auth', authRoutes);
   // Endless-list chunks; some lists (public profiles and groups) are readable while signed out.

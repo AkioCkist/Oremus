@@ -4,6 +4,7 @@ import { EMOJI_CATEGORIES } from './emoji-data.js';
 import './search-box.js';
 import './carousel.js';
 import './report.js';
+import './ads.js';
 import { initHoverCards } from './hover-card.js';
 import { optimizeFormUploads, optimizeUpload, runImageJob } from './workers.js';
 import { createInfiniteList, htmlNodes, initInfiniteLists, type InfiniteList } from './infinite.js';

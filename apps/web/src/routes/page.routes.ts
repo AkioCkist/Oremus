@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { click } from '../controllers/ads.controller.js';
 import * as page from '../controllers/page.controller.js';
 import { optionalAuth, requirePageAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../utils/async-handler.js';
@@ -26,4 +27,6 @@ pageRoutes.get('/notifications', requirePageAuth, asyncHandler(page.notification
 pageRoutes.get('/search', requirePageAuth, asyncHandler(page.search));
 pageRoutes.get('/onboarding', requirePageAuth, page.onboarding);
 pageRoutes.get('/discover', requirePageAuth, asyncHandler(page.discover));
-pageRoutes.get('/settings', requirePageAuth, page.settings);
+pageRoutes.get('/settings', requirePageAuth, asyncHandler(page.settings));
+pageRoutes.get('/ads/manage', requirePageAuth, asyncHandler(page.adsManage));
+pageRoutes.get('/ads/click/:token', asyncHandler(click));

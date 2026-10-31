@@ -413,8 +413,8 @@ interactionSchema.index({ createdAt: 1 }, { expireAfterSeconds: SIGNAL_RETENTION
 /* ---------- Moderation (see services/moderation.service.ts) ---------- */
 
 export const REPORT_REASONS = ['harassment', 'hate', 'sexual', 'violence', 'self_harm', 'spam', 'scam', 'other'] as const;
-export const REPORT_TARGETS = ['Post', 'Comment', 'Story', 'User', 'Group', 'Message'] as const;
-const CASE_TARGETS = [...REPORT_TARGETS, 'AdCampaign'] as const;
+export const REPORT_TARGETS = ['Post', 'Comment', 'Story', 'User', 'Group', 'Message', 'AdCampaign'] as const;
+const CASE_TARGETS = REPORT_TARGETS;
 
 /** Everything known about one piece of content that needs a person's eye. At most one is open per target. */
 const moderationCaseSchema = new Schema({
@@ -491,6 +491,95 @@ const moderationScanSchema = new Schema({
 }, { timestamps: { createdAt: true, updatedAt: false }, versionKey: false });
 moderationScanSchema.index({ createdAt: 1 }, { expireAfterSeconds: MODERATION_SCAN_RETENTION_DAYS * 86_400 });
 moderationScanSchema.index({ decision: 1, createdAt: -1 });
+
+/* ---------- Advertising (see services/ads.service.ts). All money is in whole VND. ---------- */
+
+export const AD_CTA_LABELS = ['Learn more', 'Shop now', 'Sign up', 'Contact us', 'Book now', 'Download', 'Xem thêm', 'Mua ngay', 'Đăng ký', 'Liên hệ'] as const;
+export const AD_STATUSES = ['draft', 'pending_review', 'active', 'paused', 'rejected', 'exhausted', 'ended'] as const;
+
+const adAccountSchema = new Schema({
+  userId: { type: objectId, ref: 'User', required: true, unique: true },
+  balance: { type: Number, default: 0, min: 0 }
+}, options);
+
+/** Every movement of money, append-only. balanceAfter stays null until the wallet has been updated. */
+const ledgerEntrySchema = new Schema({
+  userId: { type: objectId, ref: 'User', required: true },
+  type: { type: String, enum: ['topup', 'spend', 'refund', 'adjustment'], required: true },
+  amount: { type: Number, required: true },
+  balanceAfter: { type: Number, default: null },
+  idempotencyKey: { type: String, required: true, unique: true },
+  refType: String,
+  refId: objectId,
+  note: { type: String, maxlength: 500, default: '' },
+  actorId: { type: objectId, ref: 'User', default: null }
+}, { timestamps: { createdAt: true, updatedAt: false }, versionKey: false });
+ledgerEntrySchema.index({ userId: 1, createdAt: -1 });
+ledgerEntrySchema.index({ balanceAfter: 1, createdAt: 1 }, { partialFilterExpression: { balanceAfter: null } });
+
+const paymentOrderSchema = new Schema({
+  userId: { type: objectId, ref: 'User', required: true },
+  provider: { type: String, enum: ['vnpay'], required: true },
+  txnRef: { type: String, required: true, unique: true },
+  amount: { type: Number, required: true, min: 1 },
+  status: { type: String, enum: ['pending', 'paid', 'failed'], default: 'pending' },
+  providerTxn: { type: String, default: '' },
+  providerCode: { type: String, default: '' },
+  paidAt: { type: Date, default: null }
+}, options);
+paymentOrderSchema.index({ userId: 1, createdAt: -1 });
+paymentOrderSchema.index({ status: 1, createdAt: -1 });
+
+const adCampaignSchema = new Schema({
+  advertiserId: { type: objectId, ref: 'User', required: true },
+  name: { type: String, required: true, maxlength: 80 },
+  headline: { type: String, required: true, maxlength: 80 },
+  body: { type: String, maxlength: 500, default: '' },
+  mediaUrl: { type: String, default: '' },
+  ctaLabel: { type: String, enum: AD_CTA_LABELS, default: 'Learn more' },
+  ctaUrl: { type: String, required: true, maxlength: 500 },
+  topics: { type: [{ type: String, maxlength: 30 }], default: [] },
+  cpm: { type: Number, required: true, min: 1 },
+  dailyBudget: { type: Number, required: true, min: 1 },
+  totalBudget: { type: Number, required: true, min: 1 },
+  startAt: { type: Date, default: null },
+  endAt: { type: Date, default: null },
+  status: { type: String, enum: AD_STATUSES, default: 'pending_review' },
+  rejectionReason: { type: String, maxlength: 500, default: '' },
+  reviewedBy: { type: objectId, ref: 'User', default: null },
+  reviewedAt: { type: Date, default: null },
+  spent: { type: Number, default: 0 },
+  impressions: { type: Number, default: 0 },
+  clicks: { type: Number, default: 0 }
+}, options);
+adCampaignSchema.index({ status: 1, createdAt: -1 });
+adCampaignSchema.index({ advertiserId: 1, createdAt: -1 });
+
+const adStatDailySchema = new Schema({
+  campaignId: { type: objectId, ref: 'AdCampaign', required: true },
+  date: { type: String, required: true },
+  impressions: { type: Number, default: 0 },
+  clicks: { type: Number, default: 0 },
+  hides: { type: Number, default: 0 },
+  spend: { type: Number, default: 0 }
+}, { versionKey: false });
+adStatDailySchema.index({ campaignId: 1, date: -1 }, { unique: true });
+
+/** What a member has opted out of. These are the rules ad serving must never break. */
+const adPreferenceSchema = new Schema({
+  userId: { type: objectId, ref: 'User', required: true, unique: true },
+  blockedAdvertiserIds: { type: [objectId], default: [] },
+  blockedTopics: { type: [String], default: [] },
+  hiddenCampaignIds: { type: [objectId], default: [] },
+  personalized: { type: Boolean, default: true }
+}, options);
+
+export const AdAccount: Model<any> = models.AdAccount || model('AdAccount', adAccountSchema);
+export const LedgerEntry: Model<any> = models.LedgerEntry || model('LedgerEntry', ledgerEntrySchema);
+export const PaymentOrder: Model<any> = models.PaymentOrder || model('PaymentOrder', paymentOrderSchema);
+export const AdCampaign: Model<any> = models.AdCampaign || model('AdCampaign', adCampaignSchema);
+export const AdStatDaily: Model<any> = models.AdStatDaily || model('AdStatDaily', adStatDailySchema);
+export const AdPreference: Model<any> = models.AdPreference || model('AdPreference', adPreferenceSchema);
 
 export const ModerationCase: Model<any> = models.ModerationCase || model('ModerationCase', moderationCaseSchema);
 export const Report: Model<any> = models.Report || model('Report', reportSchema);

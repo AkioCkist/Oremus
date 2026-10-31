@@ -14,6 +14,7 @@ export default function ReasonAction({ action, resource, record, setTag }) {
   const custom = action.custom || {};
   const [reason, setReason] = useState('');
   const [days, setDays] = useState(String(custom.days || ''));
+  const [amount, setAmount] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -23,7 +24,7 @@ export default function ReasonAction({ action, resource, record, setTag }) {
     try {
       const response = await api.recordAction({
         resourceId: resource.id, recordId: record.id, actionName: action.name, method: 'post',
-        data: { reason, days }
+        data: { reason, days, amount }
       });
       const notice = response.data.notice;
       if (notice) addNotice(notice);
@@ -50,6 +51,12 @@ export default function ReasonAction({ action, resource, record, setTag }) {
         <FormGroup>
           <Label required htmlFor="days">Days</Label>
           <Input id="days" type="number" min="1" max="365" required value={days} onChange={(event) => setDays(event.target.value)} />
+        </FormGroup>
+      ) : null}
+      {custom.amount ? (
+        <FormGroup>
+          <Label required htmlFor="amount">Amount (VND)</Label>
+          <Input id="amount" type="number" step="1" required value={amount} onChange={(event) => setAmount(event.target.value)} />
         </FormGroup>
       ) : null}
       {error ? <MessageBox mb="lg" message={error} variant="danger" /> : null}

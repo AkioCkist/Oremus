@@ -1,17 +1,18 @@
+import { redis } from '../config/database.js';
 import { env } from '../config/env.js';
 import { logger } from '../config/logger.js';
 import { addJob, QUEUES } from '../jobs/queues.js';
 import { checkRules } from '../moderation/rules.js';
 import { quarantineFiles, restoreFiles } from '../moderation/quarantine.js';
 import { DISCOVERABLE } from '../moderation/visibility.js';
-import { Comment, Group, Message, ModerationCase, ModerationPolicy, ModerationScan, Post, Report, Story, User } from '../models/index.js';
+import { AdCampaign, Comment, Group, Message, ModerationCase, ModerationPolicy, ModerationScan, Post, Report, Story, User } from '../models/index.js';
 import { AppError } from '../utils/errors.js';
 import { suspendUser } from './account.service.js';
 import { audit } from './audit.service.js';
 import { invalidateSocialCaches } from './cache.service.js';
 import { notifySystem } from './notification.service.js';
 
-export type TargetType = 'Post' | 'Comment' | 'Story' | 'User' | 'Group' | 'Message';
+export type TargetType = 'Post' | 'Comment' | 'Story' | 'User' | 'Group' | 'Message' | 'AdCampaign';
 export type Decision = 'approved' | 'limited' | 'removed';
 export type Scores = Record<string, number>;
 
@@ -50,10 +51,17 @@ export const SCAN_JOB = { attempts: 6, backoff: { type: 'exponential', delay: 30
 
 /* ---------- Policy ---------- */
 
+/**
+ * Starting points from apps/moderation/eval (169 labelled Vietnamese samples) and 300 ordinary profile photos.
+ * Auto-removal needs precision >= 0.9 at the block threshold, which only harassment reached:
+ * - harassment: precision 1.0 from 0.9 up.
+ * - hate: at best 0.33, because the model also calls plain insults hate. It only raises a case.
+ * - sexual: scored one ordinary portrait of a woman 0.9989, so a person always decides.
+ */
 const DEFAULT_POLICY = [
-  { category: 'hate', review: 0.5, block: 0.92, autoRemove: true },
-  { category: 'harassment', review: 0.6, block: 0.97, autoRemove: false },
-  { category: 'sexual', review: 0.6, block: 0.95, autoRemove: true },
+  { category: 'hate', review: 0.6, block: 0.95, autoRemove: false },
+  { category: 'harassment', review: 0.6, block: 0.97, autoRemove: true },
+  { category: 'sexual', review: 0.6, block: 0.95, autoRemove: false },
   { category: 'violence', review: 0.5, block: 0.95, autoRemove: false },
   { category: 'self_harm', review: 0.5, block: 0.95, autoRemove: false },
   { category: 'spam', review: 0.5, block: 0.98, autoRemove: false }
@@ -107,6 +115,10 @@ export async function loadTarget(targetType: TargetType, targetId: string): Prom
       const group: any = await Group.findById(targetId).select('ownerId name description coverUrl').lean();
       return group && { authorId: String(group.ownerId), text: [group.name, group.description].filter(Boolean).join('\n'), mediaUrls: group.coverUrl ? [group.coverUrl] : [], status: null };
     }
+    case 'AdCampaign': {
+      const campaign: any = await AdCampaign.findById(targetId).select('advertiserId headline body mediaUrl').lean();
+      return campaign && { authorId: String(campaign.advertiserId), text: [campaign.headline, campaign.body].filter(Boolean).join('\n'), mediaUrls: campaign.mediaUrl ? [campaign.mediaUrl] : [], status: null };
+    }
     case 'Message': {
       const message: any = await Message.findOne({ _id: targetId, deletedAt: null }).select('senderId content').lean();
       return message && { authorId: String(message.senderId), text: message.content, mediaUrls: [], status: null };
@@ -148,6 +160,9 @@ async function takeDown(targetType: TargetType, targetId: string): Promise<void>
     await quarantineFiles(target.mediaUrls);
   } else if (targetType === 'Group') {
     await Group.updateOne({ _id: targetId }, { visibility: 'hidden' });
+  } else if (targetType === 'AdCampaign') {
+    await AdCampaign.updateOne({ _id: targetId, status: { $ne: 'ended' } }, { status: 'rejected', rejectionReason: 'Removed after review for breaking the ad rules.' });
+    await redis.del('cache:ads:eligible');
   }
 }
 
@@ -183,7 +198,7 @@ export async function openCase(input: CaseInput) {
   }
 }
 
-const TARGET_NAMES: Record<string, string> = { Post: 'post', Comment: 'comment', Story: 'story', User: 'profile', Group: 'group', Message: 'message' };
+const TARGET_NAMES: Record<string, string> = { AdCampaign: 'ad', Post: 'post', Comment: 'comment', Story: 'story', User: 'profile', Group: 'group', Message: 'message' };
 const noticeEntity = (targetType: string, targetId: string, authorId: string) => (targetType === 'Post' ? { entityType: 'Post', entityId: targetId } : { entityType: 'User', entityId: authorId });
 
 /** Applies a finished scan. Only touches content still waiting for one, so a reviewer's decision is never overwritten. */
@@ -263,7 +278,7 @@ export async function decideAppeal(actorId: string, caseId: string, grant: boole
 
 /* ---------- Members ---------- */
 
-const REPORTABLE: TargetType[] = ['Post', 'Comment', 'Story', 'User', 'Group', 'Message'];
+const REPORTABLE: TargetType[] = ['Post', 'Comment', 'Story', 'User', 'Group', 'Message', 'AdCampaign'];
 
 /** Reports raise a case's priority but never take anything down, so a coordinated pile-on cannot silence someone. */
 export async function createReport(reporterId: string, input: { targetType: string; targetId: string; reason: string; note?: string }) {

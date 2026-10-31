@@ -22,7 +22,7 @@ def route_language(text: str) -> str:
     if not tokens:
         return "other"
     hits = sum(token in _UNACCENTED_WORDS for token in tokens)
-    return "both" if hits and hits / len(tokens) >= 0.15 else "other"
+    return "both" if hits and hits / len(tokens) >= 0.2 else "other"
 
 
 def split_chunks(text: str, words_per_chunk: int = 180, max_chunks: int = 4) -> list[str]:

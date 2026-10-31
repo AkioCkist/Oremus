@@ -17,6 +17,9 @@ import { needsOnboarding, safeNext } from '../services/interest.service.js';
 import { INTEREST_OPTIONS, MIN_INTERESTS, KEYWORD_MAX_LENGTH, MAX_KEYWORDS } from '../shared/interests.js';
 import { DISCOVERABLE } from '../moderation/visibility.js';
 import { myCases } from '../services/moderation.service.js';
+import { getAccount, listCampaigns, preferencesForSettings, withAds } from '../services/ads.service.js';
+import { paymentsEnabled } from '../services/payment.service.js';
+import { AD_CTA_LABELS, LedgerEntry } from '../models/index.js';
 
 const base = (req: Request, title: string) => ({ title, path: req.path, csrfToken: resToken(req), currentUser: req.user?.toObject() ?? null });
 const resToken = (req: Request) => req.cookies?.csrf || '';
@@ -75,7 +78,7 @@ export async function home(req: Request, res: Response) {
   const userId = req.user!.id;
   const [result, friends, groups, tray, recommended] = await Promise.all([getFeed(userId), listFriends(userId, 40), myGroups(userId), getStoryTray(userId), recommendationsFor(req, userId)]);
   // People, groups, posts and stories come from the recommender: what you search, read and open, plus mutual friends.
-  const posts = await withReactionSummary(result.items, userId);
+  const posts = await withAds(await withReactionSummary(result.items, userId), userId, 0, req.user!.interests?.topics);
   res.render('home', {
     ...base(req, 'Home'), posts, next: result.hasMore ? `o${FEED_PAGE_SIZE}` : null, contacts: friends.slice(0, 12), groups, tray, cached: result.cached,
     suggestions: recommended.people.slice(0, 6), suggestedGroups: recommended.groups.slice(0, 3), suggestedPosts: recommended.posts.slice(0, 6), suggestedStories: recommended.stories.slice(0, 6)
@@ -223,7 +226,16 @@ export async function discover(req: Request, res: Response) {
   res.render('discover', { ...base(req, 'For you'), recommended });
 }
 
-export async function settings(req: Request, res: Response) { res.render('settings', { ...base(req, 'Settings'), safetyCases: await myCases(req.user!.id) }); }
+export async function settings(req: Request, res: Response) {
+  const [safetyCases, adPreferences] = await Promise.all([myCases(req.user!.id), preferencesForSettings(req.user!.id)]);
+  res.render('settings', { ...base(req, 'Settings'), safetyCases, adPreferences, adTopicOptions: INTEREST_OPTIONS });
+}
+
+export async function adsManage(req: Request, res: Response) {
+  const userId = req.user!.id;
+  const [account, campaigns, ledger] = await Promise.all([getAccount(userId), listCampaigns(userId), LedgerEntry.find({ userId }).sort({ createdAt: -1 }).limit(20).lean()]);
+  res.render('ads/manage', { ...base(req, 'Advertise'), account, campaigns, ledger, topics: INTEREST_OPTIONS, ctaLabels: AD_CTA_LABELS, paymentsEnabled: paymentsEnabled(), paymentResult: ['success', 'failed'].includes(String(req.query.payment)) ? req.query.payment : null });
+}
 
 export async function stories(req: Request, res: Response) {
   const username = req.params.username ? param(req, 'username') : null;

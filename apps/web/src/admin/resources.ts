@@ -1,5 +1,6 @@
 import type { ActionContext, ActionRequest, ActionResponse, ResourceWithOptions } from 'adminjs';
-import { AuditLog, Comment, Group, ModerationCase, ModerationPolicy, ModerationScan, Post, Report, Story, User } from '../models/index.js';
+import { AdAccount, AdCampaign, AuditLog, Comment, Group, LedgerEntry, ModerationCase, PaymentOrder, ModerationPolicy, ModerationScan, Post, Report, Story, User } from '../models/index.js';
+import { adjustBalance, reviewCampaign } from '../services/ads.service.js';
 import { decideAppeal, decideCase } from '../services/moderation.service.js';
 import { banUser, reinstateUser, setUserRole, suspendUser, warnUser } from '../services/account.service.js';
 import { audit } from '../services/audit.service.js';
@@ -24,11 +25,12 @@ export const readOnly = (show: Guard = staff) => ({
 });
 
 const SAFETY = { name: 'Safety', icon: 'Shield' };
+const ADS = { name: 'Ads', icon: 'Volume2' };
 const CONTENT = { name: 'Content', icon: 'Document' };
 const PEOPLE = { name: 'People', icon: 'User' };
 
 /** Runs an action's work and reports the outcome (including rule refusals such as "cannot ban an admin") as a notice. */
-export function recordAction(work: (record: any, input: { reason: string; days: number }, actorId: string, request: ActionRequest) => Promise<string>) {
+export function recordAction(work: (record: any, input: { reason: string; days: number; amount: number }, actorId: string, request: ActionRequest) => Promise<string>) {
   return async (request: ActionRequest, _response: unknown, context: ActionContext): Promise<ActionResponse> => {
     const record = context.record!;
     const toResponse = (message: string, type: 'success' | 'error') => ({
@@ -40,8 +42,9 @@ export function recordAction(work: (record: any, input: { reason: string; days: 
     const payload = request.payload || {};
     const reason = String(payload.reason || '').trim().slice(0, 500);
     const days = Number(payload.days) || 0;
+    const amount = Number(payload.amount) || 0;
     try {
-      return toResponse(await work(record, { reason, days }, String(context.currentAdmin?.id), request), 'success');
+      return toResponse(await work(record, { reason, days, amount }, String(context.currentAdmin?.id), request), 'success');
     } catch (error) {
       if (error instanceof AppError) return toResponse(error.message, 'error');
       throw error;
@@ -156,8 +159,43 @@ const policyResource: ResourceWithOptions = {
   }
 };
 
+const campaignResource: ResourceWithOptions = {
+  resource: AdCampaign,
+  options: {
+    navigation: ADS,
+    sort: { sortBy: 'createdAt', direction: 'desc' },
+    listProperties: ['name', 'advertiserId', 'status', 'cpm', 'totalBudget', 'spent', 'impressions', 'clicks', 'createdAt'],
+    filterProperties: ['status', 'advertiserId', 'createdAt'],
+    showProperties: ['name', 'advertiserId', 'status', 'headline', 'body', 'mediaUrl', 'ctaLabel', 'ctaUrl', 'topics', 'cpm', 'dailyBudget', 'totalBudget', 'spent', 'impressions', 'clicks', 'rejectionReason', 'reviewedBy', 'reviewedAt', 'createdAt'],
+    actions: {
+      ...readOnly(),
+      approve: reasonAction('Approve', { icon: 'Check', noReason: true, submitLabel: 'Approve and run' },
+        recordAction(async (record, _input, actorId) => { await reviewCampaign(actorId, record.id(), true, ''); return 'Campaign approved.'; }), adminOnly),
+      reject: reasonAction('Reject', { icon: 'X', submitLabel: 'Reject', variant: 'danger', reasonLabel: 'What the advertiser will be told' },
+        recordAction(async (record, { reason }, actorId) => { await reviewCampaign(actorId, record.id(), false, requireReason(reason)); return 'Campaign rejected.'; }), adminOnly)
+    }
+  }
+};
+
+const accountResource: ResourceWithOptions = {
+  resource: AdAccount,
+  options: {
+    navigation: ADS,
+    listProperties: ['userId', 'balance', 'updatedAt'],
+    actions: {
+      ...readOnly(adminOnly),
+      adjustBalance: reasonAction('Adjust balance', { icon: 'DollarSign', amount: true, submitLabel: 'Apply', variant: 'danger', warning: 'Moves real money. Positive adds to the wallet, negative takes away. This is recorded in the ledger and audit log.' },
+        recordAction(async (record, { reason, amount }, actorId) => { await adjustBalance(actorId, String(record.get('userId')), amount, requireReason(reason)); return 'Balance adjusted.'; }), adminOnly)
+    }
+  }
+};
+
 export const adminResources: ResourceWithOptions[] = [
   caseResource,
+  campaignResource,
+  accountResource,
+  { resource: LedgerEntry, options: { navigation: ADS, sort: { sortBy: 'createdAt', direction: 'desc' }, listProperties: ['userId', 'type', 'amount', 'balanceAfter', 'note', 'createdAt'], actions: { ...readOnly(adminOnly) } } },
+  { resource: PaymentOrder, options: { navigation: ADS, sort: { sortBy: 'createdAt', direction: 'desc' }, listProperties: ['userId', 'txnRef', 'amount', 'status', 'paidAt', 'createdAt'], actions: { ...readOnly(adminOnly) } } },
   { resource: Report, options: { navigation: SAFETY, sort: { sortBy: 'createdAt', direction: 'desc' }, listProperties: ['targetType', 'reason', 'status', 'note', 'reporterId', 'createdAt'], actions: { ...readOnly() } } },
   policyResource,
   { resource: ModerationScan, options: { navigation: SAFETY, sort: { sortBy: 'createdAt', direction: 'desc' }, listProperties: ['targetType', 'decision', 'categories', 'shadow', 'createdAt'], actions: { ...readOnly() } } },
