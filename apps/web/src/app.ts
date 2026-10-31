@@ -18,6 +18,7 @@ import { listChunk } from './controllers/list.controller.js';
 import { optionalAuth } from './middleware/auth.js';
 import { asyncHandler } from './utils/async-handler.js';
 import { viewHelpers } from './utils/view-helpers.js';
+import { ADMIN_PATH, adminEntry, adminHelmet } from './admin/mount.js';
 
 // Built client bundles: served with ?v=<hash>, so they can be cached forever.
 const BUNDLES = ['styles.css', 'app.js', 'image-worker.js'];
@@ -49,13 +50,16 @@ export function createApp() {
   app.set('view engine', 'ejs');
   app.set('views', path.resolve(process.cwd(), 'src/views'));
   Object.assign(app.locals, viewHelpers, { assetVersion: assetVersion() });
-  app.use(helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'"], imgSrc: ["'self'", 'data:', 'blob:', 'https:'], mediaSrc: ["'self'", 'blob:'], connectSrc: ["'self'", 'ws:', 'wss:'], styleSrc: ["'self'", 'https://fonts.googleapis.com'], fontSrc: ["'self'", 'https://fonts.gstatic.com'], upgradeInsecureRequests: env.COOKIE_SECURE ? [] : null } } }));
+  const siteHelmet = helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'"], imgSrc: ["'self'", 'data:', 'blob:', 'https:'], mediaSrc: ["'self'", 'blob:'], connectSrc: ["'self'", 'ws:', 'wss:'], styleSrc: ["'self'", 'https://fonts.googleapis.com'], fontSrc: ["'self'", 'https://fonts.gstatic.com'], upgradeInsecureRequests: env.COOKIE_SECURE ? [] : null } } });
+  app.use((req, res, next) => (req.path === ADMIN_PATH || req.path.startsWith(`${ADMIN_PATH}/`) ? adminHelmet : siteHelmet)(req, res, next));
   app.use(compression());
   app.use(pinoHttp({ logger }));
   app.use(requestContext);
   app.use(cookieParser());
   // Display preference (light | dark | system) is a per-device cookie so pages render in the right theme without a flash.
   app.use((req, res, next) => { const theme = req.cookies?.theme; res.locals.theme = ['light', 'dark', 'system'].includes(theme) ? theme : 'system'; next(); });
+  // Before the body parsers: AdminJS parses its own request bodies and refuses to run after them.
+  app.use(ADMIN_PATH, ...adminEntry);
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: false, limit: '1mb' }));
   app.use('/assets', express.static(path.resolve(process.cwd(), 'public/assets'), { setHeaders: setAssetCacheHeaders }));

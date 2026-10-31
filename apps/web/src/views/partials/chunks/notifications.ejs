@@ -11,30 +11,35 @@
     group_invite: { icon: 'i-group', bg: 'bg-brand-600' },
     group_post: { icon: 'i-feed', bg: 'bg-[#34c759]' },
     message: { icon: 'i-chat', bg: 'bg-[#0088ff]' },
-    share: { icon: 'i-share', bg: 'bg-brand-600' }
+    share: { icon: 'i-share', bg: 'bg-brand-600' },
+    moderation: { icon: 'i-bell', bg: 'bg-[#ff8d28]' },
+    ad_status: { icon: 'i-bell', bg: 'bg-brand-600' },
+    missed_call: { icon: 'i-phone', bg: 'bg-[#ff383c]' }
   };
   const hrefOf = function (n) {
     if (n.entityType === 'Post') return `/posts/${n.entityId}`;
     if (n.entityType === 'Conversation') return `/messages/${n.entityId}`;
     if (n.entityType === 'Group') return `/g/${n.entityId}`;
     if (n.entityType === 'Story') return '/stories/archive';
-    return `/profile/${n.actorId.username}`;
+    if (n.entityType === 'AdCampaign') return '/ads/manage';
+    if (n.entityType === 'User') return '/settings';
+    return n.actorId ? `/profile/${n.actorId.username}` : '/notifications';
   };
   // Everything was marked read when the page opened; anything read at that moment still counts as new for this visit.
   const opened = new Date(openedAt).getTime();
   const isNew = function (n) { return !n.readAt || new Date(n.readAt).getTime() >= opened; };
 -%>
-<% items.forEach(function (n) { const m = meta[n.type] || meta.follow; const fresh = isNew(n); %>
+<% items.forEach(function (n) { const m = meta[n.type] || meta.follow; const fresh = isNew(n); const actor = n.actorId || { displayName: 'Oremus' }; %>
 <li data-key="<%= n._id %>">
   <a class="flex items-center gap-3 rounded-lg p-2 hover:bg-hover" href="<%= hrefOf(n) %>" data-unread="<%= fresh ? 'true' : 'false' %>">
     <span class="relative shrink-0">
-      <%- include('../avatar', { person: n.actorId, size: 'size-11 text-sm' }) %>
+      <%- include('../avatar', { person: actor, size: 'size-11 text-sm' }) %>
       <span class="absolute -bottom-0.5 -right-0.5 grid size-5 place-items-center rounded-full text-white ring-2 ring-canvas <%= m.bg %>">
         <% if (m.fill) { %><svg class="size-5"><use href="#<%= m.icon %>"/></svg><% } else { %><svg class="icon size-3"><use href="#<%= m.icon %>"/></svg><% } %>
       </span>
     </span>
     <span class="min-w-0 flex-1">
-      <span class="line-clamp-3 text-subheadline <%= fresh ? '' : 'text-muted' %>"><strong class="font-semibold text-ink"><%= n.actorId.displayName %></strong> <%= n.text %></span>
+      <span class="line-clamp-3 text-subheadline <%= fresh ? '' : 'text-muted' %>"><strong class="font-semibold text-ink"><%= actor.displayName %></strong> <%= n.text %></span>
       <span class="mt-0.5 block text-footnote text-muted" data-unread-time><%= timeAgo(n.createdAt) %></span>
     </span>
     <% if (fresh) { %><span class="size-2 shrink-0 rounded-full bg-brand-600" data-unread-dot aria-label="Unread"></span><% } %>

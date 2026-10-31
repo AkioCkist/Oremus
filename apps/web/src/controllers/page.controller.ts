@@ -15,6 +15,8 @@ import { trackSignal } from '../services/activity.service.js';
 import { getRecommendations } from '../services/recommendation.service.js';
 import { needsOnboarding, safeNext } from '../services/interest.service.js';
 import { INTEREST_OPTIONS, MIN_INTERESTS, KEYWORD_MAX_LENGTH, MAX_KEYWORDS } from '../shared/interests.js';
+import { DISCOVERABLE } from '../moderation/visibility.js';
+import { myCases } from '../services/moderation.service.js';
 
 const base = (req: Request, title: string) => ({ title, path: req.path, csrfToken: resToken(req), currentUser: req.user?.toObject() ?? null });
 const resToken = (req: Request) => req.cookies?.csrf || '';
@@ -31,7 +33,7 @@ export async function headerState(userId: string) {
     listConversations(userId, 8),
     Notification.find(notificationFilter).sort({ createdAt: -1 }).limit(8).populate('actorId', AUTHOR_FIELDS).lean()
   ]);
-  const headerNotifications = headerNotificationRows.filter((item: any) => item.actorId);
+  const headerNotifications = headerNotificationRows.filter((item: any) => item.actorId || item.system);
   return { unreadNotifications, unreadMessages, headerConversations, headerNotifications };
 }
 
@@ -131,7 +133,7 @@ export async function group(req: Request, res: Response) {
   // Tabs the viewer has no access to fall back to the discussion.
   if ((tab === 'requests' && !detail.canApprove) || (tab === 'pending' && !detail.canManage)) tab = 'discussion';
   const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000), monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const visiblePosts = { groupId, deletedAt: null, groupStatus: { $nin: ['pending', 'declined'] } };
+  const visiblePosts = { groupId, deletedAt: null, groupStatus: { $nin: ['pending', 'declined'] }, ...DISCOVERABLE };
   const empty = { items: [], next: null };
   const [postChunk, members, mine, candidates, staff, memberChunk, activity] = await Promise.all([
     tab === 'discussion' && canSee ? groupPosts(groupId, req.user?.id, null) : Promise.resolve(empty),
@@ -221,7 +223,7 @@ export async function discover(req: Request, res: Response) {
   res.render('discover', { ...base(req, 'For you'), recommended });
 }
 
-export function settings(req: Request, res: Response) { res.render('settings', base(req, 'Settings')); }
+export async function settings(req: Request, res: Response) { res.render('settings', { ...base(req, 'Settings'), safetyCases: await myCases(req.user!.id) }); }
 
 export async function stories(req: Request, res: Response) {
   const username = req.params.username ? param(req, 'username') : null;

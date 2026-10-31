@@ -4,6 +4,7 @@ import { AppError } from '../utils/errors.js';
 import { notify } from './notification.service.js';
 import { areFriends, listFriendIds } from './friendship.service.js';
 import { blockedUserIds } from './social.service.js';
+import { assertTextAllowed } from './moderation.service.js';
 
 export function conversationMemberFilter(userId: string, friendIds: Iterable<string>) {
   return { $and: [{ memberIds: userId }, { memberIds: { $in: [...friendIds] } }] };
@@ -126,6 +127,8 @@ export async function getConversationPreview(userId: string, conversationId: str
 
 export async function sendMessage(userId: string, conversationId: string, content: string) {
   const conversation = await conversationForFriend(userId, conversationId);
+  // Private messages get the rule check only. They are not sent to the AI models, and staff see one only if it is reported.
+  assertTextAllowed(content);
   const message = await Message.create({ conversationId, senderId: userId, content, readBy: [userId] });
   await message.populate('senderId', 'username displayName profile.avatarUrl');
   conversation.lastMessageAt = new Date(); await conversation.save();

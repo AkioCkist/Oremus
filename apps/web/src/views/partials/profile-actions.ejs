@@ -17,6 +17,7 @@
     <button type="button" class="menu-item" data-open-break="<%= profile._id %>" data-user-name="<%= profile.displayName %>"><svg class="icon"><use href="#i-pause"/></svg><span data-break-label><%= profile.seeLess || profile.restrictPosts ? 'Edit break settings' : 'Take a break' %></span></button>
     <button type="button" class="menu-item" data-copy-profile="/profile/<%= profile.username %>"><svg class="icon"><use href="#i-link"/></svg>Copy profile link</button>
     <div class="divider"></div>
+    <button type="button" class="menu-item" data-report-type="User" data-report-id="<%= profile._id %>" data-report-label="<%= profile.displayName %>"><svg class="icon"><use href="#i-flag"/></svg>Report</button>
     <button type="button" class="menu-item" data-block-user="<%= profile._id %>" data-user-name="<%= profile.displayName %>"><svg class="icon"><use href="#i-lock"/></svg>Block</button>
   </div>
 </details>

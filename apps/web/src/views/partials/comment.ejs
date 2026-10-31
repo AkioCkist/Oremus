@@ -1,7 +1,7 @@
 <%# One comment bubble. Locals: comment, postId, isReply, canModerate. Replies to a reply attach to the root thread. -%>
 <% const who = comment.authorId || {}; const threadId = comment.parentId || comment._id;
    const own = currentUser && String(who._id) === String(currentUser._id);
-   const canDelete = own || (currentUser && locals.canModerate); -%>
+   const canDelete = own || (currentUser && locals.canModerate); const canReport = currentUser && !own; -%>
 <div class="flex gap-2" data-comment-id="<%= comment._id %>" data-comment-post="<%= postId %>">
   <a href="/profile/<%= who.username %>" class="shrink-0"><%- include('avatar', { person: who, size: isReply ? 'size-7 text-2xs' : 'size-8 text-xs' }) %></a>
   <div class="min-w-0 flex-1">
@@ -10,12 +10,13 @@
         <a class="text-footnote font-semibold hover:text-muted" href="/profile/<%= who.username %>"><%= who.displayName %></a>
         <p class="whitespace-pre-wrap break-words text-subheadline" data-comment-text><%= comment.content %></p>
       </div>
-      <% if (canDelete) { %>
+      <% if (canDelete || canReport) { %>
       <details class="group/menu relative shrink-0" data-menu data-comment-menu>
         <summary class="icon-btn-ghost size-8 cursor-pointer list-none text-muted transition-opacity group-open/menu:opacity-100 group-hover/comment:opacity-100 focus-visible:opacity-100 sm:opacity-0" aria-label="Comment options"><svg class="icon size-[1.125rem]"><use href="#i-more"/></svg></summary>
         <div class="menu left-0 top-full mt-1 min-w-[11rem]">
           <% if (own) { %><button type="button" class="menu-item" data-comment-edit="<%= comment._id %>"><span class="menu-icon"><svg class="icon"><use href="#i-edit"/></svg></span>Edit</button><% } %>
-          <button type="button" class="menu-item" data-comment-delete="<%= comment._id %>"><span class="menu-icon"><svg class="icon"><use href="#i-trash"/></svg></span>Delete</button>
+          <% if (canDelete) { %><button type="button" class="menu-item" data-comment-delete="<%= comment._id %>"><span class="menu-icon"><svg class="icon"><use href="#i-trash"/></svg></span>Delete</button><% } %>
+          <% if (canReport) { %><button type="button" class="menu-item" data-report-type="Comment" data-report-id="<%= comment._id %>" data-report-label="comment"><span class="menu-icon"><svg class="icon"><use href="#i-flag"/></svg></span>Report</button><% } %>
         </div>
       </details>
       <% } %>

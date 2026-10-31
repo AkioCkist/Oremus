@@ -12,6 +12,7 @@
         <a class="side-link shrink-0" href="#privacy"><span class="tile-icon bg-subtle"><svg class="icon"><use href="#i-shield"/></svg></span>Privacy</a>
         <a class="side-link shrink-0" href="#display"><span class="tile-icon bg-ios-indigo"><svg class="icon"><use href="#i-moon"/></svg></span>Display</a>
         <a class="side-link shrink-0" href="#interests"><span class="tile-icon bg-ios-purple"><svg class="icon"><use href="#i-sparkles"/></svg></span>Interests</a>
+        <a class="side-link shrink-0" href="#safety"><span class="tile-icon bg-ios-red"><svg class="icon"><use href="#i-flag"/></svg></span>Account status</a>
         <a class="side-link shrink-0" href="#stories"><span class="tile-icon bg-ios-pink"><svg class="icon"><use href="#i-stories"/></svg></span>Stories</a>
         <a class="side-link shrink-0" href="#session"><span class="tile-icon bg-ios-teal"><svg class="icon"><use href="#i-key"/></svg></span>Session</a>
       </nav>
@@ -73,6 +74,33 @@
         <% const myInterests = (currentUser.interests && currentUser.interests.completedAt) ? currentUser.interests.topics || [] : []; %>
         <p class="mt-1 text-15 text-muted"><%= myInterests.length ? `${myInterests.length} interests picked. They shape the people, posts, groups and stories suggested to you.` : 'Tell us what you like to get better suggestions for people, posts, groups and stories.' %></p>
         <div class="mt-4 flex flex-wrap gap-2"><a class="btn-primary" href="/onboarding?next=/settings%23interests"><svg class="icon"><use href="#i-sparkles"/></svg><%= myInterests.length ? 'Edit interests' : 'Choose interests' %></a><a class="btn-secondary" href="/discover">See suggestions</a></div>
+      </section>
+
+      <section id="safety" class="card scroll-mt-20 p-5">
+        <h2 class="text-headline font-semibold">Account status</h2>
+        <% const strikes = currentUser.strikes || 0; %>
+        <p class="mt-1 text-15 text-muted"><%= strikes ? `Your account has ${strikes} ${strikes === 1 ? 'violation' : 'violations'} on record. Repeat violations can lead to a suspension.` : 'No violations on your account.' %></p>
+        <% if (safetyCases.length) { %>
+        <ul class="mt-4 space-y-3">
+          <% safetyCases.forEach(function (item) { const appeal = (item.appeal || {}).status || 'none'; const restored = item.status === 'dismissed'; %>
+          <li class="rounded-xl border border-line p-3">
+            <p class="text-footnote text-muted"><%= item.targetType %> · <%= longTime(item.createdAt) %><%= item.categories.length ? ' · ' + item.categories.join(', ') : '' %></p>
+            <% if (item.snippet) { %><p class="mt-1 line-clamp-3 whitespace-pre-wrap break-words text-15"><%= item.snippet %></p><% } %>
+            <p class="mt-2 text-15 font-semibold"><%= restored ? 'Restored after review' : 'Removed' %></p>
+            <% if (appeal === 'pending') { %><p class="mt-1 text-15 text-muted">Appeal sent. We will let you know the outcome.</p>
+            <% } else if (appeal === 'denied') { %><p class="mt-1 text-15 text-muted">Your appeal was reviewed and the decision was kept.</p>
+            <% } else if (appeal === 'none' && !restored) { %>
+            <form class="mt-2 space-y-2" data-appeal-form="<%= item._id %>">
+              <label class="label" for="appeal-<%= item._id %>">Think this was a mistake?</label>
+              <textarea class="input w-full" id="appeal-<%= item._id %>" name="message" rows="2" minlength="10" maxlength="1000" required placeholder="Tell us why"></textarea>
+              <p class="form-error hidden" data-form-error role="alert"></p>
+              <button class="btn-secondary" type="submit">Appeal</button>
+            </form>
+            <% } %>
+          </li>
+          <% }) %>
+        </ul>
+        <% } %>
       </section>
 
       <section id="stories" class="card scroll-mt-20 p-5">

@@ -4,7 +4,9 @@ import { Follow, Story, StoryView, User, STORY_TTL_MS } from '../models/index.js
 import type { StoryStyle } from '../shared/story-style.js';
 import { AppError } from '../utils/errors.js';
 import type { StoryInput } from '../validators/index.js';
+import { DISCOVERABLE, isClosedToOthers } from '../moderation/visibility.js';
 import { createConversation, sendMessage } from './message.service.js';
+import { assertTextAllowed, initialStatus, requestScan } from './moderation.service.js';
 import { notify } from './notification.service.js';
 import { assertOwner } from './permissions.js';
 import { assertNotBlocked, blockedUserIds, feedExclusions, restrictedAuthorIds } from './social.service.js';
@@ -56,9 +58,9 @@ async function followingSet(userId: string): Promise<Set<string>> {
 export async function getStoryTray(viewerId: string, extraAuthorIds: string[] = []): Promise<TrayGroup[]> {
   const [following, excluded, restricted, blocked] = await Promise.all([followingSet(viewerId), feedExclusions(viewerId), restrictedAuthorIds(viewerId), blockedUserIds(viewerId)]);
   const stories = await Story.find({ ...activeFilter(), authorId: { $nin: blocked }, $or: [
-    { authorId: viewerId },
-    { authorId: { $in: [...following], $nin: excluded }, $or: [{ audience: 'public' }, { authorId: { $nin: restricted }, audience: 'followers' }] },
-    { authorId: { $in: extraAuthorIds }, $or: [{ audience: 'public' }, { authorId: { $in: [...following], $nin: restricted }, audience: 'followers' }] }
+    { authorId: viewerId, moderationStatus: { $ne: 'removed' } },
+    { ...DISCOVERABLE, authorId: { $in: [...following], $nin: excluded }, $or: [{ audience: 'public' }, { authorId: { $nin: restricted }, audience: 'followers' }] },
+    { ...DISCOVERABLE, authorId: { $in: extraAuthorIds }, $or: [{ audience: 'public' }, { authorId: { $in: [...following], $nin: restricted }, audience: 'followers' }] }
   ] })
     .sort({ createdAt: 1 }).limit(400).populate('authorId', AUTHOR_FIELDS).lean();
   const visible = stories.filter((story: any) => story.authorId && canViewStory(story, viewerId, following));
@@ -68,7 +70,7 @@ export async function getStoryTray(viewerId: string, extraAuthorIds: string[] = 
 
 async function getAccessibleStory(storyId: string, viewerId: string) {
   const story = await Story.findOne({ _id: storyId, ...activeFilter() });
-  if (!story) throw new AppError(404, 'This story is no longer available.', 'STORY_NOT_FOUND');
+  if (!story || (String(story.authorId) !== viewerId && isClosedToOthers(story.moderationStatus))) throw new AppError(404, 'This story is no longer available.', 'STORY_NOT_FOUND');
   await assertNotBlocked(String(story.authorId), viewerId);
   if (story.audience === 'followers' && (await restrictedAuthorIds(viewerId)).includes(String(story.authorId))) throw new AppError(403, 'This story is not available to you.', 'STORY_FORBIDDEN');
   const following = String(story.authorId) === viewerId || story.audience === 'public' ? new Set<string>() : await followingSet(viewerId);
@@ -78,14 +80,18 @@ async function getAccessibleStory(storyId: string, viewerId: string) {
 
 export async function createStory(authorId: string, input: Pick<StoryInput, 'text' | 'background' | 'audience'> & { style?: StoryStyle }, file?: Express.Multer.File) {
   const text = clean(input.text || '');
+  assertTextAllowed(text);
   if (!file && !text) throw new AppError(422, 'Add a photo or video, or write something for your story.', 'EMPTY_STORY');
   const author = await User.findById(authorId).select('profile.storyAudience').lean();
   const audience = input.audience || (author as any)?.profile?.storyAudience || 'followers';
-  return Story.create({
+  const story = await Story.create({
     authorId, text, background: input.background, audience, style: input.style ?? null,
     media: file ? { url: `/uploads/${file.filename}`, mimeType: file.mimetype } : null,
+    moderationStatus: initialStatus(!!file),
     expiresAt: new Date(Date.now() + STORY_TTL_MS)
   });
+  await requestScan('Story', story.id);
+  return story;
 }
 
 export async function markViewed(storyId: string, viewerId: string) {

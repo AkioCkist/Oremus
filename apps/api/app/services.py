@@ -41,7 +41,7 @@ async def search(db: AsyncIOMotorDatabase, redis: Redis, query: str, limit: int)
         {"username": 1, "displayName": 1, "profile.bio": 1, "profile.avatarUrl": 1},
     ).limit(per_kind).to_list(per_kind)
     posts = await db.posts.find(
-        {"content": pattern, "deletedAt": None, "visibility": "public", "groupId": None},
+        {"content": pattern, "deletedAt": None, "visibility": "public", "groupId": None, "moderationStatus": {"$nin": ["held", "limited", "removed"]}},
         {"content": 1, "authorId": 1},
     ).sort("createdAt", -1).limit(per_kind).to_list(per_kind)
     groups = await db.groups.find(

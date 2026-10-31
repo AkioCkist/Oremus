@@ -34,7 +34,21 @@ const schema = z.object({
     .pipe(z.array(z.string().url()).min(1)),
   PLACES_URL: z.string().url().default('https://photon.komoot.io'),
   LOG_LEVEL: z.string().default('info'),
-  FFMPEG_PATH: z.string().min(1).default('ffmpeg')
+  FFMPEG_PATH: z.string().min(1).default('ffmpeg'),
+  /** off: nothing scanned. shadow: scored and logged, no effect on users. enforce: decisions apply. */
+  MODERATION_MODE: z.enum(['off', 'shadow', 'enforce']).default('off'),
+  MODERATION_URL: z.string().url().default('http://localhost:8010'),
+  MODERATION_SECRET: z.string().default(''),
+  // Signs ad impression and click tokens. Falls back to a key derived from the access secret.
+  AD_TOKEN_SECRET: z.string().default(''),
+  VNPAY_TMN_CODE: z.string().default(''),
+  VNPAY_HASH_SECRET: z.string().default(''),
+  VNPAY_HOST: z.string().url().default('https://sandbox.vnpayment.vn'),
+  VNPAY_RETURN_URL: z.string().default(''),
+  /** Browser-facing wss:// address of LiveKit. Calling is disabled while empty. */
+  LIVEKIT_URL: z.string().default(''),
+  LIVEKIT_API_KEY: z.string().default(''),
+  LIVEKIT_API_SECRET: z.string().default('')
 }).superRefine((value, ctx) => {
   if (value.NODE_ENV !== 'production') return;
   const placeholders = new Set([DEV_ACCESS_SECRET, DEV_REFRESH_SECRET, EXAMPLE_ACCESS_SECRET, EXAMPLE_REFRESH_SECRET]);

@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { Follow, GroupMember, Post, Reaction } from '../models/index.js';
 import { env } from '../config/env.js';
+import { DISCOVERABLE, visibleToViewer } from '../moderation/visibility.js';
 import { cacheGet, cacheSet, feedCacheVersion } from './cache.service.js';
 import { blockedUserIds, feedExclusions, restrictedAuthorIds } from './social.service.js';
 
@@ -24,7 +25,7 @@ export async function getFeed(userId: string, page = 1, limit = FEED_PAGE_SIZE) 
   const objectIds = (ids: string[]) => ids.map((id) => new mongoose.Types.ObjectId(id));
   const rows = await Post.aggregate([
     { $match: {
-      deletedAt: null, groupStatus: { $nin: ['pending', 'declined'] }, authorId: { $nin: objectIds(excluded) },
+      deletedAt: null, groupStatus: { $nin: ['pending', 'declined'] }, authorId: { $nin: objectIds(excluded) }, ...visibleToViewer(new mongoose.Types.ObjectId(userId)),
       $or: [
         { authorId: new mongoose.Types.ObjectId(userId), groupId: null },
         { groupId: null, visibility: 'public' },
@@ -61,7 +62,7 @@ export async function searchAll(query: string, viewerId?: string) {
   if (!viewerId) return result;
   const blocked = new Set(await blockedUserIds(viewerId));
   const postIds = result.items.filter((item: any) => item.kind === 'post').map((item: any) => item.id);
-  const posts = postIds.length ? await Post.find({ _id: { $in: postIds }, authorId: { $nin: [...blocked] } }).select('_id').lean() : [];
+  const posts = postIds.length ? await Post.find({ _id: { $in: postIds }, authorId: { $nin: [...blocked] }, ...DISCOVERABLE }).select('_id').lean() : [];
   const visiblePosts = new Set(posts.map((post: any) => String(post._id)));
   return { ...result, items: result.items.filter((item: any) => item.kind === 'user' ? !blocked.has(String(item.id)) : item.kind !== 'post' || visiblePosts.has(String(item.id))) };
 }

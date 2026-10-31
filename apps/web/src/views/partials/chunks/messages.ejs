@@ -12,5 +12,6 @@
   <div data-key="<%= message._id %>" data-at="<%= new Date(message.createdAt).getTime() %>" class="flex items-end gap-2 <%= mine ? 'justify-end' : 'justify-start' %> <%= lastOfRun ? 'mb-2' : 'mb-0.5' %>">
     <% if (!mine) { %><span class="w-7 shrink-0"><% if (lastOfRun) { %><%- include('../avatar', { person: message.senderId, size: 'size-7 text-2xs' }) %><% } %></span><% } %>
     <p class="bubble <%= mine ? 'bubble-me' : 'bubble-them' %>" title="<%= clockTime(message.createdAt) %>"><%- linkify(message.content) %></p>
+    <% if (!mine) { %><button type="button" class="icon-btn-ghost size-7 shrink-0 self-center text-muted opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100" data-report-type="Message" data-report-id="<%= message._id %>" data-report-label="message" aria-label="Report message" title="Report message"><svg class="icon size-3.5"><use href="#i-flag"/></svg></button><% } %>
   </div>
 <% }) %>

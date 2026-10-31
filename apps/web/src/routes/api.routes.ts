@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as controller from '../controllers/api.controller.js';
 import * as story from '../controllers/story.controller.js';
 import { live } from '../controllers/live.controller.js';
+import * as moderation from '../controllers/moderation.controller.js';
 import { requireAuth } from '../middleware/auth.js';
 import { rateLimit } from '../middleware/rate-limit.js';
 import { enforcePostMediaSize, POST_MEDIA_MAX_FILES, postUpload, storyUpload, upload } from '../middleware/upload.js';
@@ -66,6 +67,8 @@ apiRoutes.get('/places', rateLimit('places', 60, 60), asyncHandler(controller.pl
 apiRoutes.get('/places/nearby', rateLimit('places', 60, 60), asyncHandler(controller.placesNearby));
 apiRoutes.get('/notifications', asyncHandler(controller.notifications));
 apiRoutes.post('/notifications/read', asyncHandler(controller.readNotifications));
+apiRoutes.post('/reports', rateLimit('report', 20, 3600), asyncHandler(moderation.report));
+apiRoutes.post('/moderation/cases/:caseId/appeal', rateLimit('appeal', 10, 3600), asyncHandler(moderation.appeal));
 apiRoutes.get('/search', asyncHandler(controller.search));
 apiRoutes.get('/search/suggest', rateLimit('search-suggest', 240, 60), asyncHandler(controller.searchSuggest));
 apiRoutes.get('/search/recent', asyncHandler(controller.recentSearches));

@@ -5,6 +5,7 @@ import { cacheGet, cacheSet, invalidateSocialCaches } from './cache.service.js';
 import { notify } from './notification.service.js';
 import { getFriendshipState } from './friendship.service.js';
 import { assertNotBlocked, getSocialState } from './social.service.js';
+import { assertTextAllowed, requestScan } from './moderation.service.js';
 
 export async function getProfile(username: string, viewerId?: string) {
   const user = await User.findOne({ username, deletedAt: null });
@@ -65,12 +66,14 @@ export function visibleProfile(profile: any, viewer: { isSelf: boolean; isFriend
 export async function updateProfile(userId: string, input: any, files: { [fieldname: string]: Express.Multer.File[] } = {}) {
   const duplicate = await User.exists({ username: input.username, _id: { $ne: userId } });
   if (duplicate) throw new AppError(409, 'That username is already in use.', 'USERNAME_TAKEN');
+  assertTextAllowed(input.displayName, input.bio);
   const avatar = files.avatar?.[0], cover = files.cover?.[0];
   const update: any = { displayName: input.displayName, username: input.username, 'profile.bio': input.bio, 'profile.location': input.location, 'profile.website': input.website, 'profile.privacy': input.privacy };
   if (avatar) update['profile.avatarUrl'] = `/uploads/${avatar.filename}`;
   if (cover) update['profile.coverUrl'] = `/uploads/${cover.filename}`;
   const user = await User.findByIdAndUpdate(userId, update, { new: true, runValidators: true });
   await invalidateSocialCaches([userId], { search: true });
+  await requestScan('User', userId);
   return user;
 }
 
@@ -127,6 +130,7 @@ export async function updateProfileDetails(userId: string, input: Record<string,
   if (!Object.keys(update).length) throw new AppError(422, 'Nothing to update.', 'EMPTY_UPDATE');
   const user = await User.findByIdAndUpdate(userId, update, { new: true, runValidators: true });
   await invalidateSocialCaches([userId], { search: true });
+  await requestScan('User', userId);
   return user;
 }
 

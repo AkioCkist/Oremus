@@ -10,6 +10,7 @@ import { loadSignals, recommendationCacheKey } from './activity.service.js';
 import { cacheGet, cacheSet } from './cache.service.js';
 import { getFriendshipStates, listFriendIds } from './friendship.service.js';
 import { feedExclusions } from './social.service.js';
+import { DISCOVERABLE } from '../moderation/visibility.js';
 
 /**
  * "Suggested for you": people, posts, groups and stories ranked by the recommender (src/recommender)
@@ -61,9 +62,9 @@ async function buildCorpus(): Promise<Corpus> {
   const publicGroupIds = groups.filter((group) => group.privacy === 'public').map((group) => group._id);
   const [users, posts, stories]: [any[], any[], any[]] = await Promise.all([
     User.find({ deletedAt: null }).select(AUTHOR_FIELDS).limit(5000).lean(),
-    Post.find({ deletedAt: null, groupStatus: 'approved', createdAt: { $gte: new Date(now - POST_WINDOW_DAYS * DAY) }, $or: [{ groupId: null, visibility: 'public' }, { groupId: { $in: publicGroupIds } }] })
+    Post.find({ deletedAt: null, groupStatus: 'approved', ...DISCOVERABLE, createdAt: { $gte: new Date(now - POST_WINDOW_DAYS * DAY) }, $or: [{ groupId: null, visibility: 'public' }, { groupId: { $in: publicGroupIds } }] })
       .sort({ createdAt: -1 }).limit(3000).select('authorId groupId sharedPostId content media place feeling reactionCount commentCount shareCount createdAt').lean(),
-    Story.find({ deletedAt: null, audience: 'public', expiresAt: { $gt: new Date(now) } }).sort({ createdAt: -1 }).limit(800).select('authorId media text background style viewCount createdAt').lean()
+    Story.find({ deletedAt: null, audience: 'public', ...DISCOVERABLE, expiresAt: { $gt: new Date(now) } }).sort({ createdAt: -1 }).limit(800).select('authorId media text background style viewCount createdAt').lean()
   ]);
   const usersById = new Map(users.map((user) => [idOf(user), user]));
   const groupsById = new Map(groups.map((group) => [idOf(group), group]));

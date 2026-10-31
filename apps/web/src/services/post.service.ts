@@ -7,6 +7,8 @@ import { AppError } from '../utils/errors.js';
 import { invalidateSocialCaches } from './cache.service.js';
 import { notify } from './notification.service.js';
 import { assertOwner } from './permissions.js';
+import { assertTextAllowed, initialStatus, requestScan } from './moderation.service.js';
+import { DISCOVERABLE, isClosedToOthers, visibleToViewer } from '../moderation/visibility.js';
 import { assertNotBlocked, blockedUserIds, restrictedAuthorIds } from './social.service.js';
 
 const uploadedMedia = (file: Express.Multer.File) => ({ url: `/uploads/${file.filename}`, mimeType: file.mimetype, alt: '', status: file.mimetype.startsWith('video/') ? 'processing' : 'ready', poster: '' });
@@ -15,6 +17,7 @@ const clean = (value: string) => sanitizeHtml(value, { allowedTags: [], allowedA
 export async function assertCanAccessPost(post: any, viewerId: string): Promise<void> {
   const authorId = String(post.authorId?._id || post.authorId);
   if (authorId === viewerId) return;
+  if (isClosedToOthers(post.moderationStatus)) throw new AppError(404, 'Post not found.', 'POST_NOT_FOUND');
   await assertNotBlocked(authorId, viewerId);
   if (post.groupId) {
     const [member, group]: any[] = await Promise.all([GroupMember.findOne({ groupId: post.groupId, userId: viewerId }).select('role').lean(), Group.findById(post.groupId).select('privacy').lean()]);
@@ -43,8 +46,10 @@ export async function createPost(authorId: string, input: any, files: Express.Mu
   }
   const media = files.map(uploadedMedia);
   const content = clean(input.content || '');
+  assertTextAllowed(content);
   if (!content && media.length === 0 && !input.feeling && !input.place && !input.sharedPostId) throw new AppError(422, 'Write something, add a photo or video, or check in somewhere.', 'EMPTY_POST');
-  const post = await Post.create({ authorId, groupId: input.groupId || null, sharedPostId: input.sharedPostId || null, content, visibility: input.visibility, media, groupStatus, feeling: input.feeling || null, place: input.place || null });
+  const post = await Post.create({ authorId, groupId: input.groupId || null, sharedPostId: input.sharedPostId || null, content, visibility: input.visibility, media, groupStatus, feeling: input.feeling || null, place: input.place || null, moderationStatus: initialStatus(media.length > 0) });
+  await requestScan('Post', post.id);
   await enqueuePostVideos(post, media.map((item) => item.url));
   if (input.groupId) await GroupPost.create({ groupId: input.groupId, postId: post.id, authorId });
   if (groupStatus === 'pending') await notify({ recipientId: String(groupInfo.ownerId), actorId: authorId, type: 'group_post', entityType: 'Group', entityId: input.groupId, text: `posted in ${groupInfo.name} and is waiting for approval` });
@@ -58,6 +63,7 @@ async function ownedPost(userId: string, postId: string) {
   const post = await Post.findOne({ _id: postId, deletedAt: null });
   if (!post) throw new AppError(404, 'Post not found.', 'POST_NOT_FOUND');
   assertOwner(post.authorId, userId, 'You can only change your own posts.');
+  if (post.moderationStatus === 'removed') throw new AppError(403, 'This post was removed and cannot be changed. You can appeal in Settings.', 'CONTENT_REMOVED');
   return post;
 }
 
@@ -79,12 +85,16 @@ export async function updatePost(userId: string, postId: string, input: { conten
     }) as any;
   }
   post.content = clean(input.content || '');
+  assertTextAllowed(post.content);
   // Group posts follow the group's privacy; their own audience never changes.
   if (input.visibility && !post.groupId) post.visibility = input.visibility;
   if (input.feeling !== undefined) post.feeling = input.feeling as any;
   if (input.place !== undefined) post.place = input.place as any;
   if (isEmptyPost(post)) throw new AppError(422, 'A post needs text, a photo or video, or a check-in.', 'EMPTY_POST');
+  // An edit can introduce anything, so it goes through the scan again.
+  post.moderationStatus = initialStatus(files.length > 0);
   post.editedAt = new Date(); await post.save();
+  await requestScan('Post', post.id);
   await enqueuePostVideos(post, files.map((file) => `/uploads/${file.filename}`));
   await invalidateSocialCaches([userId], { search: !post.groupId });
   return post;
@@ -96,7 +106,9 @@ export async function replacePostMedia(userId: string, postId: string, mediaId: 
   const media = post.media.id(mediaId);
   if (!media) throw new AppError(404, 'Media not found.', 'MEDIA_NOT_FOUND');
   Object.assign(media, uploadedMedia(file));
+  post.moderationStatus = initialStatus(true);
   post.editedAt = new Date(); await post.save();
+  await requestScan('Post', post.id);
   await enqueuePostVideos(post, [media.url]);
   await invalidateSocialCaches([userId]);
   return { media };
@@ -181,8 +193,11 @@ export async function addComment(userId: string, postId: string, input: any) {
   if (!post) throw new AppError(404, 'Post not found.', 'POST_NOT_FOUND');
   await assertCanAccessPost(post, userId);
   if (input.parentId && !(await Comment.exists({ _id: input.parentId, postId, deletedAt: null }))) throw new AppError(400, 'Parent comment is invalid.', 'INVALID_PARENT');
-  const comment = await Comment.create({ postId, authorId: userId, parentId: input.parentId || null, content: clean(input.content) });
-  post.commentCount = await Comment.countDocuments({ postId, deletedAt: null }); await post.save();
+  const content = clean(input.content);
+  assertTextAllowed(content);
+  const comment = await Comment.create({ postId, authorId: userId, parentId: input.parentId || null, content, moderationStatus: initialStatus(false) });
+  await requestScan('Comment', comment.id);
+  post.commentCount = await Comment.countDocuments({ postId, deletedAt: null, ...DISCOVERABLE }); await post.save();
   await notify({ recipientId: String(post.authorId), actorId: userId, type: 'comment', entityType: 'Post', entityId: postId, text: input.parentId ? 'replied on your post' : 'commented on your post' });
   await invalidateSocialCaches([userId, String(post.authorId)]);
   return comment;
@@ -210,9 +225,13 @@ export async function editComment(userId: string, commentId: string, content: st
   const { comment, post } = await loadComment(commentId);
   assertOwner(comment.authorId, userId, 'You can only edit your own comments.');
   await assertCanAccessPost(post, userId);
+  if (comment.moderationStatus === 'removed') throw new AppError(403, 'This comment was removed and cannot be changed.', 'CONTENT_REMOVED');
   comment.content = clean(content);
   if (!comment.content) throw new AppError(422, 'Write something before saving.', 'EMPTY_COMMENT');
+  assertTextAllowed(comment.content);
+  comment.moderationStatus = initialStatus(false);
   comment.editedAt = new Date(); await comment.save();
+  await requestScan('Comment', comment.id);
   await invalidateSocialCaches([userId, String(post.authorId)]);
   return comment;
 }
@@ -225,7 +244,7 @@ export async function deleteComment(userId: string, commentId: string) {
   const now = new Date();
   const ids = [comment._id, ...(comment.parentId ? [] : (await Comment.find({ parentId: comment._id, deletedAt: null }).select('_id').lean()).map((reply: any) => reply._id))];
   await Comment.updateMany({ _id: { $in: ids } }, { $set: { deletedAt: now } });
-  post.commentCount = await Comment.countDocuments({ postId: post._id, deletedAt: null }); await post.save();
+  post.commentCount = await Comment.countDocuments({ postId: post._id, deletedAt: null, ...DISCOVERABLE }); await post.save();
   await invalidateSocialCaches([userId, String(post.authorId)]);
   return { removed: ids.map(String), commentCount: post.commentCount, byModerator: !isAuthor, postId: String(post._id) };
 }
@@ -234,6 +253,7 @@ export async function getPostDetail(postId: string, viewerId?: string) {
   const post = await Post.findOne({ _id: postId, deletedAt: null }).populate('authorId', 'username displayName profile.avatarUrl').lean();
   if (!post) throw new AppError(404, 'Post not found.', 'POST_NOT_FOUND');
   if (!viewerId) {
+    if (isClosedToOthers((post as any).moderationStatus)) throw new AppError(404, 'Post not found.', 'POST_NOT_FOUND');
     const group = (post as any).groupId ? await Group.findById((post as any).groupId).select('privacy').lean() : null;
     if ((post as any).visibility !== 'public' || (group as any)?.privacy === 'private') throw new AppError(401, 'Please sign in to view this post.', 'AUTH_REQUIRED');
   } else await assertCanAccessPost(post, viewerId);
@@ -246,7 +266,7 @@ export const COMMENT_PAGE_SIZE = 10;
 
 async function commentChunk(postId: string, viewerId: string | undefined, cursor: unknown) {
   const blocked = viewerId ? await blockedUserIds(viewerId) : [];
-  const visible = { postId, deletedAt: null, authorId: { $nin: blocked } };
+  const visible = { postId, deletedAt: null, authorId: { $nin: blocked }, ...visibleToViewer(viewerId) };
   const rows = await Comment.find({ ...visible, parentId: null, ...afterCursor(cursor, 'createdAt', 1) })
     .sort(cursorSort('createdAt', 1)).limit(COMMENT_PAGE_SIZE + 1).populate('authorId', 'username displayName profile.avatarUrl').lean();
   const chunk = timeChunk(rows as any[], COMMENT_PAGE_SIZE);
@@ -261,6 +281,7 @@ export async function listComments(postId: string, viewerId: string | undefined,
   const post = await Post.findOne({ _id: postId, deletedAt: null }).lean();
   if (!post) throw new AppError(404, 'Post not found.', 'POST_NOT_FOUND');
   if (!viewerId) {
+    if (isClosedToOthers((post as any).moderationStatus)) throw new AppError(404, 'Post not found.', 'POST_NOT_FOUND');
     const group = (post as any).groupId ? await Group.findById((post as any).groupId).select('privacy').lean() : null;
     if ((post as any).visibility !== 'public' || (group as any)?.privacy === 'private') throw new AppError(401, 'Please sign in to view this post.', 'AUTH_REQUIRED');
   } else await assertCanAccessPost(post, viewerId);
@@ -320,7 +341,7 @@ async function withSharedPosts<T>(posts: T[], viewerId?: string): Promise<T[]> {
   await Promise.all(originals.filter((original) => original.authorId).map(async (original) => {
     try {
       if (viewerId) await assertCanAccessPost({ ...original, groupId: original.groupId?._id ?? null }, viewerId);
-      else if (!(await openToGuests(original))) return;
+      else if (isClosedToOthers(original.moderationStatus) || !(await openToGuests(original))) return;
       visible.set(String(original._id), original);
     } catch (error) { if (!(error instanceof AppError)) throw error; }
   }));

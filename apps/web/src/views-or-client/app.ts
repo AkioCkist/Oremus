@@ -3,6 +3,7 @@ import { STORY_VIDEO_MAX_SECONDS, storyTextAttrs, type StoryStyle } from '../sha
 import { EMOJI_CATEGORIES } from './emoji-data.js';
 import './search-box.js';
 import './carousel.js';
+import './report.js';
 import { initHoverCards } from './hover-card.js';
 import { optimizeFormUploads, optimizeUpload, runImageJob } from './workers.js';
 import { createInfiniteList, htmlNodes, initInfiniteLists, type InfiniteList } from './infinite.js';
@@ -20,6 +21,8 @@ const $ = <T extends Element = HTMLElement>(selector: string, root: ParentNode =
 const $$ = <T extends Element = HTMLElement>(selector: string, root: ParentNode = document) => [...root.querySelectorAll<T>(selector)];
 
 /* ---------- Shared helpers ---------- */
+
+document.addEventListener('oremus:toast', (event) => showToast((event as CustomEvent).detail.message));
 
 function showToast(message: string, tone: 'success' | 'error' = 'success') {
   const region = $('#toast-region');
@@ -1703,6 +1706,8 @@ if (photoViewer) {
     const captionName = $<HTMLAnchorElement>('[data-viewer-caption-name]', photoViewer)!; captionName.href = `/profile/${author.username}`; captionName.textContent = author.displayName;
     $('[data-viewer-content]', photoViewer)!.textContent = post.content || '';
     $('[data-viewer-copy]', photoViewer)!.dataset.copy = String(post._id);
+    const viewerReport = $('[data-viewer-report]', photoViewer);
+    if (viewerReport) { viewerReport.dataset.reportId = String(post._id); viewerReport.hidden = String(post.authorId?._id || post.authorId) === me.id; }
     const pageLink = $<HTMLAnchorElement>('[data-viewer-open-page]', photoViewer)!; pageLink.href = `/posts/${post._id}`; pageLink.dataset.noModal = '';
     paintReactions(); paintComments(); clearReply();
   };
@@ -3060,7 +3065,7 @@ if (typeof io === 'function' && me.id) {
     }
     if (isMessage) return; // message:new shows its own toast and plays its own sound
     const actor = notification.actorId && typeof notification.actorId === 'object' ? String(notification.actorId.displayName || '') : '';
-    showToast(actor ? `${actor} ${notification.text}` : 'You have a new notification.');
+    showToast(actor ? `${actor} ${notification.text}` : notification.system ? `Oremus ${notification.text}` : 'You have a new notification.');
     playSound('notification');
     flashTitle(actor ? `${firstNameOf(actor)} ${notification.text}` : 'New notification');
   });

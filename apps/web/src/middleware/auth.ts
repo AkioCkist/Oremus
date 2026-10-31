@@ -6,6 +6,7 @@ import { redis } from '../config/database.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import { AppError } from '../utils/errors.js';
 import { clearSessionCookies, restoreSession } from '../services/auth.service.js';
+import { accountRestriction } from '../services/permissions.js';
 
 type AccessClaims = { sub: string; jti: string; type: 'access' };
 
@@ -16,7 +17,7 @@ async function resolveUser(req: Parameters<RequestHandler>[0], res: Parameters<R
       const claims = jwt.verify(token, env.JWT_ACCESS_SECRET, { algorithms: ['HS256'] }) as AccessClaims;
       if (claims.type === 'access' && !(await redis.exists(`deny:${claims.jti}`))) {
         const user = await User.findOne({ _id: claims.sub, deletedAt: null });
-        if (user) { req.user = user; req.auth = { sub: claims.sub, jti: claims.jti }; return; }
+        if (user && !accountRestriction(user)) { req.user = user; req.auth = { sub: claims.sub, jti: claims.jti }; return; }
       }
     } catch { /* A valid refresh token may restore the session below. */ }
   }
@@ -51,3 +52,12 @@ export const requirePageAuth = asyncHandler(async (req, res, next) => {
   next();
 });
 
+/**
+ * Staff-only routes. Anyone else gets the same 404 as an unknown path, so the route's existence is not revealed.
+ * The role is read from the database on every request, so a demotion applies immediately.
+ */
+export const requireRole = (...roles: string[]) => asyncHandler(async (req, res, next) => {
+  if (!req.user) await resolveUser(req, res);
+  if (!req.user || !roles.includes(req.user.role)) throw new AppError(404, 'Page not found.', 'NOT_FOUND');
+  next();
+});

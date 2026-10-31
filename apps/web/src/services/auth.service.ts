@@ -7,6 +7,14 @@ import { redis } from '../config/database.js';
 import { RefreshToken, User } from '../models/index.js';
 import { AppError } from '../utils/errors.js';
 import { audit } from './audit.service.js';
+import { accountRestriction } from './permissions.js';
+
+function assertAccountUsable(user: any): void {
+  const restriction = accountRestriction(user);
+  if (!restriction) return;
+  const until = restriction === 'suspended' && user.suspendedUntil ? ` until ${new Date(user.suspendedUntil).toISOString().slice(0, 10)}` : '';
+  throw new AppError(403, restriction === 'banned' ? 'This account has been banned for violating the community rules.' : `This account is suspended${until}.`, 'ACCOUNT_RESTRICTED');
+}
 
 const digest = (value: string) => crypto.createHash('sha256').update(value).digest('hex');
 const cookieBase = { httpOnly: true, secure: env.COOKIE_SECURE, sameSite: 'lax' as const, path: '/' };
@@ -66,6 +74,8 @@ export async function login(input: { email: string; password: string; remember: 
   const user = await User.findOne({ email: input.email, deletedAt: null }).select('+passwordHash');
   const passwordMatches = await bcrypt.compare(input.password, user?.passwordHash || invalidPasswordHash);
   if (!user || !passwordMatches) throw new AppError(401, 'Email or password is incorrect.', 'INVALID_CREDENTIALS');
+  // Checked after the password so the restriction is only revealed to the account's owner.
+  assertAccountUsable(user);
   const family = crypto.randomUUID(), refresh = signRefresh(user.id, family, input.remember), access = signAccess(user.id);
   await persistRefresh(user.id, refresh, family, input.remember, context);
   setCookies(res, access.token, refresh, input.remember);
@@ -85,6 +95,7 @@ async function rotateSession(raw: string | undefined, res: Response, context: Se
   }
   const user = await User.findOne({ _id: claims.sub, deletedAt: null });
   if (!user) throw new AppError(401, 'Account is unavailable.', 'ACCOUNT_UNAVAILABLE');
+  assertAccountUsable(user);
   const remember = claims.remember !== false;
   const next = signRefresh(user.id, record.family, remember), nextHash = digest(next), access = signAccess(user.id);
   record.revokedAt = new Date(); record.replacedByHash = nextHash; await record.save();

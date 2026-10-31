@@ -67,6 +67,8 @@ services:
       APP_ORIGIN: ${APP_ORIGIN:-http://localhost:3000}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       TRUST_PROXY: ${TRUST_PROXY:-false}
+      # The container's filesystem is read-only; AdminJS bundles its client here at startup.
+      ADMIN_JS_TMP_DIR: /tmp/adminjs
     ports:
       - "127.0.0.1:${WEB_PORT:-3000}:3000"
     volumes:
@@ -121,6 +123,67 @@ services:
       redis:
         condition: service_healthy
 
+  # BullMQ worker for moderation scans, ad accounting and call timeouts. Uses the media image for ffmpeg.
+  jobs:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: media
+    command: ["node", "dist/jobs-worker.js"]
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: true
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      MONGODB_URI: mongodb://mongo:27017/${MONGO_DB_NAME:-oremus}
+      REDIS_URL: redis://redis:6379
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:3000}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      MODERATION_URL: http://moderation:8010
+    volumes:
+      - uploads:/app/apps/web/uploads
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # The AI models. Optional so a small machine can run the rest: `docker compose --profile moderation up -d`.
+  # The first start downloads about 2.5 GB into the volume; scans wait for it.
+  moderation:
+    build: ./apps/moderation
+    profiles: ["moderation"]
+    restart: unless-stopped
+    environment:
+      MODERATION_SECRET: ${MODERATION_SECRET:?Set MODERATION_SECRET to a long random value}
+      MODERATION_THREADS: ${MODERATION_THREADS:-2}
+    expose:
+      - "8010"
+    volumes:
+      - moderation-models:/models
+    mem_limit: ${MODERATION_MEMORY:-5g}
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/app/.cache
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+
   seed:
     build:
       context: .
@@ -152,4 +215,5 @@ volumes:
   mongo-data:
   redis-data:
   uploads:
+  moderation-models:
 

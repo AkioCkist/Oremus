@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { Group, GroupInvite, GroupMember, Notification, Post } from '../models/index.js';
 import { AppError } from '../utils/errors.js';
 import { afterCursor, cursorSort, offsetChunk, parseOffsetCursor, timeChunk, type Chunk } from '../utils/paginate.js';
+import { DISCOVERABLE, visibleToViewer } from '../moderation/visibility.js';
 import { getFriendshipStates } from './friendship.service.js';
 import { withReactionSummary } from './post.service.js';
 import { blockedUserIds, restrictedAuthorIds } from './social.service.js';
@@ -35,7 +36,7 @@ async function readableGroup(groupId: unknown, viewerId?: string) {
 
 export async function groupPosts(groupId: unknown, viewerId: string | undefined, cursor: unknown): Promise<Chunk<any>> {
   await readableGroup(groupId, viewerId);
-  const rows = await Post.find({ groupId, deletedAt: null, groupStatus: { $nin: ['pending', 'declined'] }, ...afterCursor(cursor) })
+  const rows = await Post.find({ groupId, deletedAt: null, groupStatus: { $nin: ['pending', 'declined'] }, ...visibleToViewer(viewerId), ...afterCursor(cursor) })
     .sort(cursorSort()).limit(POST_PAGE_SIZE + 1).populate('authorId', PERSON_FIELDS).lean();
   const chunk = timeChunk(rows as any[], POST_PAGE_SIZE);
   return { items: await withReactionSummary(chunk.items, viewerId), next: chunk.next };
@@ -57,7 +58,7 @@ async function profileAccess(username: string, viewerId?: string) {
   if (profile.blockedByMe) return { profile, filter: null };
   const restricted = viewerId ? (await restrictedAuthorIds(viewerId)).includes(String(profile._id)) : false;
   const visibility = profile.isSelf ? {} : profile.isFollowing && !restricted ? { visibility: { $in: ['public', 'followers'] } } : { visibility: 'public' };
-  return { profile, filter: { authorId: profile._id, groupId: null, deletedAt: null, ...visibility } };
+  return { profile, filter: { authorId: profile._id, groupId: null, deletedAt: null, ...visibility, ...(profile.isSelf ? { moderationStatus: { $ne: 'removed' } } : DISCOVERABLE) } };
 }
 
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -123,7 +124,7 @@ export async function notificationChunk(userId: string, unreadOnly: boolean, ope
   const rows = await Notification.find({ recipientId: userId, actorId: { $nin: blocked }, $and: [...unread, afterCursor(cursor)] })
     .sort(cursorSort()).limit(NOTIFICATION_PAGE_SIZE + 1).populate('actorId', PERSON_FIELDS).lean();
   const chunk = timeChunk(rows as any[], NOTIFICATION_PAGE_SIZE);
-  const valid = chunk.items.filter((item) => item.actorId);
-  const states = await getFriendshipStates(userId, valid.map((item) => String(item.actorId._id)));
-  return { items: valid.map((item) => ({ ...item, friendState: states.get(String(item.actorId._id)) || 'none' })), next: chunk.next };
+  const valid = chunk.items.filter((item) => item.actorId || item.system);
+  const states = await getFriendshipStates(userId, valid.filter((item) => item.actorId).map((item) => String(item.actorId._id)));
+  return { items: valid.map((item) => ({ ...item, friendState: item.actorId ? states.get(String(item.actorId._id)) || 'none' : 'none' })), next: chunk.next };
 }
