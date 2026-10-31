@@ -67,3 +67,10 @@ flowchart TB
 - When you change behaviour, update the matching page in the same change.
 - Add new pages to the table above and to the table of contents in the root [README](../README.md).
 - Write for a new teammate: short sentences, one idea per paragraph, a diagram when a flow has more than three steps.
+
+## Platform tools
+
+- [Admin panel](ADMIN.md): `/admin`, staff roles, what each can do
+- [Moderation](MODERATION.md): rule layer, AI models, measured accuracy, reviewing and appeals
+- [Ads](ADS.md): campaigns, serving, opting out, wallet and VNPay
+- [Calls](CALLS.md): voice and video with LiveKit

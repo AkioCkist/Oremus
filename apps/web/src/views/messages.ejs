@@ -43,6 +43,10 @@
           <%- include('partials/avatar', { person: partner, size: 'size-10 text-sm' }) %>
           <span class="min-w-0"><span class="block truncate text-subheadline font-semibold leading-tight"><%= partner.displayName %></span><span class="block truncate text-[0.8125rem] text-muted">@<%= partner.username %></span></span>
         </a>
+        <% if (callsEnabled) { %>
+        <button type="button" class="icon-btn-ghost text-brand-600" data-call-start="<%= activeConversation %>" data-call-type="audio" aria-label="Voice call <%= partner.displayName %>"><svg class="icon"><use href="#i-phone"/></svg></button>
+        <button type="button" class="icon-btn-ghost text-brand-600" data-call-start="<%= activeConversation %>" data-call-type="video" aria-label="Video call <%= partner.displayName %>"><svg class="icon"><use href="#i-video"/></svg></button>
+        <% } %>
         <a href="/profile/<%= partner.username %>" class="icon-btn-ghost text-brand-600" aria-label="View profile"><svg class="icon"><use href="#i-user"/></svg></a>
         <button type="button" class="icon-btn-ghost text-brand-600" data-toggle-details aria-controls="chat-details" aria-expanded="false" aria-label="Conversation information"><svg class="icon"><use href="#i-info"/></svg></button>
       </header>

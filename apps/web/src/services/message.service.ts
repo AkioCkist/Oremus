@@ -10,7 +10,7 @@ export function conversationMemberFilter(userId: string, friendIds: Iterable<str
   return { $and: [{ memberIds: userId }, { memberIds: { $in: [...friendIds] } }] };
 }
 
-async function conversationForFriend(userId: string, conversationId: string) {
+export async function conversationForFriend(userId: string, conversationId: string) {
   const conversation = await Conversation.findOne({ _id: conversationId, memberIds: userId });
   if (!conversation) throw new AppError(403, 'You do not have access to this conversation.', 'CONVERSATION_FORBIDDEN');
   const otherId = conversation.memberIds.map(String).find((memberId: string) => memberId !== String(userId));

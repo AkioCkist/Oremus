@@ -1,12 +1,14 @@
 import { RefreshToken, User, USER_ROLES } from '../models/index.js';
 import { AppError } from '../utils/errors.js';
 import { audit } from './audit.service.js';
+import { endCallsOf } from './call.service.js';
 import { notifySystem, terminateUserSessions } from './notification.service.js';
 
 /** Ends every session of a user right away: refresh tokens, then live sockets. Access tokens fail on their next request. */
 async function endSessions(userId: string): Promise<void> {
   await RefreshToken.updateMany({ userId, revokedAt: null }, { revokedAt: new Date() });
   terminateUserSessions(userId);
+  await endCallsOf(userId);
 }
 
 async function target(actorId: string, userId: string) {

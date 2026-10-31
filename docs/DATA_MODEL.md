@@ -216,3 +216,17 @@ Behaviour signals for [recommendations](RECOMMENDATIONS.md): `userId`, `type` (`
 - `npm run db:migrate` runs [`scripts/migrate.ts`](../apps/web/src/scripts/migrate.ts). It syncs the indexes of every model and runs pending data migrations from [`src/migrations/`](../apps/web/src/migrations/); the `migrations` collection records which ones already ran. See [Database setup and migrations](DATABASE.md).
 - `npm run seed` runs [`scripts/seed.ts`](../apps/web/src/scripts/seed.ts). It keeps the curated fixtures and adds a deterministic crowd for 2,000 people, 137 seed groups, about 8,000 posts, 690 stories, relationships, reactions, comments, notifications and recommendation signals. It is safe to run many times. The sample login is `maya@example.com` / `CircleSpace123`. See [Sample data](SCRIPTS.md#sample-data-seed).
 
+## Platform tools
+
+`User` also has `role`, `status`, `suspendedUntil`, `restrictionReason` and `strikes`. `Post`, `Comment` and `Story` have `moderationStatus`. `Notification.actorId` is null when `system` is true. `Message` has `kind` and `callId` for call summaries.
+
+| Model | Holds | Docs |
+|---|---|---|
+| `ModerationCase` | Everything a reviewer needs for one item; at most one open per target | [Moderation](MODERATION.md) |
+| `Report` | One per reporter and target | [Moderation](MODERATION.md) |
+| `ModerationPolicy` | Thresholds per category | [Moderation](MODERATION.md) |
+| `ModerationScan` | Raw scan results, kept 90 days | [Moderation](MODERATION.md) |
+| `AdCampaign`, `AdStatDaily` | Campaigns and per-day numbers | [Ads](ADS.md) |
+| `AdPreference` | What a person has opted out of | [Ads](ADS.md) |
+| `AdAccount`, `LedgerEntry`, `PaymentOrder` | Wallet, money movements, VNPay orders | [Ads](ADS.md) |
+| `Call` | Who called whom and how it ended | [Calls](CALLS.md) |

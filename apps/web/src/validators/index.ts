@@ -194,3 +194,5 @@ export const adCampaignSchema = z.object({
 export const adImpressionSchema = z.object({ token: z.string().min(1).max(1000) });
 export const adPreferenceSchema = z.object({ action: z.enum(['hide_campaign', 'block_advertiser', 'unblock_advertiser', 'block_topic', 'unblock_topic', 'set_personalized']), value: z.union([z.string().max(60), z.boolean()]) });
 export const topUpSchema = z.object({ amount: z.coerce.number().int().min(10_000, 'The minimum top-up is 10,000 VND.').max(50_000_000) });
+
+export const startCallSchema = z.object({ conversationId: z.string().regex(/^[a-f0-9]{24}$/i), kind: z.enum(['audio', 'video']) });

@@ -1,0 +1,29 @@
+<dialog id="call-dialog" class="dialog-dark m-0 h-dvh max-h-none w-screen max-w-none overflow-hidden bg-[#0b0b0d] p-0 text-white" aria-labelledby="call-name">
+  <div class="relative flex size-full flex-col items-center justify-between">
+    <video class="absolute inset-0 hidden size-full object-cover" autoplay playsinline data-call-remote></video>
+    <audio autoplay data-call-sound></audio>
+    <div class="relative z-10 flex flex-col items-center gap-1 pt-[12vh] text-center drop-shadow">
+      <div class="mb-4 grid size-28 place-items-center overflow-hidden rounded-full bg-white/15 text-title1 font-semibold" data-call-avatar>
+        <img class="hidden size-full object-cover" alt="" data-call-photo>
+        <span data-call-initials></span>
+      </div>
+      <h2 id="call-name" class="text-title2 font-semibold" data-call-name></h2>
+      <p class="text-subheadline text-white/80" role="status" data-call-status></p>
+      <p class="hidden text-footnote text-white/70" data-call-notice></p>
+    </div>
+    <video class="absolute right-4 top-4 z-10 hidden aspect-[3/4] w-28 rounded-2xl object-cover shadow-pop ring-1 ring-white/20 sm:w-40" autoplay muted playsinline data-call-local></video>
+    <button type="button" class="btn-secondary relative z-10 hidden" data-call-audio-unlock>Tap to hear the call</button>
+    <div class="relative z-10 pb-[max(2.5rem,env(safe-area-inset-bottom))]">
+      <div class="hidden items-center gap-8 [&:not(.hidden)]:flex" data-call-incoming-controls>
+        <button type="button" class="call-btn bg-ios-red" data-call-decline aria-label="Decline"><svg class="icon size-7"><use href="#i-x"/></svg></button>
+        <button type="button" class="call-btn bg-ios-green" data-call-accept aria-label="Answer" autofocus><svg class="icon size-7"><use href="#i-phone"/></svg></button>
+      </div>
+      <div class="items-center gap-4 [&:not(.hidden)]:flex" data-call-live-controls>
+        <button type="button" class="call-btn bg-white/20 aria-pressed:bg-white aria-pressed:text-black" data-call-mic aria-label="Mute" aria-pressed="false"><svg class="icon size-6"><use href="#i-mic"/></svg></button>
+        <button type="button" class="call-btn bg-white/20 aria-pressed:bg-white aria-pressed:text-black" data-call-camera aria-label="Turn camera off" aria-pressed="false"><svg class="icon size-6"><use href="#i-video"/></svg></button>
+        <button type="button" class="call-btn bg-white/20" data-call-flip aria-label="Switch camera"><svg class="icon size-6"><use href="#i-refresh"/></svg></button>
+        <button type="button" class="call-btn bg-ios-red" data-call-end aria-label="End call"><svg class="icon size-7"><use href="#i-phone-off"/></svg></button>
+      </div>
+    </div>
+  </div>
+</dialog>

@@ -122,6 +122,8 @@
   /* Surfaces — inset grouped cells: no drop shadow, large continuous corners. */
   .skip-link { @apply fixed left-3 top-3 z-50 -translate-y-20 rounded-full bg-surface px-4 py-2 font-semibold shadow-pop focus:translate-y-0; }
   .card { @apply rounded-2xl bg-surface shadow-card; }
+  .call-btn:not(.hidden) { @apply grid; }
+  .call-btn { @apply size-14 place-items-center rounded-full text-white transition-transform duration-150 hover:scale-105 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white; }
   /* Feed posts have no chrome: they sit on the page, one hairline between them. */
   .post { @apply border-b border-line pb-4; }
   .post-pad { @apply px-3 sm:px-0; }

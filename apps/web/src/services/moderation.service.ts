@@ -234,7 +234,8 @@ export function recordScan(input: { targetType: string; targetId: string; author
 
 /** Repeat offences step up from a warning to suspensions. A ban is never automatic: staff are told to consider one. */
 export async function applyStrike(actorId: string, authorId: string, reason: string): Promise<{ strikes: number; consequence: string }> {
-  const user: any = await User.findOneAndUpdate({ _id: authorId, role: 'user' }, { $inc: { strikes: 1 } }, { new: true }).select('strikes').lean();
+  // Accounts from before roles existed have no role stored, so staff are matched rather than members.
+  const user: any = await User.findOneAndUpdate({ _id: authorId, role: { $nin: ['moderator', 'admin'] } }, { $inc: { strikes: 1 } }, { new: true }).select('strikes').lean();
   if (!user) return { strikes: 0, consequence: 'none (staff account)' };
   const days = user.strikes === 2 ? 1 : user.strikes === 3 ? 7 : 0;
   if (days) await suspendUser(actorId, authorId, { until: new Date(Date.now() + days * 86_400_000), reason });

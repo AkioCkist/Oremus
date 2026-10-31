@@ -283,6 +283,9 @@ const messageSchema = new Schema({
   conversationId: { type: objectId, ref: 'Conversation', required: true, index: true },
   senderId: { type: objectId, ref: 'User', required: true },
   content: { type: String, required: true, maxlength: 3000 },
+  // Call summaries live in the thread as messages; ordinary messages leave these unset.
+  kind: { type: String, enum: ['text', 'call'], default: 'text' },
+  callId: { type: objectId, ref: 'Call' },
   readBy: [{ type: objectId, ref: 'User' }],
   deletedAt: { type: Date, default: null }
 }, options);
@@ -491,6 +494,25 @@ const moderationScanSchema = new Schema({
 }, { timestamps: { createdAt: true, updatedAt: false }, versionKey: false });
 moderationScanSchema.index({ createdAt: 1 }, { expireAfterSeconds: MODERATION_SCAN_RETENTION_DAYS * 86_400 });
 moderationScanSchema.index({ decision: 1, createdAt: -1 });
+
+/** One voice or video call. Media goes through LiveKit and is never recorded; this is only who called whom and how it went. */
+const callSchema = new Schema({
+  callerId: { type: objectId, ref: 'User', required: true },
+  calleeId: { type: objectId, ref: 'User', required: true },
+  conversationId: { type: objectId, ref: 'Conversation', required: true },
+  kind: { type: String, enum: ['audio', 'video'], required: true },
+  status: { type: String, enum: ['ringing', 'accepted', 'declined', 'missed', 'ended', 'failed'], default: 'ringing' },
+  roomName: { type: String, required: true, unique: true },
+  joinedIds: { type: [String], default: [] },
+  answeredAt: { type: Date, default: null },
+  endedAt: { type: Date, default: null },
+  endReason: { type: String, default: '' }
+}, options);
+callSchema.index({ callerId: 1, status: 1, createdAt: -1 });
+callSchema.index({ calleeId: 1, status: 1, createdAt: -1 });
+callSchema.index({ createdAt: -1 });
+
+export const Call: Model<any> = models.Call || model('Call', callSchema);
 
 /* ---------- Advertising (see services/ads.service.ts). All money is in whole VND. ---------- */
 

@@ -6,6 +6,7 @@ import { env } from './config/env.js';
 import { logger } from './config/logger.js';
 import { moderationProcessor, onScanFailed } from './jobs/moderation.job.js';
 import { adsProcessor } from './jobs/ads.job.js';
+import { callsProcessor } from './jobs/calls.job.js';
 import { JOB_PREFIX, jobConnection, jobQueue, QUEUES } from './jobs/queues.js';
 import { setNotifier, setSessionTerminator } from './services/notification.service.js';
 
@@ -25,7 +26,7 @@ async function start() {
   // One at a time: the moderation service runs inference serially, so more would only queue up there.
   const moderation = new Worker(QUEUES.moderation, moderationProcessor, { ...shared, concurrency: 1 });
   moderation.on('failed', (job, error) => { onScanFailed(job, error).catch((failure) => logger.error({ failure }, 'Could not settle a failed scan')); });
-  const workers = [moderation, new Worker(QUEUES.ads, adsProcessor, shared)];
+  const workers = [moderation, new Worker(QUEUES.ads, adsProcessor, shared), new Worker(QUEUES.calls, callsProcessor, { ...shared, concurrency: 10 })];
   workers.forEach((worker) => worker.on('error', (error) => logger.error({ error }, 'Job worker error')));
 
   await jobQueue(QUEUES.moderation).upsertJobScheduler('moderation-sweep', { every: 5 * 60_000 }, { name: 'sweep' });

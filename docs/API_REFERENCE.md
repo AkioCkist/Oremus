@@ -138,3 +138,26 @@ All endpoints of the web app and the search service.
 | 422 | `VALIDATION_ERROR`, `EMPTY_POST`, `INVALID_IMAGE` | Invalid input |
 | 429 | `RATE_LIMITED` | Too many requests |
 | 503 | `PLACES_UNAVAILABLE` | External service down |
+
+## Platform tools
+
+All under `/api` unless noted, signed in, with the CSRF header on writes.
+
+| Method and path | Purpose |
+|---|---|
+| `POST /reports` | Report content: `targetType`, `targetId`, `reason`, `note` |
+| `POST /moderation/cases/:caseId/appeal` | Appeal a decision on your own content |
+| `POST /ads/campaigns`, `PATCH /ads/campaigns/:id` | Create or change a campaign (multipart, optional `image`). Goes to review |
+| `POST /ads/campaigns/:id/pause`, `/resume`, `/end` | Control your campaign |
+| `GET /ads/campaigns/:id/stats` | Numbers per day |
+| `POST /ads/impression` | Count a view: `token` |
+| `POST /ads/preferences` | `action`: `hide_campaign`, `block_advertiser`, `unblock_advertiser`, `block_topic`, `unblock_topic`, `set_personalized`, with `value` |
+| `POST /ads/top-up` | Start a VNPay payment: `amount`. Returns the `url` to open |
+| `GET /calls/active` | A call in progress, if any |
+| `POST /calls` | Start a call: `conversationId`, `kind` |
+| `POST /calls/:id/accept`, `/join` | Get a room token |
+| `POST /calls/:id/decline`, `/end` | Decline or hang up |
+
+Outside `/api`, with no session and verified by signature: `GET /payments/vnpay/ipn`, `GET /payments/vnpay/return`, `POST /webhooks/livekit`. `GET /ads/click/:token` redirects to a campaign's reviewed link.
+
+New socket events: `call:incoming`, `call:accepted`, `call:answered-elsewhere`, `call:ended`. `/admin` is covered in [Admin](ADMIN.md).

@@ -20,6 +20,8 @@ import { asyncHandler } from './utils/async-handler.js';
 import { viewHelpers } from './utils/view-helpers.js';
 import { ADMIN_PATH, adminEntry, adminHelmet } from './admin/mount.js';
 import { vnpayIpn, vnpayReturn } from './controllers/ads.controller.js';
+import { livekitWebhook } from './controllers/call.controller.js';
+import { callsEnabled } from './services/call.service.js';
 
 // Built client bundles: served with ?v=<hash>, so they can be cached forever.
 const BUNDLES = ['styles.css', 'app.js', 'image-worker.js'];
@@ -50,8 +52,8 @@ export function createApp() {
   app.set('trust proxy', env.TRUST_PROXY);
   app.set('view engine', 'ejs');
   app.set('views', path.resolve(process.cwd(), 'src/views'));
-  Object.assign(app.locals, viewHelpers, { assetVersion: assetVersion() });
-  const siteHelmet = helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'"], imgSrc: ["'self'", 'data:', 'blob:', 'https:'], mediaSrc: ["'self'", 'blob:'], connectSrc: ["'self'", 'ws:', 'wss:'], styleSrc: ["'self'", 'https://fonts.googleapis.com'], fontSrc: ["'self'", 'https://fonts.gstatic.com'], upgradeInsecureRequests: env.COOKIE_SECURE ? [] : null } } });
+  Object.assign(app.locals, viewHelpers, { assetVersion: assetVersion(), callsEnabled: callsEnabled() });
+  const siteHelmet = helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'"], imgSrc: ["'self'", 'data:', 'blob:', 'https:'], mediaSrc: ["'self'", 'blob:'], connectSrc: ["'self'", 'ws:', 'wss:', ...(env.LIVEKIT_URL ? [env.LIVEKIT_URL.replace(/^ws/, 'http')] : [])], styleSrc: ["'self'", 'https://fonts.googleapis.com'], fontSrc: ["'self'", 'https://fonts.gstatic.com'], upgradeInsecureRequests: env.COOKIE_SECURE ? [] : null } } });
   app.use((req, res, next) => (req.path === ADMIN_PATH || req.path.startsWith(`${ADMIN_PATH}/`) ? adminHelmet : siteHelmet)(req, res, next));
   app.use(compression());
   app.use(pinoHttp({ logger }));
@@ -59,6 +61,8 @@ export function createApp() {
   app.use(cookieParser());
   // Display preference (light | dark | system) is a per-device cookie so pages render in the right theme without a flash.
   app.use((req, res, next) => { const theme = req.cookies?.theme; res.locals.theme = ['light', 'dark', 'system'].includes(theme) ? theme : 'system'; next(); });
+  // Before the body parsers too: its signature covers the exact bytes LiveKit sent.
+  app.post('/webhooks/livekit', express.raw({ type: 'application/webhook+json', limit: '1mb' }), asyncHandler(livekitWebhook));
   // Before the body parsers: AdminJS parses its own request bodies and refuses to run after them.
   app.use(ADMIN_PATH, ...adminEntry);
   app.use(express.json({ limit: '1mb' }));

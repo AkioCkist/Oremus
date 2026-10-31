@@ -5,6 +5,7 @@ import './search-box.js';
 import './carousel.js';
 import './report.js';
 import './ads.js';
+import './calls.js';
 import { initHoverCards } from './hover-card.js';
 import { optimizeFormUploads, optimizeUpload, runImageJob } from './workers.js';
 import { createInfiniteList, htmlNodes, initInfiniteLists, type InfiniteList } from './infinite.js';
@@ -2637,6 +2638,7 @@ function setMiniChatCollapsed(panel: HTMLElement, collapsed: boolean) {
 }
 
 function miniMessageRow(message: any) {
+  if (message.kind === 'call') { const note = document.createElement('p'); note.className = 'text-center text-footnote text-muted'; note.dataset.key = String(message._id); note.textContent = String(message.content || ''); return note; }
   const mine = senderIdOf(message) === me.id;
   const row = document.createElement('div'); row.className = `flex ${mine ? 'justify-end' : 'justify-start'}`;
   if (message._id) row.dataset.key = String(message._id);
@@ -2667,7 +2669,14 @@ function createMiniChatShell(conversationId: string, displayName: string, avatar
   const minimize = document.createElement('button'); minimize.type = 'button'; minimize.className = 'icon-btn-ghost size-8 text-brand-600'; minimize.dataset.miniToggle = ''; minimize.setAttribute('aria-label', `Minimize chat with ${displayName}`); minimize.setAttribute('aria-expanded', 'true'); minimize.appendChild(svgUse('i-minus', 'icon size-4'));
   const close = document.createElement('button'); close.type = 'button'; close.className = 'icon-btn-ghost size-8 text-brand-600'; close.setAttribute('aria-label', `Close chat with ${displayName}`); close.appendChild(svgUse('i-x', 'icon size-4'));
   minimize.addEventListener('click', () => setMiniChatCollapsed(panel, minimize.getAttribute('aria-expanded') === 'true'));
-  close.addEventListener('click', () => panel.remove()); header.append(person, full, minimize, close);
+  close.addEventListener('click', () => panel.remove()); header.append(person);
+  if (document.body.dataset.calls) {
+    for (const [type, icon, label] of [['audio', '#i-phone', 'Voice call'], ['video', '#i-video', 'Video call']] as const) {
+      const call = document.createElement('button'); call.type = 'button'; call.className = 'icon-btn-ghost size-8 text-brand-600'; call.dataset.callStart = conversationId; call.dataset.callType = type; call.setAttribute('aria-label', `${label} ${displayName}`); call.appendChild(svgUse(icon.slice(1), 'icon size-4'));
+      header.append(call);
+    }
+  }
+  header.append(full, minimize, close);
 
   const list = document.createElement('div'); list.className = 'flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto bg-canvas px-3 py-3'; list.dataset.miniMessageList = ''; list.setAttribute('aria-live', 'polite');
   const skeleton = document.createElement('div'); skeleton.className = 'space-y-2'; skeleton.dataset.miniLoading = '';
@@ -2748,7 +2757,7 @@ function appendMessage(message: any) {
     const sender = senderOf(message); if (sender) slot.appendChild(avatarEl({ displayName: sender.displayName, avatarUrl: sender.profile?.avatarUrl }, 'size-7 text-2xs'));
     row.appendChild(slot);
   }
-  const bubble = document.createElement('p'); bubble.className = `bubble ${mine ? 'bubble-me' : 'bubble-them'}`; setLinkedText(bubble, String(message.content || ''));
+  const bubble = document.createElement('p'); bubble.className = message.kind === 'call' ? 'mx-auto text-footnote text-muted' : `bubble ${mine ? 'bubble-me' : 'bubble-them'}`; setLinkedText(bubble, String(message.content || ''));
   bubble.title = new Date(message.createdAt || Date.now()).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   if (message._id) row.dataset.key = String(message._id);
   row.dataset.at = String(new Date(message.createdAt || Date.now()).getTime());
@@ -3024,6 +3033,7 @@ declare const io: undefined | ((options?: Record<string, unknown>) => LiveSocket
 
 if (typeof io === 'function' && me.id) {
   const socket = io({ withCredentials: true });
+  document.dispatchEvent(new CustomEvent('oremus:socket', { detail: socket }));
   let authRetry = 0, authTimer = 0;
   socket.on('connect', () => {
     authRetry = 0;

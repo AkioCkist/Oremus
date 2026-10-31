@@ -8,6 +8,9 @@ How Oremus is packaged, which settings it needs, how to check that it is healthy
 flowchart TB
   subgraph Compose["docker-compose.yml"]
     web["web<br/>Dockerfile target: runtime<br/>node dist/server.js"]
+    jobs["jobs<br/>Dockerfile target: media<br/>node dist/jobs-worker.js"]
+    moderation["moderation (profile)<br/>apps/moderation<br/>AI models"]
+    livekit["livekit (profile)<br/>media server for calls"]
     media["media<br/>Dockerfile target: media<br/>node dist/media-worker.js + ffmpeg"]
     api["api<br/>apps/api/Dockerfile<br/>uvicorn app.main:app"]
     mongo[("mongo:8.0")]
@@ -23,6 +26,10 @@ flowchart TB
   web -- "waits for healthy" --> mongo
   web -- "waits for healthy" --> redis
   web --> api
+  web --> livekit
+  jobs --> moderation
+  jobs --> mongo
+  jobs --> redis
   media -- "waits for healthy" --> mongo
   media -- "waits for healthy" --> redis
   api --> mongo
@@ -64,6 +71,16 @@ Set in `.env` (see `.env.example`). Docker Compose overrides the database hosts 
 | `PLACES_URL` | `https://photon.komoot.io` | web | Place search provider |
 | `FFMPEG_PATH` | `ffmpeg` | media | Path to the ffmpeg binary |
 | `LOG_LEVEL` | `info` | web, media | pino log level |
+| `COMPOSE_PROFILES` | none | compose | Optional services to run: `moderation`, `calls` |
+| `MODERATION_MODE` | `off` | web, jobs | `off`, `shadow` or `enforce`. See [Moderation](MODERATION.md) |
+| `MODERATION_SECRET` | none | web, jobs, moderation | Shared secret for the AI service. Without it the service refuses everything |
+| `MODERATION_THREADS` / `MODERATION_MEMORY` | `2` / `3g` | moderation | CPU threads and memory limit |
+| `AD_TOKEN_SECRET` | derived | web | Signs ad view and click tokens |
+| `VNPAY_TMN_CODE` / `VNPAY_HASH_SECRET` | none | web | VNPay credentials. See [Ads](ADS.md) |
+| `VNPAY_HOST` / `VNPAY_RETURN_URL` | sandbox / derived | web | VNPay address and return page |
+| `LIVEKIT_URL` / `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` | none | web, jobs | Calling is off while unset. See [Calls](CALLS.md) |
+| `LIVEKIT_NODE_IP` | `127.0.0.1` | livekit | The server's public address |
+| `ADMIN_JS_TMP_DIR` | `.adminjs` | web | Where the admin panel's client is bundled. Compose sets it |
 
 ## Health checks
 
@@ -133,6 +150,8 @@ through the host or cloud firewall.
 | Back up the `mongo-data` and `uploads` volumes | User data and files |
 | Connect an email provider for password reset | Reset tokens are only shown in development |
 | Move uploads to S3-compatible storage before scaling out | The local volume cannot be shared by many servers |
+| Make the first admin with `grant-role` | See [Admin](ADMIN.md). Add two-factor sign-in for staff before launch |
+| Try `MODERATION_MODE=shadow` before `enforce` | See [Moderation](MODERATION.md), including what the models cannot detect |
 | Run exactly one `media` worker | The worker's crash recovery assumes it is alone |
 | Allow enough upload size in the proxy | Videos can be up to 200 MB per file |
 | Run `dist/scripts/migrate.js` after schema changes | Production has `autoIndex` off; the migration synchronizes indexes for all exported models |

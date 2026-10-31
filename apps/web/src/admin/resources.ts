@@ -1,5 +1,5 @@
 import type { ActionContext, ActionRequest, ActionResponse, ResourceWithOptions } from 'adminjs';
-import { AdAccount, AdCampaign, AuditLog, Comment, Group, LedgerEntry, ModerationCase, PaymentOrder, ModerationPolicy, ModerationScan, Post, Report, Story, User } from '../models/index.js';
+import { AdAccount, AdCampaign, AuditLog, Call, Comment, Conversation, Group, LedgerEntry, ModerationCase, PaymentOrder, ModerationPolicy, ModerationScan, Post, Report, Story, User } from '../models/index.js';
 import { adjustBalance, reviewCampaign } from '../services/ads.service.js';
 import { decideAppeal, decideCase } from '../services/moderation.service.js';
 import { banUser, reinstateUser, setUserRole, suspendUser, warnUser } from '../services/account.service.js';
@@ -204,5 +204,8 @@ export const adminResources: ResourceWithOptions[] = [
   contentResource(Comment, 'Comment', ['content', 'authorId', 'postId', 'createdAt', 'deletedAt']),
   contentResource(Story, 'Story', ['text', 'authorId', 'audience', 'expiresAt', 'deletedAt']),
   { resource: Group, options: { navigation: CONTENT, sort: { sortBy: 'createdAt', direction: 'desc' }, listProperties: ['name', 'privacy', 'memberCount', 'ownerId', 'createdAt'], actions: { ...readOnly() } } },
+  // Only so references to it resolve (AdminJS throws otherwise). No staff role can open it: conversations stay private.
+  { resource: Conversation, options: { navigation: false, actions: { ...readOnly(nobody) } } },
+  { resource: Call, options: { navigation: SAFETY, sort: { sortBy: 'createdAt', direction: 'desc' }, listProperties: ['kind', 'status', 'callerId', 'calleeId', 'endReason', 'createdAt'], actions: { ...readOnly(adminOnly) } } },
   { resource: AuditLog, options: { navigation: SAFETY, sort: { sortBy: 'createdAt', direction: 'desc' }, listProperties: ['action', 'actorId', 'targetType', 'targetId', 'createdAt'], actions: { ...readOnly() } } }
 ];
