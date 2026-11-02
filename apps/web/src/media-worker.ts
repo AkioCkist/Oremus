@@ -6,6 +6,7 @@ import { Post } from './models/index.js';
 import { compressVideo } from './media/video.js';
 import { enqueueVideoJobs, MEDIA_TRASH, VIDEO_ACTIVE, VIDEO_JOBS, type VideoJob } from './media/queue.js';
 import { invalidateSocialCaches } from './services/cache.service.js';
+import { recordException, recordJob, startProcessMonitoring, stopMonitoring } from './monitoring/index.js';
 
 /**
  * Media worker: transcodes uploaded post videos off the request path.
@@ -18,6 +19,7 @@ const STUCK_AFTER_MS = 2 * 60 * 1000;
 const REQUEUE_EVERY_MS = 5 * 60 * 1000;
 const TRASH_SWEEP_BATCH = 32;
 let stopping = false;
+let queueDepth = 0;
 
 const uploadPath = (url: string) => path.join(UPLOADS, path.basename(url));
 
@@ -79,6 +81,7 @@ async function start() {
   await blocking.connect();
   // Jobs left "active" by a crash or restart go back to the queue.
   while (await redis.lMove(VIDEO_ACTIVE, VIDEO_JOBS, 'RIGHT', 'RIGHT')) { /* drain */ }
+  startProcessMonitoring('media', () => ({ videoQueue: queueDepth }));
   logger.info('Media worker is ready');
 
   const shutdown = () => { stopping = true; };
@@ -87,16 +90,20 @@ async function start() {
   let nextRequeue = 0;
   while (!stopping) {
     await sweepTrash().catch((error) => logger.error({ error }, 'Trash sweep failed'));
+    queueDepth = await redis.lLen(VIDEO_JOBS).catch(() => queueDepth);
     if (Date.now() >= nextRequeue) {
       nextRequeue = Date.now() + REQUEUE_EVERY_MS;
       await requeueStuckVideos().catch((error) => logger.error({ error }, 'Stuck video sweep failed'));
     }
     const raw = await blocking.blMove(VIDEO_JOBS, VIDEO_ACTIVE, 'RIGHT', 'LEFT', 5);
     if (!raw) continue;
+    const started = Date.now();
+    let failed = false;
     try { await processJob(JSON.parse(raw) as VideoJob); }
-    catch (error) { logger.error({ error, raw }, 'Video job crashed'); }
-    finally { await redis.lRem(VIDEO_ACTIVE, 1, raw); }
+    catch (error) { failed = true; recordException(error, { source: 'job media:transcode' }); logger.error({ error, raw }, 'Video job crashed'); }
+    finally { recordJob('media', 'transcode', Date.now() - started, failed); await redis.lRem(VIDEO_ACTIVE, 1, raw); }
   }
+  await stopMonitoring();
   await blocking.quit();
   await disconnectInfrastructure();
   process.exit(0);

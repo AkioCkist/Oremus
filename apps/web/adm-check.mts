@@ -1,0 +1,13 @@
+import AdminJS from 'adminjs';
+import { Database, Resource } from '@adminjs/mongoose';
+const base = 'file:///C:/Users/doubl/Documents/Oremus/node_modules/adminjs/lib';
+const componentsBundler = (await import(base + '/backend/bundler/components.bundler.js')).default;
+const generateEntry = (await import(base + '/backend/bundler/generate-user-component-entry.js')).default;
+const { ADMIN_JS_TMP_DIR } = await import(base + '/backend/bundler/utils/constants.js');
+AdminJS.registerAdapter({ Database, Resource });
+const { adminOptions } = await import('./src/admin/index.ts');
+const a = new AdminJS(adminOptions);
+await componentsBundler.createEntry({ content: generateEntry(a, ADMIN_JS_TMP_DIR) });
+await componentsBundler.build();
+console.log('bundled OK');
+process.exit(0);

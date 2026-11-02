@@ -20,6 +20,7 @@ import { getRecommendations } from '../services/recommendation.service.js';
 import { safeNext, saveInterests, skipOnboarding } from '../services/interest.service.js';
 import { profileMedia } from '../services/lists.service.js';
 import { env } from '../config/env.js';
+import { endCallsBetween } from '../services/call.service.js';
 
 const id = (req: Request) => req.user!.id;
 const param = (req: Request, name: string) => String(req.params[name]);
@@ -40,7 +41,12 @@ export async function changeFriendship(req: Request, res: Response) {
 }
 export async function breakState(req: Request, res: Response) { res.json({ ok: true, data: await getSocialState(id(req), param(req, 'userId')) }); }
 export async function takeBreak(req: Request, res: Response) { res.json({ ok: true, data: await setBreak(id(req), param(req, 'userId'), breakSchema.parse(req.body)) }); }
-export async function blockUser(req: Request, res: Response) { const { blocked } = blockActionSchema.parse(req.body); res.json({ ok: true, data: await setBlock(id(req), param(req, 'userId'), blocked) }); }
+export async function blockUser(req: Request, res: Response) {
+  const { blocked } = blockActionSchema.parse(req.body);
+  const data = await setBlock(id(req), param(req, 'userId'), blocked);
+  if (blocked) await endCallsBetween(id(req), param(req, 'userId'));
+  res.json({ ok: true, data });
+}
 export async function createPost(req: Request, res: Response) { const post = await posts.createPost(id(req), postSchema.parse(req.body), req.files as Express.Multer.File[]); res.status(201).json({ ok: true, data: { post } }); }
 export async function userCard(req: Request, res: Response) {
   const username = param(req, 'username');

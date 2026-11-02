@@ -4,6 +4,7 @@ import multer from 'multer';
 import { ZodError } from 'zod';
 import { AppError } from '../utils/errors.js';
 import { logger } from '../config/logger.js';
+import { recordException } from '../monitoring/instrument.js';
 
 export const notFound: RequestHandler = (req, _res, next) => next(new AppError(404, `Route ${req.path} was not found`, 'NOT_FOUND'));
 
@@ -21,7 +22,10 @@ export const errorHandler: ErrorRequestHandler = async (error, req, res, _next) 
     const files = [...(Array.isArray(req.files) ? req.files : Object.values(req.files || {}).flat()), ...(req.file ? [req.file] : [])];
     await Promise.allSettled(files.map((file) => fs.rm(file.path, { force: true })));
   }
-  if (status >= 500) logger.error({ error, requestId: req.requestId }, 'Unhandled request error');
+  if (status >= 500) {
+    logger.error({ error, requestId: req.requestId }, 'Unhandled request error');
+    recordException(error, { source: 'request', route: `${req.method} ${req.baseUrl || ''}${req.route?.path ?? req.path}` });
+  }
   if (req.path.startsWith('/api/') || req.path.startsWith('/auth/')) {
     res.status(status).json({ ok: false, error: { code: isValidation ? 'VALIDATION_ERROR' : error.code ?? 'INTERNAL_ERROR', message, details: isValidation ? error.flatten() : error.details }, requestId: req.requestId });
     return;

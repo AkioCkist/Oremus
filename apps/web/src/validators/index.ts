@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AUDIENCE_FIELDS, AUDIENCES, GENDERS, GROUP_TYPES, INTRO_ITEMS, PRONOUNS, REACTION_TYPES, RELATIONSHIPS, SOCIAL_PLATFORMS, STORY_BACKGROUNDS, STORY_REACTIONS } from '../models/index.js';
+import { AD_CTA_LABELS, REPORT_REASONS, REPORT_TARGETS, AUDIENCE_FIELDS, AUDIENCES, GENDERS, GROUP_TYPES, INTRO_ITEMS, PRONOUNS, REACTION_TYPES, RELATIONSHIPS, SOCIAL_PLATFORMS, STORY_BACKGROUNDS, STORY_REACTIONS } from '../models/index.js';
 import { ACTIVITIES, FEELINGS } from '../shared/feelings.js';
 import { INTEREST_KEYS, KEYWORD_MAX_LENGTH, MAX_KEYWORDS, MIN_INTERESTS } from '../shared/interests.js';
 import { STORY_ALIGNS, STORY_ANIMATIONS, STORY_EFFECTS, STORY_FONTS, STORY_SIZE_RANGE } from '../shared/story-style.js';
@@ -167,3 +167,32 @@ export type StoryInput = z.infer<typeof storySchema>;
 export const storyReactionSchema = z.object({ type: z.enum(STORY_REACTIONS) });
 export const storyReplySchema = z.object({ content: z.string().trim().min(1).max(1000) });
 export const storySettingsSchema = z.object({ audience: z.enum(['public', 'followers']) });
+
+export const reportSchema = z.object({
+  targetType: z.enum(REPORT_TARGETS),
+  targetId: z.string().regex(/^[a-f0-9]{24}$/i),
+  reason: z.enum(REPORT_REASONS),
+  note: z.string().trim().max(500).default('')
+});
+export const appealSchema = z.object({ message: z.string().trim().min(10, 'Tell us a little more about why this was a mistake.').max(1000) });
+
+const money = (min: number, max: number) => z.coerce.number().int('Use a whole amount in VND.').min(min).max(max);
+export const adCampaignSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  headline: z.string().trim().min(1).max(80),
+  body: z.string().trim().max(500).default(''),
+  ctaLabel: z.enum(AD_CTA_LABELS).default('Learn more'),
+  // Only https: this ends up as a redirect target and a link other people click.
+  ctaUrl: z.string().trim().url().max(500).refine((value) => new URL(value).protocol === 'https:', 'The link must start with https://.'),
+  topics: z.preprocess((value) => (value === undefined ? [] : Array.isArray(value) ? value : [value]), z.array(z.enum(INTEREST_KEYS)).min(1, 'Choose at least one topic.').max(5, 'Choose at most five topics.')),
+  cpm: money(10_000, 1_000_000),
+  dailyBudget: money(20_000, 100_000_000),
+  totalBudget: money(20_000, 1_000_000_000),
+  startAt: z.coerce.date().nullable().optional(),
+  endAt: z.coerce.date().nullable().optional()
+}).refine((value) => value.totalBudget >= value.dailyBudget, { path: ['totalBudget'], message: 'The total budget cannot be less than the daily budget.' });
+export const adImpressionSchema = z.object({ token: z.string().min(1).max(1000) });
+export const adPreferenceSchema = z.object({ action: z.enum(['hide_campaign', 'block_advertiser', 'unblock_advertiser', 'block_topic', 'unblock_topic', 'set_personalized']), value: z.union([z.string().max(60), z.boolean()]) });
+export const topUpSchema = z.object({ amount: z.coerce.number().int().min(10_000, 'The minimum top-up is 10,000 VND.').max(50_000_000) });
+
+export const startCallSchema = z.object({ conversationId: z.string().regex(/^[a-f0-9]{24}$/i), kind: z.enum(['audio', 'video']) });

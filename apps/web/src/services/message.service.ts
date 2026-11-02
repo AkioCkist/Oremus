@@ -4,12 +4,13 @@ import { AppError } from '../utils/errors.js';
 import { notify } from './notification.service.js';
 import { areFriends, listFriendIds } from './friendship.service.js';
 import { blockedUserIds } from './social.service.js';
+import { assertTextAllowed } from './moderation.service.js';
 
 export function conversationMemberFilter(userId: string, friendIds: Iterable<string>) {
   return { $and: [{ memberIds: userId }, { memberIds: { $in: [...friendIds] } }] };
 }
 
-async function conversationForFriend(userId: string, conversationId: string) {
+export async function conversationForFriend(userId: string, conversationId: string) {
   const conversation = await Conversation.findOne({ _id: conversationId, memberIds: userId });
   if (!conversation) throw new AppError(403, 'You do not have access to this conversation.', 'CONVERSATION_FORBIDDEN');
   const otherId = conversation.memberIds.map(String).find((memberId: string) => memberId !== String(userId));
@@ -126,6 +127,8 @@ export async function getConversationPreview(userId: string, conversationId: str
 
 export async function sendMessage(userId: string, conversationId: string, content: string) {
   const conversation = await conversationForFriend(userId, conversationId);
+  // Private messages get the rule check only. They are not sent to the AI models, and staff see one only if it is reported.
+  assertTextAllowed(content);
   const message = await Message.create({ conversationId, senderId: userId, content, readBy: [userId] });
   await message.populate('senderId', 'username displayName profile.avatarUrl');
   conversation.lastMessageAt = new Date(); await conversation.save();

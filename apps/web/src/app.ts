@@ -18,6 +18,11 @@ import { listChunk } from './controllers/list.controller.js';
 import { optionalAuth } from './middleware/auth.js';
 import { asyncHandler } from './utils/async-handler.js';
 import { viewHelpers } from './utils/view-helpers.js';
+import { ADMIN_PATH, adminEntry, adminHelmet } from './admin/mount.js';
+import { vnpayIpn, vnpayReturn } from './controllers/ads.controller.js';
+import { livekitWebhook } from './controllers/call.controller.js';
+import { callsEnabled } from './services/call.service.js';
+import { requestMonitor } from './monitoring/instrument.js';
 
 // Built client bundles: served with ?v=<hash>, so they can be cached forever.
 const BUNDLES = ['styles.css', 'app.js', 'image-worker.js'];
@@ -48,14 +53,20 @@ export function createApp() {
   app.set('trust proxy', env.TRUST_PROXY);
   app.set('view engine', 'ejs');
   app.set('views', path.resolve(process.cwd(), 'src/views'));
-  Object.assign(app.locals, viewHelpers, { assetVersion: assetVersion() });
-  app.use(helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'"], imgSrc: ["'self'", 'data:', 'blob:', 'https:'], mediaSrc: ["'self'", 'blob:'], connectSrc: ["'self'", 'ws:', 'wss:'], styleSrc: ["'self'", 'https://fonts.googleapis.com'], fontSrc: ["'self'", 'https://fonts.gstatic.com'], upgradeInsecureRequests: env.COOKIE_SECURE ? [] : null } } }));
+  Object.assign(app.locals, viewHelpers, { assetVersion: assetVersion(), callsEnabled: callsEnabled() });
+  const siteHelmet = helmet({ contentSecurityPolicy: { directives: { defaultSrc: ["'self'"], scriptSrc: ["'self'"], imgSrc: ["'self'", 'data:', 'blob:', 'https:'], mediaSrc: ["'self'", 'blob:'], connectSrc: ["'self'", 'ws:', 'wss:', ...(env.LIVEKIT_URL ? [env.LIVEKIT_URL.replace(/^ws/, 'http')] : [])], styleSrc: ["'self'", 'https://fonts.googleapis.com'], fontSrc: ["'self'", 'https://fonts.gstatic.com'], upgradeInsecureRequests: env.COOKIE_SECURE ? [] : null } } });
+  app.use((req, res, next) => (req.path === ADMIN_PATH || req.path.startsWith(`${ADMIN_PATH}/`) ? adminHelmet : siteHelmet)(req, res, next));
   app.use(compression());
   app.use(pinoHttp({ logger }));
   app.use(requestContext);
+  app.use(requestMonitor);
   app.use(cookieParser());
   // Display preference (light | dark | system) is a per-device cookie so pages render in the right theme without a flash.
   app.use((req, res, next) => { const theme = req.cookies?.theme; res.locals.theme = ['light', 'dark', 'system'].includes(theme) ? theme : 'system'; next(); });
+  // Before the body parsers too: its signature covers the exact bytes LiveKit sent.
+  app.post('/webhooks/livekit', express.raw({ type: 'application/webhook+json', limit: '1mb' }), asyncHandler(livekitWebhook));
+  // Before the body parsers: AdminJS parses its own request bodies and refuses to run after them.
+  app.use(ADMIN_PATH, ...adminEntry);
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: false, limit: '1mb' }));
   app.use('/assets', express.static(path.resolve(process.cwd(), 'public/assets'), { setHeaders: setAssetCacheHeaders }));
@@ -76,6 +87,9 @@ export function createApp() {
   }));
   // Precached by the service worker, so it is rendered without any session data.
   app.get('/offline', (_req, res) => res.render('offline', { title: 'Offline', csrfToken: '', currentUser: null }));
+  // Called by VNPay's servers and the buyer's browser, so they carry no session; every parameter is verified by signature.
+  app.get('/payments/vnpay/ipn', asyncHandler(vnpayIpn));
+  app.get('/payments/vnpay/return', vnpayReturn);
   app.use(requireCsrf);
   app.use('/auth', authRoutes);
   // Endless-list chunks; some lists (public profiles and groups) are readable while signed out.

@@ -1,4 +1,5 @@
 import { redis } from '../config/database.js';
+import { recordCache } from '../monitoring/instrument.js';
 
 const FEED_VERSION_KEY = 'cache:version:feed';
 
@@ -6,6 +7,7 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
   const value = await redis.get(key);
   // Diagnostics must not add another Redis round trip to every cached request.
   void redis.hIncrBy('cache:stats', value ? 'hits' : 'misses', 1).catch(() => undefined);
+  recordCache(key, Boolean(value));
   return value ? JSON.parse(value) as T : null;
 }
 

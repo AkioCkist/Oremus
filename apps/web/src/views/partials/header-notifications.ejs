@@ -6,7 +6,9 @@
     if (notification.entityType === 'Conversation') return `/messages/${notification.entityId}`;
     if (notification.entityType === 'Group') return `/g/${notification.entityId}`;
     if (notification.entityType === 'Story') return '/stories/archive';
-    return `/profile/${notification.actorId.username}`;
+    if (notification.entityType === 'AdCampaign') return '/ads/manage';
+    if (notification.entityType === 'User') return '/settings';
+    return notification.actorId ? `/profile/${notification.actorId.username}` : '/notifications';
   };
 -%>
 <div class="flex items-center justify-between px-4 pb-2 pt-4">
@@ -19,11 +21,11 @@
   <li>
     <a href="<%= notificationHref(notification) %>" class="flex items-center gap-3 rounded-lg p-2 hover:bg-hover">
       <span class="relative shrink-0">
-        <%- include('avatar', { person: notification.actorId, size: 'size-12 text-sm' }) %>
+        <%- include('avatar', { person: notification.actorId || { displayName: 'Oremus' }, size: 'size-12 text-sm' }) %>
         <span class="absolute -bottom-0.5 -right-0.5 grid size-6 place-items-center rounded-full bg-brand-600 text-white ring-2 ring-surface"><svg class="icon size-3.5"><use href="#i-bell"/></svg></span>
       </span>
       <span class="min-w-0 flex-1">
-        <span class="line-clamp-2 text-15 <%= notification.readAt ? 'text-muted' : '' %>"><strong class="font-semibold text-ink"><%= notification.actorId.displayName %></strong> <%= notification.text %></span>
+        <span class="line-clamp-2 text-15 <%= notification.readAt ? 'text-muted' : '' %>"><strong class="font-semibold text-ink"><%= notification.actorId ? notification.actorId.displayName : 'Oremus' %></strong> <%= notification.text %></span>
         <span class="mt-0.5 block text-[0.8125rem] <%= notification.readAt ? 'text-muted' : 'font-semibold text-brand-600' %>" data-unread-time><%= timeAgo(notification.createdAt) %></span>
       </span>
       <% if (!notification.readAt) { %><span class="size-3 shrink-0 rounded-full bg-brand-600" data-unread-dot aria-label="Unread"></span><% } %>

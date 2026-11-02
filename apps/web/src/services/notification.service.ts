@@ -1,10 +1,14 @@
 import { Block, Notification } from '../models/index.js';
 
 export type Notifier = (userId: string, event: string, payload: unknown) => void;
-export type NotificationInput = { recipientId: string; actorId: string; type: string; entityType: string; entityId: string; text: string };
+export type NotificationInput = { recipientId: string; actorId?: string; type: string; entityType: string; entityId: string; text: string };
 let notifier: Notifier = () => undefined;
 export const setNotifier = (value: Notifier) => { notifier = value; };
 export const emitUserEvent = (userId: string, event: string, payload: unknown) => notifier(userId, event, payload);
+let sessionTerminator: (userId: string) => void = () => undefined;
+export const setSessionTerminator = (value: (userId: string) => void) => { sessionTerminator = value; };
+/** Drops the user's live sockets, wherever they are connected. */
+export const terminateUserSessions = (userId: string) => sessionTerminator(userId);
 
 const pairKey = (left: unknown, right: unknown) => [String(left), String(right)].sort().join(':');
 
@@ -25,6 +29,12 @@ export async function notifyMany(inputs: NotificationInput[]): Promise<void> {
   // The actor is included so the client can say who did what without another request.
   await Notification.populate(notifications, { path: 'actorId', select: 'username displayName profile.avatarUrl' });
   notifications.forEach((notification: any) => notifier(String(notification.recipientId), 'notification:new', notification.toObject()));
+}
+
+/** A notice from Oremus itself: no actor, and never filtered by blocks. */
+export async function notifySystem(input: Omit<NotificationInput, 'actorId'>): Promise<void> {
+  const notification = await Notification.create({ ...input, system: true, actorId: null });
+  notifier(input.recipientId, 'notification:new', notification.toObject());
 }
 
 export async function notify(input: NotificationInput): Promise<void> {

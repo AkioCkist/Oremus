@@ -41,9 +41,11 @@
         <button type="button" class="menu-item" data-delete-post="<%= item._id %>"><span class="menu-icon"><svg class="icon"><use href="#i-trash"/></svg></span>Move to trash</button>
         <% } %>
         <button type="button" class="menu-item" data-copy="<%= item._id %>"><span class="menu-icon"><svg class="icon"><use href="#i-link"/></svg></span>Copy link</button>
+        <% if (currentUser && !isOwner) { %><button type="button" class="menu-item" data-report-type="Post" data-report-id="<%= item._id %>" data-report-label="post"><span class="menu-icon"><svg class="icon"><use href="#i-flag"/></svg></span>Report post</button><% } %>
       </div>
     </details>
   </header>
+  <% if (isOwner && ['held', 'limited'].includes(item.moderationStatus)) { %><p class="post-pad pb-2 text-footnote text-muted"><%= item.moderationStatus === 'held' ? 'Being checked. Only you can see this for now.' : 'This post is under review and won\'t appear in feeds until it\'s checked.' %></p><% } %>
 
   <%# Without media the words are the content, so they come first. With media they become the caption below the actions. -%>
   <% if (item.content && !allMedia.length) { %><p class="post-pad whitespace-pre-wrap break-words pb-2 <%= bigText && !isShare ? 'font-display text-title2 font-medium' : 'text-body' %>" data-post-content><%= item.content %></p><% } %>

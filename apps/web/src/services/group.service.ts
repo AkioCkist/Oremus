@@ -5,6 +5,7 @@ import { AppError } from '../utils/errors.js';
 import { cacheGet, cacheSet, invalidateCacheKeys, invalidateSocialCaches } from './cache.service.js';
 import { notify, notifyMany } from './notification.service.js';
 import { getPhotoLibrary } from './user.service.js';
+import { assertTextAllowed, requestScan } from './moderation.service.js';
 
 const PERSON_FIELDS = 'username displayName profile.avatarUrl';
 
@@ -59,6 +60,7 @@ export async function listGroups(userId?: string, cursor: unknown = null) {
 }
 
 export async function createGroup(ownerId: string, input: GroupInput, file?: Express.Multer.File) {
+  assertTextAllowed(input.name, input.description);
   const base = slugify(input.name) || 'group'; let slug = base, suffix = 1;
   while (await Group.exists({ slug })) slug = `${base}-${++suffix}`;
   const coverUrl = await resolveCover(ownerId, input, file, '');
@@ -66,6 +68,7 @@ export async function createGroup(ownerId: string, input: GroupInput, file?: Exp
   void _removeCover; void _coverUrl;
   const group = await Group.create({ ...fields, coverUrl, slug, ownerId, memberCount: 1 });
   await GroupMember.create({ groupId: group.id, userId: ownerId, role: 'admin' });
+  await requestScan('Group', group.id);
   if (invite.length) await inviteMembers(ownerId, group.id, invite);
   await invalidateSocialCaches([ownerId], { search: true });
   return group;
@@ -76,11 +79,13 @@ export async function updateGroup(userId: string, groupId: string, input: GroupI
   if (!group) throw new AppError(404, 'Group not found.', 'GROUP_NOT_FOUND');
   const member: any = await membership(groupId, userId);
   if (member?.role !== 'admin') throw new AppError(403, 'Only admins can change group settings.', 'GROUP_ADMIN_REQUIRED');
+  assertTextAllowed(input.name, input.description);
   const coverUrl = await resolveCover(userId, input, file, group.coverUrl);
   const { invite, removeCover: _removeCover, coverUrl: _coverUrl, ...fields } = input;
   void _removeCover; void _coverUrl;
   group.set({ ...fields, coverUrl });
   await group.save();
+  await requestScan('Group', groupId);
   if (invite.length) await inviteMembers(userId, groupId, invite);
   await Promise.all([invalidateCacheKeys([`group:${groupId}`]), invalidateSocialCaches([userId], { search: true })]);
   return group;

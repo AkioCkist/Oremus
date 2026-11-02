@@ -9,8 +9,12 @@
      const newBlock = !prev || new Date(message.createdAt) - new Date(prev.createdAt) > gap;
      const lastOfRun = !next || String(next.senderId._id) !== String(message.senderId._id) || new Date(next.createdAt) - new Date(message.createdAt) > gap; %>
   <% if (newBlock) { %><p class="py-3 text-center text-xs font-semibold text-muted" data-message-time="<%= new Date(message.createdAt).getTime() %>"><%= longTime(message.createdAt) %></p><% } %>
+  <% if (message.kind === 'call') { %>
+  <p data-key="<%= message._id %>" data-at="<%= new Date(message.createdAt).getTime() %>" class="mb-2 flex items-center justify-center gap-1.5 text-center text-footnote text-muted"><svg class="icon size-3.5"><use href="#i-phone"/></svg><%= message.content %></p>
+  <% return; } %>
   <div data-key="<%= message._id %>" data-at="<%= new Date(message.createdAt).getTime() %>" class="flex items-end gap-2 <%= mine ? 'justify-end' : 'justify-start' %> <%= lastOfRun ? 'mb-2' : 'mb-0.5' %>">
     <% if (!mine) { %><span class="w-7 shrink-0"><% if (lastOfRun) { %><%- include('../avatar', { person: message.senderId, size: 'size-7 text-2xs' }) %><% } %></span><% } %>
     <p class="bubble <%= mine ? 'bubble-me' : 'bubble-them' %>" title="<%= clockTime(message.createdAt) %>"><%- linkify(message.content) %></p>
+    <% if (!mine) { %><button type="button" class="icon-btn-ghost size-7 shrink-0 self-center text-muted opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100" data-report-type="Message" data-report-id="<%= message._id %>" data-report-label="message" aria-label="Report message" title="Report message"><svg class="icon size-3.5"><use href="#i-flag"/></svg></button><% } %>
   </div>
 <% }) %>

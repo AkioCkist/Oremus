@@ -1,0 +1,121 @@
+/* Oremus admin look: a dark shell with one violet accent. Status colours (green, amber, red) are kept for status only.
+   Colours and fonts come from the AdminJS theme in src/admin/index.ts and the T tokens in src/admin/components/ui.jsx.
+   AdminJS styles are generated classes, so overrides here need !important to win. */
+:root { color-scheme: dark; }
+html, body { -webkit-font-smoothing: antialiased; }
+body { background: #0B0C10; color: #EDEEF2; }
+
+/* Keyboard focus is always visible */
+[data-css="app"] :focus-visible,
+[data-css="drawer"] :focus-visible { outline: 2px solid #A78BFA !important; outline-offset: 2px; }
+
+/* Buttons: 10px corners, at least 40px tall */
+[data-css="app"] button,
+[data-css="app"] a[data-css$="-button"],
+[data-css="app"] [data-css$="-button"] > a,
+[data-css="app"] [data-css$="-button"] > button,
+[data-css="drawer"] button { border-radius: 10px !important; }
+[data-css="app"] [data-css$="-button"] { border-radius: 10px !important; }
+[data-css="app-content"] [data-css$="-button"] > a,
+[data-css="app-content"] [data-css$="-button"] > button,
+[data-css="app-content"] form button { min-height: 40px; }
+
+/* Fields */
+[data-css="app"] input:not([type="checkbox"]):not([type="radio"]),
+[data-css="app"] textarea,
+[data-css="app"] select,
+[data-css="drawer"] input:not([type="checkbox"]):not([type="radio"]),
+[data-css="drawer"] textarea,
+[data-css="drawer"] select { min-height: 44px; border-radius: 10px !important; border: 1px solid #2A2F3B !important; background-color: #0F1117 !important; color: #EDEEF2 !important; }
+[data-css="app"] input::placeholder, [data-css="drawer"] input::placeholder, [data-css="app"] textarea::placeholder { color: #8A90A0 !important; }
+[data-css="app"] input:focus,
+[data-css="app"] textarea:focus,
+[data-css="drawer"] input:focus,
+[data-css="drawer"] textarea:focus { border-color: #A78BFA !important; box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.25) !important; }
+[data-css="app"] input[aria-invalid="true"], [data-css="drawer"] input[aria-invalid="true"] { border-color: #F87171 !important; }
+[data-css="app"] input[type="checkbox"], [data-css="app"] input[type="radio"] { accent-color: #8B6CFB; }
+/* AdminJS draws its checkbox as the element after the hidden input; its outline must stand out 3:1 from the card */
+[data-css="app"] input[type="checkbox"] + *, [data-css="drawer"] input[type="checkbox"] + * { border-color: #6B7385 !important; }
+/* react-select (reference and enum fields) */
+[data-css="app"] [class*="-control"], [data-css="drawer"] [class*="-control"] { min-height: 44px; border-radius: 10px !important; border-color: #2A2F3B !important; background: #0F1117 !important; }
+[data-css="app"] [class*="-menu"], [data-css="drawer"] [class*="-menu"] { background: #171A22 !important; border: 1px solid #2A2F3B; border-radius: 10px !important; }
+[data-css="app"] [class*="-option"], [data-css="drawer"] [class*="-option"] { color: #EDEEF2 !important; }
+[data-css="app"] [class*="-singleValue"], [data-css="drawer"] [class*="-singleValue"] { color: #EDEEF2 !important; }
+/* Labels and help text */
+[data-css="app-content"] label, [data-css="drawer"] label { color: #EDEEF2 !important; font-weight: 500 !important; font-size: 14px !important; }
+
+/* Shell */
+[data-css="sidebar"] { border-right: 1px solid #1E222C !important; background: #101218 !important; }
+[data-css="sidebar"] a { border-radius: 10px !important; min-height: 36px; color: #B4B9C5 !important; }
+[data-css="sidebar"] a:hover { background: #1A1D26 !important; color: #EDEEF2 !important; }
+[data-css="sidebar"] a[class*="selected"], [data-css="sidebar"] a[aria-current="page"] { background: #221C3A !important; color: #EDEEF2 !important; font-weight: 600; }
+[data-css="sidebar-logo"] { font-weight: 700; letter-spacing: -0.2px; color: #EDEEF2; }
+[data-css="sidebar-resources"] h3, [data-css="sidebar"] [class*="NavGroup"] > * > span { text-transform: uppercase; letter-spacing: .06em; font-size: 12px !important; color: #8A90A0 !important; }
+[data-css="topbar"] { box-shadow: none !important; border: 0 !important; border-bottom: 1px solid #1E222C !important; background: #0B0C10 !important; padding-right: 8px; }
+/* Signed-in menu (components/LoggedIn.jsx): a button that opens a small card, fading and sliding in */
+.oa-user { position: relative; flex-shrink: 0; }
+.oa-user-button { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 4px 8px 4px 12px; border: 0; border-radius: 12px !important; background: transparent; color: #EDEEF2; font: inherit; cursor: pointer; }
+.oa-user-button:hover, .oa-user-button[aria-expanded="true"] { background: #14161D; }
+.oa-user-text { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.25; text-align: right; }
+.oa-user-name { font-size: 14px; font-weight: 600; }
+.oa-user-email { font-size: 12px; color: #A3A9B6; }
+.oa-user-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; display: inline-flex; align-items: center; justify-content: center; background: #3B2F66; color: #EDEEF2; font-size: 13px; font-weight: 600; }
+.oa-user-chevron { color: #A3A9B6; transition: transform .18s ease; }
+.oa-user-button[aria-expanded="true"] .oa-user-chevron { transform: rotate(180deg); }
+.oa-user-menu { position: absolute; top: calc(100% + 6px); right: 0; min-width: 200px; padding: 6px; border-radius: 12px; background: #171A22; box-shadow: 0 0 0 1px #2A2F3B, 0 16px 40px rgba(0, 0, 0, .45); z-index: 50; opacity: 0; transform: translateY(-6px); pointer-events: none; visibility: hidden; transition: opacity .16s ease, transform .16s ease, visibility 0s linear .16s; }
+.oa-user-menu[data-open="true"] { opacity: 1; transform: none; pointer-events: auto; visibility: visible; transition: opacity .16s ease, transform .16s ease, visibility 0s; }
+.oa-user-menu a { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; color: #EDEEF2; text-decoration: none; font-size: 14px; }
+.oa-user-menu a:hover, .oa-user-menu a:focus-visible { background: #221C3A; }
+[data-css="app-content"] { background: #0B0C10; }
+[data-css="app-content"] h1, [data-css="app-content"] h2 { letter-spacing: -0.2px; color: #EDEEF2; }
+
+/* Lists: one bordered card, 44px header, roomy rows, hover and selected states */
+[data-css="app-content"] table { border-collapse: separate !important; border-spacing: 0; background: #14161D; border-radius: 16px; box-shadow: 0 0 0 1px #232733; overflow: hidden; }
+[data-css="app-content"] thead th { height: 44px; background: #14161D !important; font-size: 12px !important; text-transform: uppercase !important; letter-spacing: .04em; color: #A3A9B6 !important; font-weight: 500 !important; border-bottom: 1px solid #232733 !important; }
+[data-css="app-content"] thead th a { color: #A3A9B6 !important; }
+[data-css="app-content"] tbody td { border-color: #1E222C !important; vertical-align: middle !important; color: #EDEEF2; white-space: nowrap; }
+/* The list's own wrapper adds a second card around the table: keep only the table card, scrolling sideways when wide */
+[data-css$="-list-table-wrapper"] { background: transparent !important; box-shadow: none !important; padding: 0 !important; overflow-x: auto; }
+[data-css="app-content"] tbody tr:hover td { background-color: #171A22 !important; }
+[data-css="app-content"] tbody tr[data-css$="-selected"] td, [data-css="app-content"] tbody tr.selected td { background-color: #1B1830 !important; }
+
+/* Containers (forms, filter drawer, edit pages) */
+[data-css$="-content"]:not([data-css="app-content"]), [data-css$="-form"] { border-radius: 16px !important; }
+[data-css="app-content"] { border-radius: 0 !important; }
+[data-css$="-form"] { box-shadow: 0 0 0 1px #232733 !important; }
+[data-css="drawer"] { border-radius: 16px 0 0 16px !important; background: #101218 !important; border-left: 1px solid #232733; }
+[data-css="notice"] > * { border-radius: 12px !important; }
+
+/* Our own components */
+.oa-link { color: #C4B5FD; text-decoration: none; font-weight: 600; }
+.oa-link:hover { color: #DDD6FE; text-decoration: underline; }
+.oa-card-link { transition: box-shadow .18s ease, transform .18s ease, background-color .18s ease; }
+.oa-row { transition: background-color .15s ease; }
+.oa-row:hover { background: #171A22; }
+.oa-card-link:hover { box-shadow: 0 0 0 1px #6D5BB8 !important; transform: translateY(-1px); }
+.oa-details > summary { cursor: pointer; list-style: none; }
+.oa-details > summary::-webkit-details-marker { display: none; }
+.oa-details[open] .oa-chevron { transform: rotate(90deg); }
+.oa-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid #2A2F3B; background: #14161D; color: #EDEEF2; font: 500 14px Inter, system-ui, sans-serif; cursor: pointer; text-decoration: none; white-space: nowrap; }
+.oa-btn:hover { background: #1C2029; color: #EDEEF2; }
+.oa-btn-primary { background: #A78BFA; border-color: #A78BFA; color: #14161D; font-weight: 600; }
+.oa-btn-primary:hover { background: #C4B5FD; color: #14161D; }
+.oa-tab { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border: 0; border-radius: 10px; background: transparent; color: #A3A9B6; font: 500 14px Inter, system-ui, sans-serif; cursor: pointer; }
+.oa-tab:hover { background: #1A1D26; color: #EDEEF2; }
+.oa-tab[aria-selected="true"] { background: #221C3A; color: #EDEEF2; font-weight: 600; }
+.oa-count { font-size: 12px; padding: 1px 8px; border-radius: 999px; background: #2A2F3B; color: #C9CDD6; font-variant-numeric: tabular-nums; }
+.oa-chip { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 4px 0 12px; border-radius: 999px; background: #1A1D26; border: 1px solid #2A2F3B; font-size: 13px; color: #EDEEF2; }
+.oa-chip button { width: 28px; height: 28px; min-height: 0 !important; border: 0; border-radius: 50% !important; background: transparent; color: #A3A9B6; cursor: pointer; }
+.oa-chip button:hover { background: #2A2F3B; color: #EDEEF2; }
+.oa-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* Motion: short colour transitions on everything you can point at, and a quick fade-up as a page opens */
+[data-css="app"] a, [data-css="app"] button, [data-css="drawer"] button, [data-css="app"] input, [data-css="app"] textarea, [data-css="app"] select { transition: background-color .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease, opacity .15s ease; }
+[data-css="app-content"] tbody td { transition: background-color .12s ease; }
+@keyframes oa-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.oa-page, [data-css$="-list-table-wrapper"], [data-css$="-form"] { animation: oa-enter .22s ease-out both; }
+[data-css="drawer"] { transition: transform .22s ease-out !important; }
+@media (prefers-reduced-motion: reduce) {
+  .oa-card-link, .oa-row, [data-css="app"] a, [data-css="app"] button, .oa-user-menu, .oa-user-chevron { transition: none !important; }
+  .oa-card-link:hover { transform: none; }
+  .oa-page, [data-css$="-list-table-wrapper"], [data-css$="-form"] { animation: none; }
+}

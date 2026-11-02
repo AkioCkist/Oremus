@@ -53,6 +53,8 @@
       <a class="menu-item" href="/search?kind=user"><span class="menu-icon"><svg class="icon"><use href="#i-users"/></svg></span>Find friends</a>
       <a class="menu-item" href="/stories/archive"><span class="menu-icon"><svg class="icon"><use href="#i-archive"/></svg></span>Story archive</a>
       <a class="menu-item" href="/settings"><span class="menu-icon"><svg class="icon"><use href="#i-settings"/></svg></span>Settings</a>
+      <a class="menu-item" href="/ads/manage"><span class="menu-icon"><svg class="icon"><use href="#i-megaphone"/></svg></span>Advertise</a>
+      <% if (currentUser.role === 'moderator' || currentUser.role === 'admin') { %><a class="menu-item" href="/admin"><span class="menu-icon"><svg class="icon"><use href="#i-shield"/></svg></span>Admin panel</a><% } %>
       <button type="button" class="menu-item" data-open-dialog="edit-profile-dialog"><span class="menu-icon"><svg class="icon"><use href="#i-edit"/></svg></span>Edit profile</button>
       <button type="button" class="menu-item" role="switch" aria-checked="false" data-theme-toggle><span class="menu-icon"><svg class="icon"><use href="#i-moon"/></svg></span><span class="flex-1">Dark mode</span><span class="switch" data-theme-switch aria-hidden="true"></span></button>
       <div class="divider"></div>

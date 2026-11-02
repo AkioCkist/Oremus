@@ -7,7 +7,8 @@ export const redis = createClient({ url: env.REDIS_URL });
 redis.on('error', (error) => console.error('Redis error', error));
 
 export async function connectInfrastructure(): Promise<void> {
-  await Promise.all([mongoose.connect(env.MONGODB_URI, { autoIndex: env.NODE_ENV !== 'production' }), redis.connect()]);
+  // monitorCommands lets src/monitoring time every query; without a listener the events cost next to nothing.
+  await Promise.all([mongoose.connect(env.MONGODB_URI, { autoIndex: env.NODE_ENV !== 'production', monitorCommands: true }), redis.connect()]);
 }
 
 export async function checkInfrastructure(): Promise<{ mongodb: 'ok'; redis: 'ok' }> {

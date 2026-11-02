@@ -1,9 +1,11 @@
 import http from 'node:http';
 import { createApp } from './app.js';
+import { loadAdminRouter } from './admin/mount.js';
 import { connectInfrastructure, disconnectInfrastructure } from './config/database.js';
 import { env } from './config/env.js';
 import { logger } from './config/logger.js';
 import { createSocketServer } from './sockets/index.js';
+import { startProcessMonitoring, stopMonitoring } from './monitoring/index.js';
 
 async function start() {
   await connectInfrastructure();
@@ -12,8 +14,11 @@ async function start() {
   const server = http.createServer(app);
   const io = await createSocketServer(server);
   app.set('io', io);
+  startProcessMonitoring('web', () => ({ sockets: io.engine.clientsCount }));
+  // Bundles the panel ahead of the first staff visit. It only logs on failure: the site itself does not depend on it.
+  loadAdminRouter().catch(() => undefined);
   server.listen(env.WEB_PORT, () => logger.info({ port: env.WEB_PORT }, 'Oremus web is ready'));
-  const shutdown = async () => { logger.info('Shutting down'); io.close(); server.close(); await disconnectInfrastructure(); process.exit(0); };
+  const shutdown = async () => { logger.info('Shutting down'); io.close(); server.close(); await stopMonitoring(); await disconnectInfrastructure(); process.exit(0); };
   process.on('SIGTERM', shutdown); process.on('SIGINT', shutdown);
 }
 

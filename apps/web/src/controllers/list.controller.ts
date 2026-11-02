@@ -7,6 +7,7 @@ import { listComments, withReactionSummary } from '../services/post.service.js';
 import { listArchive } from '../services/story.service.js';
 import { AppError } from '../utils/errors.js';
 import { parseOffsetCursor, type Chunk } from '../utils/paginate.js';
+import { withAds } from '../services/ads.service.js';
 
 /**
  * Endless lists: `GET /api/lists/:name?cursor=…&…` returns the next chunk as HTML rendered with the
@@ -27,16 +28,17 @@ const userId = (req: Request) => req.user?.id as string | undefined;
 const text = (req: Request, name: string) => String(req.query[name] ?? '');
 
 /** Home feed keeps its follow-priority order, so it pages by offset (see getFeed). */
-export async function feedChunk(viewerId: string, cursor: unknown): Promise<Chunk<any>> {
+export async function feedChunk(viewerId: string, cursor: unknown, interests: string[] = []): Promise<Chunk<any>> {
   const offset = parseOffsetCursor(cursor);
   const page = Math.floor(offset / FEED_PAGE_SIZE) + 1;
   if (page > 100) return { items: [], next: null };
   const result = await getFeed(viewerId, page);
-  return { items: await withReactionSummary(result.items, viewerId), next: result.hasMore ? `o${page * FEED_PAGE_SIZE}` : null };
+  const items = await withReactionSummary(result.items, viewerId);
+  return { items: await withAds(items, viewerId, (page - 1) * FEED_PAGE_SIZE, interests), next: result.hasMore ? `o${page * FEED_PAGE_SIZE}` : null };
 }
 
 export const LISTS: Record<string, ListDefinition> = {
-  feed: { auth: true, load: (req, cursor) => feedChunk(userId(req)!, cursor) },
+  feed: { auth: true, load: (req, cursor) => feedChunk(userId(req)!, cursor, req.user?.interests?.topics) },
   'group-posts': { load: (req, cursor) => groupPosts(req.query.group, userId(req), cursor) },
   'group-members': { load: (req, cursor) => groupMembers(req.query.group, userId(req), cursor) },
   groups: { load: (req, cursor) => listGroups(userId(req), cursor) },

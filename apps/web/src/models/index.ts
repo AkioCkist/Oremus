@@ -9,6 +9,11 @@ export { STORY_BACKGROUNDS };
 export const STORY_TTL_MS = 24 * 60 * 60 * 1000;
 export const GROUP_TYPES = ['general', 'social', 'learning', 'hobbies', 'buy_sell', 'gaming', 'jobs', 'parenting', 'work'] as const;
 
+// Meaning of each status: see moderation/visibility.ts.
+export const MODERATION_STATUSES = ['pending', 'held', 'approved', 'limited', 'removed'] as const;
+export const USER_ROLES = ['user', 'moderator', 'admin'] as const;
+export const ACCOUNT_STATUSES = ['active', 'suspended', 'banned'] as const;
+
 const options = { timestamps: true, versionKey: false } as const;
 const objectId = Schema.Types.ObjectId;
 
@@ -102,9 +107,17 @@ const userSchema = new Schema({
   passwordResetHash: { type: String, select: false },
   passwordResetExpiresAt: { type: Date, select: false },
   lastSeenAt: Date,
+  // Platform-wide staff role, unrelated to GroupMember.role. Only granted by scripts/grant-role.ts or an admin.
+  role: { type: String, enum: USER_ROLES, default: 'user' },
+  status: { type: String, enum: ACCOUNT_STATUSES, default: 'active' },
+  suspendedUntil: { type: Date, default: null },
+  restrictionReason: { type: String, maxlength: 500, default: '' },
+  strikes: { type: Number, min: 0, default: 0 },
   deletedAt: { type: Date, default: null }
 }, options);
 userSchema.index({ displayName: 'text', username: 'text' });
+userSchema.index({ role: 1 }, { partialFilterExpression: { role: { $in: ['moderator', 'admin'] } } });
+userSchema.index({ status: 1, createdAt: -1 });
 
 const followSchema = new Schema({
   followerId: { type: objectId, ref: 'User', required: true },
@@ -167,12 +180,14 @@ const postSchema = new Schema({
   reactionCount: { type: Number, default: 0 },
   commentCount: { type: Number, default: 0 },
   shareCount: { type: Number, default: 0 },
+  moderationStatus: { type: String, enum: MODERATION_STATUSES, default: 'approved' },
   editedAt: Date,
   deletedAt: { type: Date, default: null, index: true }
 }, options);
 postSchema.index({ authorId: 1, groupId: 1, deletedAt: 1, createdAt: -1 });
 postSchema.index({ groupId: 1, deletedAt: 1, groupStatus: 1, createdAt: -1 });
 postSchema.index({ content: 'text' });
+postSchema.index({ moderationStatus: 1, updatedAt: 1 }, { partialFilterExpression: { moderationStatus: { $in: ['pending', 'held'] } } });
 
 const reactionSchema = new Schema({
   userId: { type: objectId, ref: 'User', required: true },
@@ -187,11 +202,13 @@ const commentSchema = new Schema({
   authorId: { type: objectId, ref: 'User', required: true },
   parentId: { type: objectId, ref: 'Comment', default: null },
   content: { type: String, required: true, maxlength: 1500 },
+  moderationStatus: { type: String, enum: MODERATION_STATUSES, default: 'approved' },
   editedAt: Date,
   deletedAt: { type: Date, default: null }
 }, options);
 commentSchema.index({ postId: 1, createdAt: 1 });
 commentSchema.index({ parentId: 1, deletedAt: 1 });
+commentSchema.index({ moderationStatus: 1, updatedAt: 1 }, { partialFilterExpression: { moderationStatus: { $in: ['pending', 'held'] } } });
 
 const groupSchema = new Schema({
   name: { type: String, required: true, trim: true, maxlength: 80 },
@@ -266,6 +283,9 @@ const messageSchema = new Schema({
   conversationId: { type: objectId, ref: 'Conversation', required: true, index: true },
   senderId: { type: objectId, ref: 'User', required: true },
   content: { type: String, required: true, maxlength: 3000 },
+  // Call summaries live in the thread as messages; ordinary messages leave these unset.
+  kind: { type: String, enum: ['text', 'call'], default: 'text' },
+  callId: { type: objectId, ref: 'Call' },
   readBy: [{ type: objectId, ref: 'User' }],
   deletedAt: { type: Date, default: null }
 }, options);
@@ -273,8 +293,11 @@ messageSchema.index({ conversationId: 1, createdAt: -1 });
 
 const notificationSchema = new Schema({
   recipientId: { type: objectId, ref: 'User', required: true, index: true },
-  actorId: { type: objectId, ref: 'User', required: true },
-  type: { type: String, enum: ['reaction', 'comment', 'follow', 'friend_request', 'friend_accept', 'group_request', 'group_invite', 'group_post', 'message', 'story_reaction', 'share'], required: true },
+  // Null on system notifications (moderation decisions, ad review, ...), which `system` marks explicitly:
+  // a null actor without it means the person who acted no longer exists.
+  actorId: { type: objectId, ref: 'User', default: null },
+  system: { type: Boolean, default: false },
+  type: { type: String, enum: ['reaction', 'comment', 'follow', 'friend_request', 'friend_accept', 'group_request', 'group_invite', 'group_post', 'message', 'story_reaction', 'share', 'moderation', 'ad_status', 'missed_call'], required: true },
   entityType: { type: String, required: true },
   entityId: { type: objectId, required: true },
   text: { type: String, required: true, maxlength: 180 },
@@ -302,11 +325,13 @@ const storySchema = new Schema({
   }, { _id: false }), default: null },
   audience: { type: String, enum: ['public', 'followers'], default: 'followers' },
   viewCount: { type: Number, default: 0 },
+  moderationStatus: { type: String, enum: MODERATION_STATUSES, default: 'approved' },
   expiresAt: { type: Date, required: true },
   deletedAt: { type: Date, default: null }
 }, options);
 storySchema.index({ authorId: 1, expiresAt: -1 });
 storySchema.index({ expiresAt: 1, deletedAt: 1 });
+storySchema.index({ moderationStatus: 1, updatedAt: 1 }, { partialFilterExpression: { moderationStatus: { $in: ['pending', 'held'] } } });
 
 // One row per viewer: records the view and, optionally, the viewer's reaction.
 const storyViewSchema = new Schema({
@@ -388,6 +413,200 @@ const interactionSchema = new Schema({
 interactionSchema.index({ userId: 1, createdAt: -1 });
 interactionSchema.index({ createdAt: 1 }, { expireAfterSeconds: SIGNAL_RETENTION_DAYS * 24 * 60 * 60 });
 
+/* ---------- Moderation (see services/moderation.service.ts) ---------- */
+
+export const REPORT_REASONS = ['harassment', 'hate', 'sexual', 'violence', 'self_harm', 'spam', 'scam', 'other'] as const;
+export const REPORT_TARGETS = ['Post', 'Comment', 'Story', 'User', 'Group', 'Message', 'AdCampaign'] as const;
+const CASE_TARGETS = REPORT_TARGETS;
+
+/** Everything known about one piece of content that needs a person's eye. At most one is open per target. */
+const moderationCaseSchema = new Schema({
+  targetType: { type: String, enum: CASE_TARGETS, required: true },
+  targetId: { type: objectId, required: true },
+  authorId: { type: objectId, ref: 'User', required: true },
+  source: { type: String, enum: ['ai', 'rule', 'report', 'system'], required: true },
+  status: { type: String, enum: ['open', 'upheld', 'dismissed'], default: 'open' },
+  // Higher is reviewed first. Grows with each new signal.
+  priority: { type: Number, default: 1 },
+  categories: { type: [String], default: [] },
+  scores: { type: Schema.Types.Mixed, default: {} },
+  models: { type: [String], default: [] },
+  // What was already done without a person: nothing, limited reach, or removal.
+  autoAction: { type: String, enum: ['none', 'limited', 'removed'], default: 'none' },
+  reportCount: { type: Number, default: 0 },
+  // A copy, so a reviewer can still read content that has since been edited or taken down.
+  snippet: { type: String, maxlength: 1000, default: '' },
+  mediaUrls: { type: [String], default: [] },
+  decidedBy: { type: objectId, ref: 'User', default: null },
+  decidedAt: { type: Date, default: null },
+  decisionNote: { type: String, maxlength: 500, default: '' },
+  appeal: {
+    type: new Schema({
+      status: { type: String, enum: ['none', 'pending', 'granted', 'denied'], default: 'none' },
+      message: { type: String, maxlength: 1000, default: '' },
+      at: Date,
+      decidedBy: { type: objectId, ref: 'User' },
+      decidedAt: Date,
+      note: { type: String, maxlength: 500, default: '' }
+    }, { _id: false }),
+    default: () => ({})
+  }
+}, options);
+moderationCaseSchema.index({ targetType: 1, targetId: 1 }, { unique: true, partialFilterExpression: { status: 'open' } });
+moderationCaseSchema.index({ status: 1, priority: -1, createdAt: 1 });
+moderationCaseSchema.index({ authorId: 1, createdAt: -1 });
+moderationCaseSchema.index({ 'appeal.status': 1, createdAt: 1 });
+
+const reportSchema = new Schema({
+  reporterId: { type: objectId, ref: 'User', required: true },
+  targetType: { type: String, enum: REPORT_TARGETS, required: true },
+  targetId: { type: objectId, required: true },
+  reason: { type: String, enum: REPORT_REASONS, required: true },
+  note: { type: String, maxlength: 500, default: '' },
+  caseId: { type: objectId, ref: 'ModerationCase', default: null },
+  status: { type: String, enum: ['open', 'actioned', 'dismissed'], default: 'open' }
+}, options);
+reportSchema.index({ reporterId: 1, targetType: 1, targetId: 1 }, { unique: true });
+reportSchema.index({ caseId: 1 });
+reportSchema.index({ status: 1, createdAt: -1 });
+
+/** One row per category. Admins tune these in the panel; defaults are inserted on first use. */
+const moderationPolicySchema = new Schema({
+  category: { type: String, required: true, unique: true },
+  review: { type: Number, min: 0, max: 1, required: true },
+  block: { type: Number, min: 0, max: 1, required: true },
+  // Off: even a certain score only limits reach until a person decides.
+  autoRemove: { type: Boolean, default: false }
+}, options);
+
+export const MODERATION_SCAN_RETENTION_DAYS = 90;
+/** Raw outcome of every scan, including shadow mode, for measuring the models before trusting them. */
+const moderationScanSchema = new Schema({
+  targetType: { type: String, required: true },
+  targetId: { type: objectId, required: true },
+  authorId: { type: objectId, ref: 'User' },
+  scores: { type: Schema.Types.Mixed, default: {} },
+  decision: { type: String, required: true },
+  categories: { type: [String], default: [] },
+  models: { type: [String], default: [] },
+  ruleMatches: { type: [String], default: [] },
+  shadow: { type: Boolean, default: false }
+}, { timestamps: { createdAt: true, updatedAt: false }, versionKey: false });
+moderationScanSchema.index({ createdAt: 1 }, { expireAfterSeconds: MODERATION_SCAN_RETENTION_DAYS * 86_400 });
+moderationScanSchema.index({ decision: 1, createdAt: -1 });
+
+/** One voice or video call. Media goes through LiveKit and is never recorded; this is only who called whom and how it went. */
+const callSchema = new Schema({
+  callerId: { type: objectId, ref: 'User', required: true },
+  calleeId: { type: objectId, ref: 'User', required: true },
+  conversationId: { type: objectId, ref: 'Conversation', required: true },
+  kind: { type: String, enum: ['audio', 'video'], required: true },
+  status: { type: String, enum: ['ringing', 'accepted', 'declined', 'missed', 'ended', 'failed'], default: 'ringing' },
+  roomName: { type: String, required: true, unique: true },
+  joinedIds: { type: [String], default: [] },
+  answeredAt: { type: Date, default: null },
+  endedAt: { type: Date, default: null },
+  endReason: { type: String, default: '' }
+}, options);
+callSchema.index({ callerId: 1, status: 1, createdAt: -1 });
+callSchema.index({ calleeId: 1, status: 1, createdAt: -1 });
+callSchema.index({ createdAt: -1 });
+
+export const Call: Model<any> = models.Call || model('Call', callSchema);
+
+/* ---------- Advertising (see services/ads.service.ts). All money is in whole VND. ---------- */
+
+export const AD_CTA_LABELS = ['Learn more', 'Shop now', 'Sign up', 'Contact us', 'Book now', 'Download', 'Xem thêm', 'Mua ngay', 'Đăng ký', 'Liên hệ'] as const;
+export const AD_STATUSES = ['draft', 'pending_review', 'active', 'paused', 'rejected', 'exhausted', 'ended'] as const;
+
+const adAccountSchema = new Schema({
+  userId: { type: objectId, ref: 'User', required: true, unique: true },
+  balance: { type: Number, default: 0, min: 0 }
+}, options);
+
+/** Every movement of money, append-only. balanceAfter stays null until the wallet has been updated. */
+const ledgerEntrySchema = new Schema({
+  userId: { type: objectId, ref: 'User', required: true },
+  type: { type: String, enum: ['topup', 'spend', 'refund', 'adjustment'], required: true },
+  amount: { type: Number, required: true },
+  balanceAfter: { type: Number, default: null },
+  idempotencyKey: { type: String, required: true, unique: true },
+  refType: String,
+  refId: objectId,
+  note: { type: String, maxlength: 500, default: '' },
+  actorId: { type: objectId, ref: 'User', default: null }
+}, { timestamps: { createdAt: true, updatedAt: false }, versionKey: false });
+ledgerEntrySchema.index({ userId: 1, createdAt: -1 });
+ledgerEntrySchema.index({ balanceAfter: 1, createdAt: 1 }, { partialFilterExpression: { balanceAfter: null } });
+
+const paymentOrderSchema = new Schema({
+  userId: { type: objectId, ref: 'User', required: true },
+  provider: { type: String, enum: ['vnpay'], required: true },
+  txnRef: { type: String, required: true, unique: true },
+  amount: { type: Number, required: true, min: 1 },
+  status: { type: String, enum: ['pending', 'paid', 'failed'], default: 'pending' },
+  providerTxn: { type: String, default: '' },
+  providerCode: { type: String, default: '' },
+  paidAt: { type: Date, default: null }
+}, options);
+paymentOrderSchema.index({ userId: 1, createdAt: -1 });
+paymentOrderSchema.index({ status: 1, createdAt: -1 });
+
+const adCampaignSchema = new Schema({
+  advertiserId: { type: objectId, ref: 'User', required: true },
+  name: { type: String, required: true, maxlength: 80 },
+  headline: { type: String, required: true, maxlength: 80 },
+  body: { type: String, maxlength: 500, default: '' },
+  mediaUrl: { type: String, default: '' },
+  ctaLabel: { type: String, enum: AD_CTA_LABELS, default: 'Learn more' },
+  ctaUrl: { type: String, required: true, maxlength: 500 },
+  topics: { type: [{ type: String, maxlength: 30 }], default: [] },
+  cpm: { type: Number, required: true, min: 1 },
+  dailyBudget: { type: Number, required: true, min: 1 },
+  totalBudget: { type: Number, required: true, min: 1 },
+  startAt: { type: Date, default: null },
+  endAt: { type: Date, default: null },
+  status: { type: String, enum: AD_STATUSES, default: 'pending_review' },
+  rejectionReason: { type: String, maxlength: 500, default: '' },
+  reviewedBy: { type: objectId, ref: 'User', default: null },
+  reviewedAt: { type: Date, default: null },
+  spent: { type: Number, default: 0 },
+  impressions: { type: Number, default: 0 },
+  clicks: { type: Number, default: 0 }
+}, options);
+adCampaignSchema.index({ status: 1, createdAt: -1 });
+adCampaignSchema.index({ advertiserId: 1, createdAt: -1 });
+
+const adStatDailySchema = new Schema({
+  campaignId: { type: objectId, ref: 'AdCampaign', required: true },
+  date: { type: String, required: true },
+  impressions: { type: Number, default: 0 },
+  clicks: { type: Number, default: 0 },
+  hides: { type: Number, default: 0 },
+  spend: { type: Number, default: 0 }
+}, { versionKey: false });
+adStatDailySchema.index({ campaignId: 1, date: -1 }, { unique: true });
+
+/** What a member has opted out of. These are the rules ad serving must never break. */
+const adPreferenceSchema = new Schema({
+  userId: { type: objectId, ref: 'User', required: true, unique: true },
+  blockedAdvertiserIds: { type: [objectId], default: [] },
+  blockedTopics: { type: [String], default: [] },
+  hiddenCampaignIds: { type: [objectId], default: [] },
+  personalized: { type: Boolean, default: true }
+}, options);
+
+export const AdAccount: Model<any> = models.AdAccount || model('AdAccount', adAccountSchema);
+export const LedgerEntry: Model<any> = models.LedgerEntry || model('LedgerEntry', ledgerEntrySchema);
+export const PaymentOrder: Model<any> = models.PaymentOrder || model('PaymentOrder', paymentOrderSchema);
+export const AdCampaign: Model<any> = models.AdCampaign || model('AdCampaign', adCampaignSchema);
+export const AdStatDaily: Model<any> = models.AdStatDaily || model('AdStatDaily', adStatDailySchema);
+export const AdPreference: Model<any> = models.AdPreference || model('AdPreference', adPreferenceSchema);
+
+export const ModerationCase: Model<any> = models.ModerationCase || model('ModerationCase', moderationCaseSchema);
+export const Report: Model<any> = models.Report || model('Report', reportSchema);
+export const ModerationPolicy: Model<any> = models.ModerationPolicy || model('ModerationPolicy', moderationPolicySchema);
+export const ModerationScan: Model<any> = models.ModerationScan || model('ModerationScan', moderationScanSchema);
 export const Post: Model<any> = models.Post || model('Post', postSchema);
 export const Reaction: Model<any> = models.Reaction || model('Reaction', reactionSchema);
 export const Comment: Model<any> = models.Comment || model('Comment', commentSchema);

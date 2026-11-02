@@ -1,6 +1,6 @@
 <div id="toast-region" class="pointer-events-none fixed bottom-20 left-4 z-[60] flex flex-col gap-2 md:bottom-6" aria-live="polite" aria-atomic="true"></div>
 <div class="mini-chat-dock hidden items-end gap-3 lg:flex" data-mini-chat-dock aria-label="Open mini chats"></div>
-<% if (currentUser) { %><%- include('break-dialog') %><% } %>
+<% if (currentUser) { %><%- include('break-dialog') %><%- include('report-dialog') %><% if (callsEnabled) { %><%- include('call-dialog') %><% } %><% } %>
 
 <% if (currentUser) { %>
 <dialog id="reactions-dialog" class="m-auto max-h-[min(42rem,calc(100dvh-1.5rem))] w-[min(46rem,calc(100%-1.5rem))] overflow-hidden rounded-sheet p-0 shadow-pop" aria-labelledby="reactions-title" data-reactions-dialog>
@@ -58,6 +58,7 @@
           <div class="menu right-0 top-10 w-56">
             <button type="button" class="menu-item" data-viewer-copy><span class="menu-icon"><svg class="icon"><use href="#i-link"/></svg></span>Copy link</button>
             <a class="menu-item" data-viewer-open-page><span class="menu-icon"><svg class="icon"><use href="#i-expand"/></svg></span>Open post page</a>
+            <% if (currentUser) { %><button type="button" class="menu-item" data-report-type="Post" data-report-label="post" data-viewer-report><span class="menu-icon"><svg class="icon"><use href="#i-flag"/></svg></span>Report post</button><% } %>
           </div>
         </details>
       </header>

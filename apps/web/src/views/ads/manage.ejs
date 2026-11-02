@@ -1,0 +1,127 @@
+<%- include('../partials/head') %><%- include('../partials/nav') %>
+<%
+  const vnd = function (value) { return Number(value || 0).toLocaleString('vi-VN') + ' ₫'; };
+  const statusLabels = { draft: 'Draft', pending_review: 'In review', active: 'Running', paused: 'Paused', rejected: 'Not approved', exhausted: 'Wallet empty', ended: 'Ended' };
+-%>
+<main id="main" class="bg-grouped min-h-[calc(100dvh-var(--header-h))] px-3 py-5 pb-24 sm:px-6 lg:py-10">
+  <div class="mx-auto max-w-3xl space-y-4">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <h1 class="page-title">Advertise</h1>
+      <button type="button" class="btn-primary" data-new-campaign><svg class="icon"><use href="#i-plus"/></svg>New campaign</button>
+    </div>
+
+    <% if (paymentResult === 'success') { %><p class="card p-4 text-15" role="status">Payment received. Your balance updates as soon as VNPay confirms it, usually within a minute.</p>
+    <% } else if (paymentResult === 'failed') { %><p class="card p-4 text-15 text-ios-red" role="alert">The payment did not go through. You were not charged.</p><% } %>
+
+    <section class="card p-5" aria-labelledby="wallet-title">
+      <h2 id="wallet-title" class="text-headline font-semibold">Ad wallet</h2>
+      <p class="mt-1 text-title2 font-semibold" data-wallet-balance><%= vnd(account.balance) %></p>
+      <% if (paymentsEnabled) { %>
+      <form class="mt-4 flex flex-wrap items-end gap-3" data-topup-form>
+        <div class="min-w-[12rem] flex-1">
+          <label class="label" for="topup-amount">Top up (VND)</label>
+          <input class="input mt-1.5 w-full" id="topup-amount" name="amount" type="number" inputmode="numeric" min="10000" max="50000000" step="1000" value="100000" required>
+        </div>
+        <button class="btn-secondary" type="submit">Pay with VNPay</button>
+        <p class="form-error hidden w-full" data-form-error role="alert"></p>
+      </form>
+      <% } else if (!selfTopUp) { %>
+      <p class="mt-3 text-15 text-muted">Online payment isn't set up yet. An administrator can top up your wallet.</p>
+      <% } %>
+      <% if (selfTopUp) { %>
+      <form class="mt-4 flex flex-wrap items-end gap-3" data-self-topup-form>
+        <div class="min-w-[12rem] flex-1">
+          <label class="label" for="self-topup-amount">Add free test credit (VND)</label>
+          <input class="input mt-1.5 w-full" id="self-topup-amount" name="amount" type="number" inputmode="numeric" min="10000" max="50000000" step="1000" value="500000" required>
+        </div>
+        <button class="btn-secondary" type="submit">Add credit</button>
+        <p class="form-error hidden w-full" data-form-error role="alert"></p>
+      </form>
+      <% } %>
+      <% if (ledger.length) { %>
+      <details class="mt-4">
+        <summary class="cursor-pointer text-15 font-semibold text-brand-600">Recent activity</summary>
+        <ul class="mt-2 divide-y divide-line">
+          <% ledger.forEach(function (entry) { %>
+          <li class="flex items-center justify-between gap-3 py-2 text-15"><span class="min-w-0 truncate"><%= entry.note || entry.type %> <span class="text-footnote text-muted">· <%= longTime(entry.createdAt) %></span></span><span class="shrink-0 font-semibold <%= entry.amount < 0 ? '' : 'text-ios-green' %>"><%= entry.amount > 0 ? '+' : '' %><%= vnd(entry.amount) %></span></li>
+          <% }) %>
+        </ul>
+      </details>
+      <% } %>
+    </section>
+
+    <section class="card p-5" aria-labelledby="campaigns-title">
+      <h2 id="campaigns-title" class="text-headline font-semibold">Campaigns</h2>
+      <% if (!campaigns.length) { %>
+      <p class="mt-2 text-15 text-muted">No campaigns yet. Every campaign is reviewed before it runs, and you only pay for views.</p>
+      <% } else { %>
+      <ul class="mt-3 space-y-3">
+        <% campaigns.forEach(function (campaign) { %>
+        <li class="rounded-xl border border-line p-3" data-campaign="<%= campaign._id %>">
+          <div class="flex flex-wrap items-start justify-between gap-2">
+            <div class="min-w-0">
+              <p class="truncate font-semibold"><%= campaign.name %></p>
+              <p class="text-footnote text-muted"><%= statusLabels[campaign.status] || campaign.status %> · <%= (campaign.impressions || 0).toLocaleString('vi-VN') %> views · <%= (campaign.clicks || 0).toLocaleString('vi-VN') %> clicks · <%= vnd(campaign.spent) %> of <%= vnd(campaign.totalBudget) %></p>
+            </div>
+            <div class="flex gap-2">
+              <% if (campaign.status === 'active') { %><button type="button" class="btn-secondary" data-campaign-action="pause">Pause</button><% } %>
+              <% if (campaign.status === 'paused' || campaign.status === 'exhausted') { %><button type="button" class="btn-secondary" data-campaign-action="resume">Resume</button><% } %>
+              <% if (campaign.status !== 'ended') { %><button type="button" class="btn-secondary" data-edit-campaign="<%= JSON.stringify({ id: campaign._id, name: campaign.name, headline: campaign.headline, body: campaign.body, ctaLabel: campaign.ctaLabel, ctaUrl: campaign.ctaUrl, mediaUrl: campaign.mediaUrl, topics: campaign.topics, dailyBudget: campaign.dailyBudget, totalBudget: campaign.totalBudget, cpm: campaign.cpm }) %>">Edit</button><button type="button" class="btn-secondary" data-campaign-action="end">End</button><% } %>
+            </div>
+          </div>
+          <% if (campaign.status === 'rejected' && campaign.rejectionReason) { %><p class="mt-2 text-15 text-ios-red"><%= campaign.rejectionReason %></p><% } %>
+        </li>
+        <% }) %>
+      </ul>
+      <% } %>
+    </section>
+  </div>
+</main>
+
+<dialog id="campaign-dialog" class="max-h-[calc(100dvh-2rem)] w-[min(36rem,calc(100%-2rem))] overflow-y-auto rounded-sheet p-0 shadow-pop" aria-labelledby="campaign-title">
+  <div class="flex items-center justify-between border-b border-line px-4 py-3"><h2 id="campaign-title" class="text-balance text-xl font-bold">New campaign</h2><button type="button" class="icon-btn" data-close-dialog="campaign-dialog" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button></div>
+  <form class="space-y-3 p-4" data-campaign-form enctype="multipart/form-data">
+    <div><label class="label" for="campaign-name">Campaign name (only you see this)</label><input class="input mt-1.5 w-full" id="campaign-name" name="name" maxlength="80" required></div>
+    <div><label class="label" for="campaign-headline">Headline</label><input class="input mt-1.5 w-full" id="campaign-headline" name="headline" maxlength="80" required></div>
+    <div><label class="label" for="campaign-body">Text</label><textarea class="input mt-1.5 w-full" id="campaign-body" name="body" rows="3" maxlength="500"></textarea></div>
+    <div><label class="label" for="campaign-image">Image (optional)</label><input class="input mt-1.5 w-full py-2" id="campaign-image" name="image" type="file" accept="image/*"></div>
+    <div>
+      <p class="label">Preview</p>
+      <% const me = locals.currentUser || {}; -%>
+      <article class="mt-1.5 overflow-hidden rounded-xl border border-line bg-surface" data-campaign-preview aria-label="Ad preview">
+        <header class="flex items-center gap-2.5 px-3 py-2.5">
+          <%- include('../partials/avatar', { person: me, size: 'size-8 text-xs' }) %>
+          <div class="min-w-0 flex-1 leading-tight">
+            <p class="truncate text-footnote font-semibold"><%= me.displayName %></p>
+            <p class="text-caption1 text-muted">Sponsored</p>
+          </div>
+        </header>
+        <p class="hidden whitespace-pre-wrap break-words px-3 pb-2 text-body" data-preview-body></p>
+        <img class="hidden max-h-[24rem] w-full bg-field object-cover" alt="" data-preview-image>
+        <div class="flex items-center justify-between gap-3 px-3 py-3">
+          <span class="min-w-0 truncate text-subheadline font-semibold" data-preview-headline></span>
+          <span class="btn-secondary pointer-events-none shrink-0" data-preview-cta><%= ctaLabels[0] %></span>
+        </div>
+      </article>
+    </div>
+    <div class="grid gap-3 sm:grid-cols-2">
+      <div><label class="label" for="campaign-cta-label">Button</label><select class="input mt-1.5 w-full" id="campaign-cta-label" name="ctaLabel"><% ctaLabels.forEach(function (label) { %><option><%= label %></option><% }) %></select></div>
+      <div><label class="label" for="campaign-cta-url">Link (https)</label><input class="input mt-1.5 w-full" id="campaign-cta-url" name="ctaUrl" type="url" pattern="https://.*" placeholder="https://" required></div>
+    </div>
+    <fieldset>
+      <legend class="label">Topics (1 to 5)</legend>
+      <div class="mt-1.5 flex max-h-40 flex-wrap gap-2 overflow-y-auto">
+        <% topics.forEach(function (topic) { %><label class="flex cursor-pointer items-center gap-2 rounded-full bg-field px-3 py-1.5 text-footnote"><input type="checkbox" class="check" name="topics" value="<%= topic.key %>"><%= topic.label %></label><% }) %>
+      </div>
+      <p class="mt-1 text-footnote text-muted">People can turn off ads by topic. Topics can't describe health, religion, politics or other sensitive traits.</p>
+    </fieldset>
+    <div class="grid gap-3 sm:grid-cols-3">
+      <div><label class="label" for="campaign-cpm">Per 1,000 views</label><input class="input mt-1.5 w-full" id="campaign-cpm" name="cpm" type="number" min="10000" step="1000" value="20000" required></div>
+      <div><label class="label" for="campaign-daily">Daily budget</label><input class="input mt-1.5 w-full" id="campaign-daily" name="dailyBudget" type="number" min="20000" step="1000" value="50000" required></div>
+      <div><label class="label" for="campaign-total">Total budget</label><input class="input mt-1.5 w-full" id="campaign-total" name="totalBudget" type="number" min="20000" step="1000" value="200000" required></div>
+    </div>
+    <p class="form-error hidden" data-form-error role="alert"></p>
+    <div class="flex justify-end gap-2"><button type="button" class="btn-secondary" data-close-dialog="campaign-dialog">Cancel</button><button type="submit" class="btn-primary">Submit for review</button></div>
+  </form>
+</dialog>
+<%- include('../partials/foot') %>

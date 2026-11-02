@@ -23,6 +23,7 @@ RUN npm install --omit=dev
 COPY --chown=node:node --from=build /app/apps/web/dist ./apps/web/dist
 COPY --chown=node:node --from=build /app/apps/web/public ./apps/web/public
 COPY --chown=node:node --from=build /app/apps/web/src/views ./apps/web/src/views
+COPY --chown=node:node --from=build /app/apps/web/src/admin/components ./apps/web/src/admin/components
 RUN mkdir -p ./apps/web/uploads && chown -R node:node /app/apps/web/uploads
 WORKDIR /app/apps/web
 USER node
