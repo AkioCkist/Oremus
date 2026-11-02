@@ -2,6 +2,8 @@
 
 Everything about how Oremus works, written in plain English with diagrams. Diagrams use [Mermaid](https://mermaid.js.org/), which GitHub, GitLab and VS Code (with a Mermaid extension) render automatically.
 
+Tiếng Việt: [Tổng quan tiếng Việt](TONG_QUAN_TIENG_VIET.md) giải thích kiến trúc và mọi chức năng trong một trang.
+
 ## Reading order
 
 New to the project? Read these first, in order:
