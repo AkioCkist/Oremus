@@ -9,21 +9,21 @@ import { ViewHelpers } from 'adminjs';
 export const h = new ViewHelpers();
 
 export const T = {
-  ink: '#000000', ink2: '#3C3C43', muted: '#8A8A8E', line: '#E5E5EA', field: '#EFEFF0', grouped: '#F2F2F7', hover: '#F7F7FA',
-  brand: '#0088FF', brandSoft: '#E5F3FF', brandInk: '#0059AB',
-  card: '0 0 0 1px rgba(0,0,0,0.07), 0 2px 12px rgba(0,0,0,0.03)'
+  ink: '#EDEEF2', ink2: '#C9CDD6', muted: '#A3A9B6', line: '#232733', field: '#1A1D26', grouped: '#0B0C10', hover: '#171A22',
+  brand: '#A78BFA', brandSoft: '#221C3A', brandInk: '#C4B5FD',
+  card: '0 0 0 1px #232733', surface: '#14161D'
 };
 
 /* ---------- Value tones and wording ---------- */
 
 const TONE = {
-  green: { color: '#1E7A35', bg: '#E3F7E8' },
-  orange: { color: '#B25600', bg: '#FFF1E0' },
-  red: { color: '#D70015', bg: '#FFE5E6' },
-  blue: { color: '#0059AB', bg: '#E5F3FF' },
-  purple: { color: '#8E24AA', bg: '#F6E6FB' },
-  yellow: { color: '#8A6100', bg: '#FFF8D6' },
-  grey: { color: '#3C3C43', bg: '#EFEFF0' }
+  green: { color: '#4ADE80', bg: '#0F2A1A' },
+  orange: { color: '#FBBF24', bg: '#2A2010' },
+  red: { color: '#F87171', bg: '#2A1416' },
+  blue: { color: '#C4B5FD', bg: '#221C3A' },
+  purple: { color: '#D8B4FE', bg: '#2A2440' },
+  yellow: { color: '#FBBF24', bg: '#2A2410' },
+  grey: { color: '#C9CDD6', bg: '#1A1D26' }
 };
 
 const VALUE_TONE = {
@@ -114,7 +114,7 @@ export const isImage = (url = '', mime = '') => /^image\//.test(mime) || /\.(png
 /* ---------- Building blocks ---------- */
 
 export function Card({ children, style, pad = 20, ...rest }) {
-  return <section style={{ background: '#FFFFFF', borderRadius: 24, boxShadow: T.card, padding: pad, minWidth: 0, ...style }} {...rest}>{children}</section>;
+  return <section style={{ background: T.surface, borderRadius: 16, boxShadow: T.card, padding: pad, minWidth: 0, ...style }} {...rest}>{children}</section>;
 }
 
 export function CardTitle({ children, right, style }) {
@@ -149,7 +149,7 @@ export function Chips({ items, empty = 'None' }) {
 
 export const Muted = ({ children, style }) => <span style={{ color: T.muted, ...style }}>{children}</span>;
 
-const AVATAR_TONES = [['#FFE0CC', '#B24A00'], ['#D9F2E3', '#1E7A35'], ['#E5F3FF', '#0059AB'], ['#F6E6FB', '#8E24AA'], ['#FFE5EC', '#C2185B'], ['#FFF5CC', '#8A6100'], ['#DDF6F8', '#00727A'], ['#E8E6FD', '#4A3FD1']];
+const AVATAR_TONES = [['#FFE0CC', '#FBBF24'], ['#0F2A1A', '#4ADE80'], ['#221C3A', '#C4B5FD'], ['#2A2440', '#D8B4FE'], ['#FFE5EC', '#C2185B'], ['#FFF5CC', '#FBBF24'], ['#DDF6F8', '#00727A'], ['#221C3A', '#4A3FD1']];
 const initials = (name) => String(name || '?').trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
 const hash = (text) => [...String(text || '')].reduce((sum, char) => (sum * 31 + char.charCodeAt(0)) >>> 0, 7);
 
@@ -233,7 +233,7 @@ export function Scores({ scores, empty = 'No scores' }) {
   return (
     <div style={{ display: 'grid', gap: 10 }}>
       {entries.map(([key, value]) => {
-        const color = value >= 0.8 ? '#FF383C' : value >= 0.5 ? '#FF8D28' : value >= 0.2 ? '#FFCC00' : '#34C759';
+        const color = value >= 0.8 ? '#F87171' : value >= 0.5 ? '#FBBF24' : value >= 0.2 ? '#FFCC00' : '#4ADE80';
         return (
           <div key={key}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}><span style={{ color: T.ink }}>{labelOf(key)}</span><span style={{ color: T.muted, fontVariantNumeric: 'tabular-nums' }}>{Math.round(value * 100)}%</span></div>

@@ -7,9 +7,9 @@ const api = new ApiClient();
 /** A big number that is also a shortcut to the queue it counts. Turns orange/red while there is work waiting. */
 function Attention({ label, value, href, hint, urgentAt = 1, icon }) {
   const waiting = Number(value || 0) >= urgentAt;
-  const tone = waiting ? (Number(value) >= urgentAt * 10 ? { fg: '#D70015', bg: '#FFE5E6' } : { fg: '#B25600', bg: '#FFF1E0' }) : { fg: '#1E7A35', bg: '#E3F7E8' };
+  const tone = waiting ? (Number(value) >= urgentAt * 10 ? { fg: '#F87171', bg: '#2A1416' } : { fg: '#FBBF24', bg: '#2A2010' }) : { fg: '#4ADE80', bg: '#0F2A1A' };
   return (
-    <a href={href} className="oa-card-link" style={{ flex: '1 1 200px', minWidth: 0, textDecoration: 'none', color: T.ink, background: '#fff', borderRadius: 24, boxShadow: T.card, padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <a href={href} className="oa-card-link" style={{ flex: '1 1 200px', minWidth: 0, textDecoration: 'none', color: T.ink, background: T.surface, borderRadius: 16, boxShadow: T.card, padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
       <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
         <span aria-hidden="true" style={{ width: 36, height: 36, borderRadius: 12, display: 'grid', placeItems: 'center', background: tone.bg, color: tone.fg, fontSize: 18 }}>{icon}</span>
         <span style={{ fontSize: 12, fontWeight: 600, color: tone.fg, background: tone.bg, borderRadius: 9999, padding: '3px 10px' }}>{waiting ? 'Needs you' : 'All clear'}</span>
@@ -23,7 +23,7 @@ function Attention({ label, value, href, hint, urgentAt = 1, icon }) {
 
 function QueueRow({ href, media, title, meta, right }) {
   return (
-    <a href={href} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 8px', margin: '0 -8px', borderRadius: 14, textDecoration: 'none', color: T.ink }} onMouseEnter={(event) => { event.currentTarget.style.background = T.hover; }} onMouseLeave={(event) => { event.currentTarget.style.background = 'transparent'; }}>
+    <a href={href} className="oa-row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 8px', margin: '0 -8px', borderRadius: 12, textDecoration: 'none', color: T.ink }}>
       {media}
       <span style={{ minWidth: 0, flex: 1 }}>
         <span style={{ display: 'block', fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</span>
@@ -51,8 +51,8 @@ export default function Dashboard() {
     api.getDashboard().then((response) => setData(response.data)).catch(() => setError('Could not load the metrics.'));
   }, []);
 
-  const shell = (children) => <div style={{ padding: '28px 24px 48px', maxWidth: 1240, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>{children}</div>;
-  if (error) return shell(<Card><span role="alert" style={{ color: '#D70015' }}>{error}</span></Card>);
+  const shell = (children) => <div className="oa-page" style={{ padding: '28px 24px 48px', maxWidth: 1240, width: '100%', minWidth: 0, boxSizing: 'border-box', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>{children}</div>;
+  if (error) return shell(<Card><span role="alert" style={{ color: '#F87171' }}>{error}</span></Card>);
   if (!data) return shell(<Card><Muted>Loading…</Muted></Card>);
 
   const queues = Object.entries(data.queues || {});
@@ -86,9 +86,9 @@ export default function Dashboard() {
             media={item.mediaUrls?.[0] ? <Thumb url={item.mediaUrls[0]} /> : <Avatar name={item.authorId?.displayName} url={item.authorId?.profile?.avatarUrl} size={44} />}
             title={item.snippet || `${labelOf(item.targetType)} without text`}
             meta={<>{item.authorId?.displayName || 'Unknown'} · {labelOf(item.targetType)} · {relative(item.createdAt)}{item.reportCount ? ` · ${item.reportCount} reports` : ''}</>}
-            right={<span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>{(item.categories || []).slice(0, 1).map((category) => <Pill key={category} value={category} />)}<span title="Priority" style={{ fontSize: 12, fontWeight: 700, color: '#B25600', background: '#FFF1E0', borderRadius: 9999, padding: '3px 8px' }}>P{item.priority}</span></span>}
+            right={<span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>{(item.categories || []).slice(0, 1).map((category) => <Pill key={category} value={category} />)}<span title="Priority" style={{ fontSize: 12, fontWeight: 700, color: '#FBBF24', background: '#2A2010', borderRadius: 9999, padding: '3px 8px' }}>P{item.priority}</span></span>}
           />
-        )) : <Muted>Nothing waiting. 🎉</Muted>}
+        )) : <Muted>Nothing waiting.</Muted>}
       </Card>
       <Card style={{ flex: '1 1 380px' }}>
         <CardTitle right={<a className="oa-link" href={listUrl('AdCampaign', { status: 'pending_review' })} style={{ fontSize: 14 }}>See all →</a>}>Ads waiting for review</CardTitle>

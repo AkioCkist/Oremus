@@ -42,7 +42,7 @@ export function ServerCard({ server, large = false }) {
       </div>
       <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${T.line}` }}>
         <Facts min={large ? 140 : 110}>
-          {large ? null : <Fact label="Event loop p99"><span style={{ color: server.eventLoop.p99 >= 40 ? '#D70015' : server.eventLoop.p99 >= 10 ? '#B25600' : T.ink }}>{ms(server.eventLoop.p99)}</span></Fact>}
+          {large ? null : <Fact label="Event loop p99"><span style={{ color: server.eventLoop.p99 >= 40 ? '#F87171' : server.eventLoop.p99 >= 10 ? '#FBBF24' : T.ink }}>{ms(server.eventLoop.p99)}</span></Fact>}
           <Fact label="Uptime">{since(server.uptime)}</Fact>
           <Fact label="Node.js">{server.node}</Fact>
           {server.sockets !== undefined ? <Fact label="Live sockets">{num(server.sockets)}</Fact> : null}
@@ -59,7 +59,7 @@ export function ServerCard({ server, large = false }) {
 
 /* ---------- Requests ---------- */
 
-const STATUS_COLOR = { '2xx': '#34C759', '3xx': '#0088FF', '4xx': '#FF8D28', '5xx': '#FF383C' };
+const STATUS_COLOR = { '2xx': '#4ADE80', '3xx': '#A78BFA', '4xx': '#FBBF24', '5xx': '#F87171' };
 
 export function StatusBar({ statuses }) {
   const total = Object.values(statuses).reduce((sum, value) => sum + value, 0);
@@ -97,13 +97,13 @@ export function RequestsChart({ data, height }) {
 
 /* ---------- Exceptions ---------- */
 
-export function ExceptionTable({ rows, empty = 'No exceptions. 🎉', open = false }) {
+export function ExceptionTable({ rows, empty = 'No exceptions.', open = false }) {
   return (
     <Table rows={rows} empty={empty} columns={[
       { label: 'Exception', grow: true, render: (row) => (
         <details open={open}>
           <summary style={{ cursor: 'pointer', listStyle: 'none' }}>
-            <span style={{ fontWeight: 650, color: '#D70015' }}>{row.meta?.name || 'Error'}</span>
+            <span style={{ fontWeight: 650, color: '#F87171' }}>{row.meta?.name || 'Error'}</span>
             <span style={{ color: T.ink }}> {row.meta?.message || ''}</span>
             <div style={{ fontSize: 11, color: T.muted, marginTop: 3 }}>
               <Code>{row.meta?.location || 'unknown location'}</Code>
@@ -148,7 +148,7 @@ export function TimedTable({ rows, threshold, empty, label, countLabel = 'Runs' 
       { label: countLabel, align: 'right', render: (row) => num(row.count) },
       { label: 'Slow', align: 'right', render: (row) => <SlowCount value={row.slow} /> },
       { label: 'Failed', align: 'right', render: (row) => <ErrorCount value={row.error} /> },
-      { label: 'Failure rate', align: 'right', render: (row) => (row.error ? <span style={{ color: '#D70015' }}>{pct(rate(row.error, row.count))}</span> : <Muted>0%</Muted>) },
+      { label: 'Failure rate', align: 'right', render: (row) => (row.error ? <span style={{ color: '#F87171' }}>{pct(rate(row.error, row.count))}</span> : <Muted>0%</Muted>) },
       { label: 'Average', align: 'right', render: (row) => <Duration value={row.avg} warn={threshold / 2} bad={threshold} /> },
       { label: 'Worst', align: 'right', render: (row) => <Duration value={row.max} warn={threshold / 2} bad={threshold} /> }
     ]} />
@@ -159,7 +159,7 @@ export function QueueTable({ queues }) {
   return (
     <Table rows={queues} keyOf={(row) => row.name} empty="No queues found." columns={[
       { label: 'Queue', grow: true, render: (row) => <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><b>{row.name}</b>{row.unavailable ? <Pill tone="red" label="Unavailable" /> : (row.waiting || 0) > 100 ? <Pill tone="orange" label="Backed up" /> : row.failed ? <Pill tone="red" label="Has failures" /> : <Pill tone="green" label="Healthy" />}</span> },
-      { label: 'Waiting', align: 'right', render: (row) => (row.unavailable ? <Muted>—</Muted> : <span style={{ color: row.waiting > 100 ? '#B25600' : T.ink, fontWeight: row.waiting > 100 ? 600 : 400 }}>{num(row.waiting)}</span>) },
+      { label: 'Waiting', align: 'right', render: (row) => (row.unavailable ? <Muted>—</Muted> : <span style={{ color: row.waiting > 100 ? '#FBBF24' : T.ink, fontWeight: row.waiting > 100 ? 600 : 400 }}>{num(row.waiting)}</span>) },
       { label: 'Running', align: 'right', render: (row) => num(row.active) },
       { label: 'Delayed / scheduled', align: 'right', render: (row) => num(row.delayed) },
       { label: 'Completed (kept 1h)', align: 'right', render: (row) => num(row.completed) },
@@ -246,15 +246,15 @@ export function CollectionsCard({ info }) {
   const peak = Math.max(1, ...list.map((c) => c.size + c.indexes));
   return (
     <Card>
-      <CardTitle right={<span style={{ display: 'inline-flex', gap: 12, fontSize: 12, color: T.muted }}><span><i style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: '#5E5CE6', marginRight: 5 }} />data</span><span><i style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: '#CBC9FF', marginRight: 5 }} />indexes</span></span>}>Storage by collection</CardTitle>
+      <CardTitle right={<span style={{ display: 'inline-flex', gap: 12, fontSize: 12, color: T.muted }}><span><i style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: '#A78BFA', marginRight: 5 }} />data</span><span><i style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: '#3B2F66', marginRight: 5 }} />indexes</span></span>}>Storage by collection</CardTitle>
       {list.length ? (
         <div style={{ display: 'grid', gap: 10 }}>
           {list.map((c) => (
             <div key={c.name}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12 }}><Code>{c.name}</Code><span style={{ color: T.muted, whiteSpace: 'nowrap' }}>{num(c.count)} docs · {bytes(c.size)} data · {bytes(c.indexes)} in {c.indexCount} indexes</span></div>
               <div style={{ display: 'flex', height: 6, borderRadius: 9999, overflow: 'hidden', background: T.field, marginTop: 4 }}>
-                <div style={{ width: `${(c.size / peak) * 100}%`, background: '#5E5CE6' }} />
-                <div style={{ width: `${(c.indexes / peak) * 100}%`, background: '#CBC9FF' }} />
+                <div style={{ width: `${(c.size / peak) * 100}%`, background: '#A78BFA' }} />
+                <div style={{ width: `${(c.indexes / peak) * 100}%`, background: '#3B2F66' }} />
               </div>
             </div>
           ))}
@@ -271,7 +271,7 @@ export function RunningOps({ info }) {
       <Table rows={info.running || []} keyOf={(row) => `${row.ns}-${row.secs}-${row.op}`} empty="Nothing is running long right now." columns={[
         { label: 'Namespace', grow: true, render: (row) => <Code>{row.ns}</Code> },
         { label: 'Operation', render: (row) => row.op },
-        { label: 'Running for', align: 'right', render: (row) => <span style={{ color: row.secs >= 10 ? '#D70015' : '#B25600', fontWeight: 600 }}>{row.secs}s</span> },
+        { label: 'Running for', align: 'right', render: (row) => <span style={{ color: row.secs >= 10 ? '#F87171' : '#FBBF24', fontWeight: 600 }}>{row.secs}s</span> },
         { label: 'Plan', render: (row) => <Code>{row.plan || '—'}</Code> }
       ]} />
     </Card>
@@ -292,9 +292,9 @@ export function PeopleList({ rows, metric = 'count', empty }) {
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13 }}>
               <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.name || 'Deleted member'} {row.username ? <Muted style={{ fontWeight: 400 }}>@{row.username}</Muted> : null}</span>
-              <span style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{num(row.count)} requests{row.slow ? <span style={{ color: '#B25600' }}> · {num(row.slow)} slow</span> : null} · avg {ms(row.avg)}</span>
+              <span style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{num(row.count)} requests{row.slow ? <span style={{ color: '#FBBF24' }}> · {num(row.slow)} slow</span> : null} · avg {ms(row.avg)}</span>
             </div>
-            <div style={{ marginTop: 5 }}><Bar value={row[metric]} max={peak} height={5} color={metric === 'slow' ? '#FF8D28' : T.brand} /></div>
+            <div style={{ marginTop: 5 }}><Bar value={row[metric]} max={peak} height={5} color={metric === 'slow' ? '#FBBF24' : T.brand} /></div>
           </div>
         </a>
       ))}

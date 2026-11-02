@@ -266,7 +266,7 @@ function UserView({ record, labels }) {
         <Card>
           <CardTitle>Standing</CardTitle>
           <Stats>
-            <Stat label="Strikes" value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{strikes}<span style={{ display: 'inline-flex', gap: 3 }}>{[0, 1, 2].map((index) => <span key={index} style={{ width: 10, height: 10, borderRadius: 9999, background: index < strikes ? '#FF383C' : T.line }} />)}</span></span>} tone={strikes >= 3 ? 'red' : strikes ? 'orange' : undefined} />
+            <Stat label="Strikes" value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{strikes}<span style={{ display: 'inline-flex', gap: 3 }}>{[0, 1, 2].map((index) => <span key={index} style={{ width: 10, height: 10, borderRadius: 9999, background: index < strikes ? '#F87171' : T.line }} />)}</span></span>} tone={strikes >= 3 ? 'red' : strikes ? 'orange' : undefined} />
             <Stat label="Joined" value={relative(p.createdAt)} hint={p.createdAt ? new Date(p.createdAt).toLocaleDateString('vi-VN') : null} />
             <Stat label="Last seen" value={p.lastSeenAt ? relative(p.lastSeenAt) : 'Never'} />
           </Stats>
@@ -384,9 +384,9 @@ function PolicyView({ record }) {
       <Card>
         <CardTitle>Thresholds</CardTitle>
         <div style={{ position: 'relative', height: 18, borderRadius: 9999, overflow: 'hidden', display: 'flex' }}>
-          <div style={{ width: pct(review), background: '#D9F2E3' }} />
-          <div style={{ width: pct(Math.max(0, block - review)), background: '#FFE7C7' }} />
-          <div style={{ flex: 1, background: '#FFD4D6' }} />
+          <div style={{ width: pct(review), background: '#0F2A1A' }} />
+          <div style={{ width: pct(Math.max(0, block - review)), background: '#3A2A10' }} />
+          <div style={{ flex: 1, background: '#3A1A1D' }} />
         </div>
         <div style={{ position: 'relative', height: 34, fontSize: 12, color: T.muted }}>
           <span style={{ position: 'absolute', left: pct(review), transform: 'translateX(-50%)', textAlign: 'center' }}>▲<br />Review {pct(review)}</span>
@@ -459,7 +459,7 @@ function AuditView({ record }) {
 
 function Amount({ value, signed }) {
   const n = Number(value || 0);
-  return <span style={{ fontSize: 34, lineHeight: '40px', fontWeight: 700, letterSpacing: '-0.6px', fontVariantNumeric: 'tabular-nums', color: signed ? (n < 0 ? '#D70015' : '#1E7A35') : T.ink }}>{signed ? signedVnd(n) : vnd(n)}</span>;
+  return <span style={{ fontSize: 34, lineHeight: '40px', fontWeight: 700, letterSpacing: '-0.6px', fontVariantNumeric: 'tabular-nums', color: signed ? (n < 0 ? '#F87171' : '#4ADE80') : T.ink }}>{signed ? signedVnd(n) : vnd(n)}</span>;
 }
 
 function AccountView({ record }) {

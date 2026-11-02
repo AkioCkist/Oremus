@@ -1,13 +1,13 @@
 // Shared by the campaign show page and the list cells. Colours are the site's iOS accents (styles.css :root).
 
 export const STATUS = {
-  draft: { label: 'Draft', color: '#8A8A8E', bg: '#F2F2F7' },
-  pending_review: { label: 'In review', color: '#C25E00', bg: '#FFF1E0' },
-  active: { label: 'Running', color: '#1E7A35', bg: '#E3F7E8' },
-  paused: { label: 'Paused', color: '#3C3C43', bg: '#EFEFF0' },
-  rejected: { label: 'Not approved', color: '#D70015', bg: '#FFE5E6' },
-  exhausted: { label: 'Wallet empty', color: '#8A6100', bg: '#FFF8D6' },
-  ended: { label: 'Ended', color: '#8A8A8E', bg: '#F2F2F7' }
+  draft: { label: 'Draft', color: '#A3A9B6', bg: '#0B0C10' },
+  pending_review: { label: 'In review', color: '#FBBF24', bg: '#2A2010' },
+  active: { label: 'Running', color: '#4ADE80', bg: '#0F2A1A' },
+  paused: { label: 'Paused', color: '#C9CDD6', bg: '#1A1D26' },
+  rejected: { label: 'Not approved', color: '#F87171', bg: '#2A1416' },
+  exhausted: { label: 'Wallet empty', color: '#FBBF24', bg: '#2A2410' },
+  ended: { label: 'Ended', color: '#A3A9B6', bg: '#0B0C10' }
 };
 
 export const vnd = (value) => `${Number(value || 0).toLocaleString('vi-VN')} ₫`;

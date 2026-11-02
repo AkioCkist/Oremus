@@ -10,6 +10,7 @@ import { Bar, Card, CardTitle, Muted, Pill, T, h, num, relative } from './ui.jsx
 
 const api = new ApiClient();
 const REFRESH_MS = 10_000;
+const snapshots = new Map();
 const PERIOD_KEY = 'oremus.monitoring.period';
 
 export const TABS = [
@@ -43,7 +44,7 @@ export const since = (seconds) => {
 };
 export const pct = (value) => (value === null || value === undefined || Number.isNaN(value) ? '—' : `${Number(value).toFixed(1)}%`);
 export const rate = (part, whole) => (whole ? (part / whole) * 100 : 0);
-export const severity = (value, warn, bad) => (value >= bad ? '#FF383C' : value >= warn ? '#FF8D28' : '#34C759');
+export const severity = (value, warn, bad) => (value >= bad ? '#F87171' : value >= warn ? '#FBBF24' : '#4ADE80');
 const clock = (t, granularity) => new Date(t).toLocaleString('vi-VN', granularity === 'h' ? { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' } : { hour: '2-digit', minute: '2-digit' });
 
 /* ---------- Charts ---------- */
@@ -69,9 +70,9 @@ export function BarChart({ series, value, danger, height = 120, color = T.brand,
             const x = index * (barWidth + gap);
             return (
               <g key={point.t} onMouseEnter={() => setHover(index)}>
-                <rect x={x} y={0} width={barWidth + gap} height={height} fill={hover === index ? 'rgba(0,136,255,0.06)' : 'transparent'} />
+                <rect x={x} y={0} width={barWidth + gap} height={height} fill={hover === index ? 'rgba(167,139,250,0.08)' : 'transparent'} />
                 <rect x={x} y={height - barHeight} width={barWidth} height={Math.max(total ? 2 : 0, barHeight - badHeight)} rx={2} fill={color} opacity={total ? (hover === null || hover === index ? 1 : 0.55) : 0} />
-                {bad ? <rect x={x} y={height - badHeight} width={barWidth} height={badHeight} rx={2} fill="#FF383C" /> : null}
+                {bad ? <rect x={x} y={height - badHeight} width={barWidth} height={badHeight} rx={2} fill="#F87171" /> : null}
               </g>
             );
           })}
@@ -126,9 +127,9 @@ export function Table({ columns, rows, empty = 'Nothing recorded in this period.
 }
 
 export const Code = ({ children }) => <code style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12, color: T.ink, overflowWrap: 'anywhere' }}>{children}</code>;
-export const SlowCount = ({ value }) => (value ? <span style={{ color: '#B25600', fontWeight: 600 }}>{num(value)}</span> : <Muted>0</Muted>);
-export const ErrorCount = ({ value }) => (value ? <span style={{ color: '#D70015', fontWeight: 600 }}>{num(value)}</span> : <Muted>0</Muted>);
-export const Duration = ({ value, warn, bad }) => <span style={{ color: value >= bad ? '#D70015' : value >= warn ? '#B25600' : T.ink, fontWeight: value >= warn ? 600 : 400 }}>{ms(value)}</span>;
+export const SlowCount = ({ value }) => (value ? <span style={{ color: '#FBBF24', fontWeight: 600 }}>{num(value)}</span> : <Muted>0</Muted>);
+export const ErrorCount = ({ value }) => (value ? <span style={{ color: '#F87171', fontWeight: 600 }}>{num(value)}</span> : <Muted>0</Muted>);
+export const Duration = ({ value, warn, bad }) => <span style={{ color: value >= bad ? '#F87171' : value >= warn ? '#FBBF24' : T.ink, fontWeight: value >= warn ? 600 : 400 }}>{ms(value)}</span>;
 export const Rank = ({ index }) => <span style={{ color: T.muted, fontSize: 11 }}>{index + 1}</span>;
 
 export function Meter({ label, value, max, text, warn = 70, bad = 90, series, seriesMax, sub, sparkHeight = 32 }) {
@@ -154,16 +155,16 @@ export const Facts = ({ children, min = 130 }) => <div style={{ display: 'grid',
 
 /** Big KPI tile; with `to` it opens that monitoring page. */
 export function Kpi({ label, value, hint, tone, to }) {
-  const tones = { green: ['#E3F7E8', '#1E7A35'], orange: ['#FFF1E0', '#B25600'], red: ['#FFE5E6', '#D70015'] };
-  const [bg, fg] = tones[tone] || ['#FFFFFF', T.ink];
+  const tones = { green: ['#0F2A1A', '#4ADE80'], orange: ['#2A2010', '#FBBF24'], red: ['#2A1416', '#F87171'] };
+  const [bg, fg] = tones[tone] || ['#14161D', T.ink];
   const body = (
     <>
-      <div style={{ fontSize: 12, color: tone ? fg : T.muted }}>{label}</div>
+      <div style={{ fontSize: 13, color: tone ? fg : T.muted }}>{label}</div>
       <div style={{ marginTop: 4, fontSize: 26, lineHeight: '30px', fontWeight: 700, letterSpacing: '-0.4px', color: fg, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
-      {hint ? <div style={{ marginTop: 2, fontSize: 12, color: tone ? fg : T.muted, opacity: 0.85, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{hint}</div> : null}
+      {hint ? <div style={{ marginTop: 2, fontSize: 13, color: tone ? fg : T.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{hint}</div> : null}
     </>
   );
-  const style = { display: 'block', minWidth: 0, borderRadius: 20, padding: '14px 16px', background: bg, boxShadow: tone ? 'none' : T.card, textDecoration: 'none', color: 'inherit' };
+  const style = { display: 'block', minWidth: 0, borderRadius: 16, padding: '16px', background: bg, boxShadow: tone ? '0 0 0 1px ' + fg + '33' : T.card, textDecoration: 'none', color: 'inherit' };
   return to ? <PageLink to={to} className="oa-card-link" style={style}>{body}</PageLink> : <div style={style}>{body}</div>;
 }
 export const Kpis = ({ children, min = 180 }) => <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${min}px, 1fr))`, gap: 12 }}>{children}</div>;
@@ -175,9 +176,9 @@ export function Health({ ok, label }) { return <Pill tone={ok ? 'green' : 'red'}
 
 export function Toggle({ value, onChange, options, label }) {
   return (
-    <div role="group" aria-label={label} style={{ display: 'inline-flex', padding: 2, borderRadius: 9999, background: T.field }}>
+    <div role="group" aria-label={label} style={{ display: 'inline-flex', padding: 3, borderRadius: 12, background: T.surface, boxShadow: T.card }}>
       {options.map(([key, text]) => (
-        <button key={key} type="button" aria-pressed={value === key} onClick={() => onChange(key)} style={{ border: 0, cursor: 'pointer', borderRadius: 9999, padding: '5px 12px', fontSize: 12, fontWeight: 600, background: value === key ? '#fff' : 'transparent', color: value === key ? T.ink : T.muted, boxShadow: value === key ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}>{text}</button>
+        <button key={key} type="button" aria-pressed={value === key} onClick={() => onChange(key)} style={{ border: 0, cursor: 'pointer', borderRadius: 9, padding: '5px 12px', fontSize: 13, fontWeight: 600, background: value === key ? '#2A2440' : 'transparent', color: value === key ? T.ink : T.muted, minHeight: 32, minWidth: 44 }}>{text}</button>
       ))}
     </div>
   );
@@ -205,21 +206,26 @@ const storedPeriod = () => { try { return localStorage.getItem(PERIOD_KEY) || '1
  */
 export function MonitoringPage({ page, title, subtitle, children }) {
   const [period, setPeriodState] = useState(storedPeriod);
-  const [data, setData] = useState(null);
+  // The last snapshot of each page and period: switching tabs or periods shows it at once while a fresh one loads.
+  const [data, setData] = useState(() => snapshots.get(`${page}:${storedPeriod()}`) || null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [live, setLive] = useState(true);
   const [, tick] = useState(0);
   const timer = useRef();
 
-  const setPeriod = (value) => { setPeriodState(value); setData(null); try { localStorage.setItem(PERIOD_KEY, value); } catch { /* private mode */ } };
+  const setPeriod = (value) => { setPeriodState(value); setData((current) => snapshots.get(`${page}:${value}`) || current); setLoading(true); try { localStorage.setItem(PERIOD_KEY, value); } catch { /* private mode */ } };
 
   const load = useCallback(async () => {
     try {
       const response = await api.getPage({ pageName: page, params: { period } });
       if (response.data?.error) { setError(response.data.error); return; }
+      snapshots.set(`${page}:${period}`, response.data);
       setData(response.data); setError('');
     } catch {
       setError('Could not load monitoring data.');
+    } finally {
+      setLoading(false);
     }
   }, [page, period]);
 
@@ -236,16 +242,11 @@ export function MonitoringPage({ page, title, subtitle, children }) {
   useEffect(() => { const id = setInterval(() => tick((n) => n + 1), 1000); return () => clearInterval(id); }, []);
 
   return (
-    <div style={{ padding: '24px 24px 48px', maxWidth: 1480, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
-      <nav aria-label="Monitoring sections" style={{ display: 'flex', gap: 4, overflowX: 'auto', padding: 4, margin: '0 -4px', borderRadius: 9999, background: '#fff', boxShadow: T.card }}>
-        {TABS.map(([name, label]) => (
-          <Link key={name} to={h.pageUrl(name)} aria-current={name === page ? 'page' : undefined} style={{ flexShrink: 0, borderRadius: 9999, padding: '7px 14px', fontSize: 13, fontWeight: 600, textDecoration: 'none', background: name === page ? T.brandSoft : 'transparent', color: name === page ? T.brandInk : T.ink2 }}>{label}</Link>
-        ))}
-      </nav>
+    <div className="oa-page" style={{ padding: '24px 24px 48px', maxWidth: 1480, width: '100%', minWidth: 0, boxSizing: 'border-box', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
         <div style={{ minWidth: 0 }}>
-          <h1 style={{ margin: 0, fontSize: 30, lineHeight: '36px', fontWeight: 700, letterSpacing: '0.2px' }}>{title}</h1>
+          <h1 style={{ margin: 0, fontSize: 28, lineHeight: '34px', fontWeight: 700, letterSpacing: '-0.2px' }}>{title}</h1>
           <p style={{ margin: '4px 0 0', fontSize: 14, color: T.muted }}>
             {subtitle ? <>{subtitle} · </> : null}
             {data ? <>Updated {relative(data.generatedAt)}{live ? ', refreshes every 10 s' : ', paused'}</> : 'Loading…'}
@@ -253,14 +254,20 @@ export function MonitoringPage({ page, title, subtitle, children }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Toggle value={period} onChange={setPeriod} options={PERIODS} label="Period" />
-          <button type="button" onClick={() => setLive((on) => !on)} aria-pressed={live} style={{ border: 0, cursor: 'pointer', borderRadius: 9999, padding: '6px 14px', fontSize: 13, fontWeight: 600, background: live ? '#E3F7E8' : T.field, color: live ? '#1E7A35' : T.ink }}>
-            {live ? '● Live' : 'Paused'}
+          <button type="button" onClick={() => setLive((on) => !on)} aria-pressed={live} style={{ border: '1px solid ' + T.line, cursor: 'pointer', borderRadius: 10, minHeight: 40, padding: '0 14px', fontSize: 14, fontWeight: 500, background: T.surface, color: T.ink, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: live ? '#4ADE80' : T.muted }} />{live ? 'Live · Pause' : 'Paused · Resume'}
           </button>
         </div>
       </div>
 
-      {error ? <Card><span role="alert" style={{ color: '#D70015' }}>{error}</span></Card> : null}
-      {data ? children(data) : (!error ? <Card><Muted>Collecting readings…</Muted></Card> : null)}
+      <nav aria-label="Monitoring sections" style={{ display: 'flex', gap: 20, overflowX: 'auto', borderBottom: '1px solid ' + T.line }}>
+        {TABS.map(([name, label]) => (
+          <Link key={name} to={h.pageUrl(name)} aria-current={name === page ? 'page' : undefined} style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', minHeight: 44, fontSize: 14, fontWeight: name === page ? 600 : 500, textDecoration: 'none', borderBottom: '2px solid ' + (name === page ? T.brand : 'transparent'), color: name === page ? T.ink : T.muted }}>{label}</Link>
+        ))}
+      </nav>
+
+      {error ? <Card><span role="alert" style={{ color: '#F87171' }}>{error}</span></Card> : null}
+      {data ? <div aria-busy={loading} style={{ display: 'flex', flexDirection: 'column', gap: 18, opacity: loading ? 0.6 : 1, transition: 'opacity .2s ease' }}>{children(data)}</div> : (!error ? <Card><Muted>Collecting readings…</Muted></Card> : null)}
     </div>
   );
 }

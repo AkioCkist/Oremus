@@ -6,7 +6,7 @@ import { CollectionsCard, MongoCard, QueryTable, RunningOps } from './monitoring
 function Database({ data }) {
   const [view, setView] = useState('slow');
   const q = data.queries; const t = q.total; const threshold = data.thresholds.query;
-  const views = { slow: ['Slow', q.slow, 'No slow queries. 🎉'], heaviest: ['Most total time', q.heaviest, 'No queries recorded.'], frequent: ['Most frequent', q.frequent, 'No queries recorded.'] };
+  const views = { slow: ['Slow', q.slow, 'No slow queries.'], heaviest: ['Most total time', q.heaviest, 'No queries recorded.'], frequent: ['Most frequent', q.frequent, 'No queries recorded.'] };
   const [, rows, empty] = views[view];
   return <>
     <Kpis>
@@ -19,7 +19,7 @@ function Database({ data }) {
     </Kpis>
     <Card>
       <CardTitle>Queries over time</CardTitle>
-      <BarChart series={q.series} value={(p) => p.count} danger={(p) => p.slow} dangerLabel="slow" color="#5E5CE6" height={150} granularity={data.granularity} label="Queries over time, slow ones in red" />
+      <BarChart series={q.series} value={(p) => p.count} danger={(p) => p.slow} dangerLabel="slow" color="#A78BFA" height={150} granularity={data.granularity} label="Queries over time, slow ones in red" />
     </Card>
     <Card>
       <CardTitle right={<Toggle value={view} onChange={setView} label="Sort queries" options={Object.entries(views).map(([key, [label]]) => [key, label])} />}>Queries ({num(rows.length)})</CardTitle>

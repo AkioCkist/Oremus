@@ -109,13 +109,14 @@
         <p class="mt-1 text-15 text-muted"><%= strikes ? `Your account has ${strikes} ${strikes === 1 ? 'violation' : 'violations'} on record. Repeat violations can lead to a suspension.` : 'No violations on your account.' %></p>
         <% if (safetyCases.length) { %>
         <ul class="mt-4 space-y-3">
-          <% safetyCases.forEach(function (item) { const appeal = (item.appeal || {}).status || 'none'; const restored = item.status === 'dismissed'; %>
+          <% safetyCases.forEach(function (item) { const appeal = (item.appeal || {}).status || 'none'; const restored = item.status === 'dismissed'; const appealDecided = ['granted', 'denied'].includes(appeal); const staffNote = appealDecided ? (item.appeal.note || item.decisionNote) : (item.status !== 'open' ? item.decisionNote : ''); const noteAt = appealDecided ? item.appeal.decidedAt || item.decidedAt : item.decidedAt; %>
           <li class="rounded-xl border border-line p-3">
             <p class="text-footnote text-muted"><%= item.targetType %> · <%= longTime(item.createdAt) %><%= item.categories.length ? ' · ' + item.categories.join(', ') : '' %></p>
             <% if (item.snippet) { %><p class="mt-1 line-clamp-3 whitespace-pre-wrap break-words text-15"><%= item.snippet %></p><% } %>
             <p class="mt-2 text-15 font-semibold"><%= restored ? 'Restored after review' : 'Removed' %></p>
             <% if (appeal === 'pending') { %><p class="mt-1 text-15 text-muted">Appeal sent. We will let you know the outcome.</p>
             <% } else if (appeal === 'denied') { %><p class="mt-1 text-15 text-muted">Your appeal was reviewed and the decision was kept.</p>
+            <% } else if (appeal === 'granted') { %><p class="mt-1 text-15 text-muted">Your appeal was accepted and your content is back.</p>
             <% } else if (appeal === 'none' && !restored) { %>
             <form class="mt-2 space-y-2" data-appeal-form="<%= item._id %>">
               <label class="label" for="appeal-<%= item._id %>">Think this was a mistake?</label>
@@ -123,6 +124,12 @@
               <p class="form-error hidden" data-form-error role="alert"></p>
               <button class="btn-secondary" type="submit">Appeal</button>
             </form>
+            <% } %>
+            <% if (staffNote) { %>
+            <div class="mt-3 rounded-lg bg-grouped px-3 py-2">
+              <p class="text-footnote font-semibold text-muted">Note from the moderation team<%= noteAt ? ' · ' + longTime(noteAt) : '' %></p>
+              <p class="mt-0.5 whitespace-pre-wrap break-words text-15"><%= staffNote %></p>
+            </div>
             <% } %>
           </li>
           <% }) %>

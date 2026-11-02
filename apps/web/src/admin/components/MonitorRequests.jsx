@@ -6,7 +6,7 @@ import { RequestsChart, RouteTable, StatusBar } from './monitoring-cards.jsx';
 function Requests({ data }) {
   const [view, setView] = useState('slow');
   const r = data.requests; const t = r.total;
-  const views = { slow: ['Slow or failing', r.slow, 'No slow or failing routes. 🎉'], busiest: ['Most requests', r.busiest, 'No requests recorded.'], slowest: ['Slowest on average', r.slowest, 'No requests recorded.'] };
+  const views = { slow: ['Slow or failing', r.slow, 'No slow or failing routes.'], busiest: ['Most requests', r.busiest, 'No requests recorded.'], slowest: ['Slowest on average', r.slowest, 'No requests recorded.'] };
   const [, rows, empty] = views[view];
   return <>
     <Kpis>

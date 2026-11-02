@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Button, FormGroup, Input, Label, MessageBox, TextArea } from '@adminjs/design-system';
 import { ApiClient, useNotice, useTranslation } from 'adminjs';
+import { T } from './ui.jsx';
 
 const api = new ApiClient();
 
@@ -39,10 +40,10 @@ export default function ReasonAction({ action, resource, record, setTag }) {
 
   if (setTag) setTag(action.label);
   return (
-    <Box as="form" onSubmit={submit} p="xl" style={{ background: '#fff', borderRadius: 24, boxShadow: '0 0 0 1px rgba(0,0,0,0.07), 0 2px 12px rgba(0,0,0,0.03)', maxWidth: 680 }}>
+    <Box as="form" onSubmit={submit} p="xl" style={{ background: T.surface, borderRadius: 24, boxShadow: '0 0 0 1px #232733', maxWidth: 680 }}>
       {record?.title ? (
         <div style={{ marginBottom: 18, paddingBottom: 14, borderBottom: '1px solid #E5E5EA' }}>
-          <div style={{ fontSize: 12, color: '#8A8A8E' }}>{resource?.name}</div>
+          <div style={{ fontSize: 12, color: '#A3A9B6' }}>{resource?.name}</div>
           <div style={{ fontSize: 17, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{record.title}</div>
         </div>
       ) : null}

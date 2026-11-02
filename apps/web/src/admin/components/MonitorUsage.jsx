@@ -17,7 +17,7 @@ function Usage({ data }) {
       </Card>
       <Card>
         <CardTitle>Most slow requests</CardTitle>
-        <PeopleList rows={u.slow} metric="slow" empty="Nobody hit a slow page. 🎉" />
+        <PeopleList rows={u.slow} metric="slow" empty="Nobody hit a slow page." />
       </Card>
     </Columns>
   </>;

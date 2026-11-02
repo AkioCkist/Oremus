@@ -98,11 +98,11 @@ export function AllFields({ resource, record, money, hide = [], open = false, ti
   for (const prop of props) {
     const node = <FieldValue prop={prop} record={record} money={money} />;
     const rendered = FieldValue({ prop, record, money });
-    if (rendered === null) empty.push(prop.label || labelOf(prop.path));
-    else rows.push(<Row key={prop.path} label={prop.label || labelOf(prop.path)}>{node}</Row>);
+    if (rendered === null) empty.push(prop.label || labelOf(prop.propertyPath || prop.path));
+    else rows.push(<Row key={prop.propertyPath || prop.path} label={prop.label || labelOf(prop.propertyPath || prop.path)}>{node}</Row>);
   }
   return (
-    <details className="oa-details" open={open} style={{ background: '#FFFFFF', borderRadius: 24, boxShadow: T.card, padding: '16px 20px' }}>
+    <details className="oa-details" open={open} style={{ background: T.surface, borderRadius: 16, boxShadow: T.card, padding: '16px 20px' }}>
       <summary style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 600, color: T.ink }}>
         <span className="oa-chevron" aria-hidden="true" style={{ display: 'inline-block', transition: 'transform .15s ease', color: T.muted }}>›</span>
         {title} <Muted style={{ fontWeight: 400 }}>({rows.length})</Muted>

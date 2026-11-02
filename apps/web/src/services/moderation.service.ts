@@ -264,8 +264,19 @@ export async function decideCase(actorId: string, caseId: string, verdict: 'upho
   return { ...strike, status };
 }
 
-/** Rules on an appeal of an already decided case. Granting reverses the take-down and the strike. */
+/**
+ * Rules on an appeal. Granting reverses the take-down (and the strike, when staff had upheld the case).
+ * Content the system removed on its own can be appealed before anyone has reviewed the case; the appeal is then
+ * that review: granting dismisses the case, denying upholds it with the usual strike.
+ */
 export async function decideAppeal(actorId: string, caseId: string, grant: boolean, note: string) {
+  const unreviewed = await ModerationCase.exists({ _id: caseId, status: 'open', 'appeal.status': 'pending' });
+  if (unreviewed) {
+    const result = await decideCase(actorId, caseId, grant ? 'dismiss' : 'uphold', note);
+    await ModerationCase.updateOne({ _id: caseId }, { 'appeal.note': note });
+    await audit(grant ? 'moderation.appeal_grant' : 'moderation.appeal_deny', actorId, 'ModerationCase', caseId, { caseId, note });
+    return result;
+  }
   const found: any = await ModerationCase.findOneAndUpdate({ _id: caseId, status: 'upheld', 'appeal.status': 'pending' }, { 'appeal.status': grant ? 'granted' : 'denied', 'appeal.decidedBy': actorId, 'appeal.decidedAt': new Date(), 'appeal.note': note, ...(grant ? { status: 'dismissed' } : {}) }, { new: false });
   if (!found) throw new AppError(409, 'This appeal has already been decided.', 'APPEAL_DECIDED');
   const targetId = String(found.targetId), authorId = String(found.authorId);
@@ -306,7 +317,7 @@ export async function createReport(reporterId: string, input: { targetType: stri
 /** Decisions about this member's own content, for Settings. */
 export async function myCases(userId: string) {
   return ModerationCase.find({ authorId: userId, $or: [{ autoAction: 'removed' }, { status: 'upheld' }] }).sort({ createdAt: -1 }).limit(30)
-    .select('targetType targetId snippet categories status autoAction appeal createdAt decidedAt').lean();
+    .select('targetType targetId snippet categories status autoAction appeal decisionNote createdAt decidedAt').lean();
 }
 
 export async function appealCase(userId: string, caseId: string, message: string) {

@@ -5,13 +5,13 @@ import { STATUS, arrayParam, count, dotStyle, pillStyle, vnd } from './ads-share
 const h = new ViewHelpers();
 
 // Site tokens (styles.css :root, light).
-const ink = '#000000';
-const muted = '#8A8A8E';
-const line = '#E0E0E0';
-const field = '#EFEFF0';
-const brand = '#0088FF';
+const ink = '#EDEEF2';
+const muted = '#A3A9B6';
+const line = '#232733';
+const field = '#1A1D26';
+const brand = '#A78BFA';
 
-const card = { background: '#FFFFFF', borderRadius: 26, boxShadow: '0 0 0 1px rgba(0,0,0,0.07), 0 2px 12px rgba(0,0,0,0.03)', padding: 20 };
+const card = { background: '#14161D', borderRadius: 20, boxShadow: '0 0 0 1px #232733', padding: 20 };
 const sectionTitle = { margin: 0, fontSize: 17, lineHeight: '22px', fontWeight: 600, letterSpacing: '-0.43px', color: ink };
 const label = { fontSize: 13, lineHeight: '18px', color: muted };
 const value = { fontSize: 15, lineHeight: '20px', color: ink, wordBreak: 'break-word' };
@@ -21,7 +21,7 @@ const date = (value) => (value ? new Date(value).toLocaleString('vi-VN', { dateS
 
 function Avatar({ person, size = 32 }) {
   const url = person?.['profile.avatarUrl'];
-  const style = { width: size, height: size, borderRadius: 9999, flexShrink: 0, display: 'grid', placeItems: 'center', overflow: 'hidden', background: url ? field : '#CCE7FF', color: '#0059AB', fontSize: size * 0.36, fontWeight: 600 };
+  const style = { width: size, height: size, borderRadius: 9999, flexShrink: 0, display: 'grid', placeItems: 'center', overflow: 'hidden', background: url ? field : '#3B2F66', color: '#C4B5FD', fontSize: size * 0.36, fontWeight: 600 };
   return <span style={style}>{url ? <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initials(person?.displayName)}</span>;
 }
 
@@ -42,7 +42,7 @@ function AdPreview({ params, advertiser }) {
         : <div style={{ margin: '0 14px', padding: '28px 0', borderRadius: 14, background: field, color: muted, fontSize: 13, textAlign: 'center' }}>No image</div>}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 14px', borderTop: params.mediaUrl ? 'none' : undefined }}>
         <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 15, fontWeight: 600, letterSpacing: '-0.23px', color: ink }}>{params.headline}</span>
-        <span style={{ flexShrink: 0, borderRadius: 9999, background: '#E9E9EB', padding: '7px 14px', fontSize: 15, fontWeight: 600, color: ink }}>{params.ctaLabel}</span>
+        <span style={{ flexShrink: 0, borderRadius: 9999, background: '#232733', padding: '7px 14px', fontSize: 15, fontWeight: 600, color: ink }}>{params.ctaLabel}</span>
       </div>
     </article>
   );
@@ -50,7 +50,7 @@ function AdPreview({ params, advertiser }) {
 
 function Stat({ title, children, hint }) {
   return (
-    <div style={{ flex: '1 1 140px', minWidth: 0, borderRadius: 18, background: '#F2F2F7', padding: '12px 14px' }}>
+    <div style={{ flex: '1 1 140px', minWidth: 0, borderRadius: 18, background: '#0B0C10', padding: '12px 14px' }}>
       <div style={label}>{title}</div>
       <div style={{ marginTop: 2, fontSize: 22, lineHeight: '28px', fontWeight: 600, letterSpacing: '-0.26px', color: ink, fontVariantNumeric: 'tabular-nums' }}>{children}</div>
       {hint ? <div style={{ ...label, marginTop: 2 }}>{hint}</div> : null}
@@ -101,7 +101,7 @@ export default function CampaignShow({ record, action }) {
       </div>
 
       {status === 'rejected' && params.rejectionReason ? (
-        <div role="alert" style={{ ...card, background: '#FFE5E6', boxShadow: 'none', color: '#D70015' }}>
+        <div role="alert" style={{ ...card, background: '#2A1416', boxShadow: 'none', color: '#F87171' }}>
           <div style={{ fontSize: 13, fontWeight: 600 }}>Rejection reason sent to the advertiser</div>
           <div style={{ marginTop: 4, fontSize: 15 }}>{params.rejectionReason}</div>
         </div>

@@ -14,7 +14,7 @@ function Exceptions({ data }) {
     </Kpis>
     <Card>
       <CardTitle>Exceptions over time</CardTitle>
-      <BarChart series={e.series} value={(p) => p.count} color="#FF383C" height={140} granularity={data.granularity} label="Exceptions over time" />
+      <BarChart series={e.series} value={(p) => p.count} color="#F87171" height={140} granularity={data.granularity} label="Exceptions over time" />
     </Card>
     <Card>
       <CardTitle>All exceptions ({num(e.rows.length)})</CardTitle>

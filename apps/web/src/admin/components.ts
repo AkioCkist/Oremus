@@ -30,3 +30,9 @@ export const components = {
   CellPercent: componentLoader.add('CellPercent', source('CellPercent.jsx')),
   Money: componentLoader.add('Money', source('Money.jsx'))
 };
+
+// Replaces AdminJS's own pieces: every resource list gets view tabs, search and filter chips; the sidebar's page list
+// becomes the System group; the signed-in menu works with the keyboard.
+componentLoader.override('DefaultListAction', source('ResourceList.jsx'));
+componentLoader.override('SidebarPages', source('SidebarPages.jsx'));
+componentLoader.override('LoggedIn', source('LoggedIn.jsx'));

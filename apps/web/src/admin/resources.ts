@@ -25,10 +25,11 @@ export const readOnly = (show: Guard = staff) => ({
   bulkDelete: { isAccessible: nobody }
 });
 
-const SAFETY = { name: 'Safety', icon: 'Shield' };
+// Sidebar groups. Members and content share one group so every editable record sits under Resources; the System group
+// (monitoring, audit log) comes from components/SidebarPages.jsx.
+const SAFETY = { name: 'Moderation', icon: 'Shield' };
 const ADS = { name: 'Ads', icon: 'Volume2' };
-const CONTENT = { name: 'Content', icon: 'Document' };
-const PEOPLE = { name: 'People', icon: 'User' };
+const RESOURCES = { name: 'Resources', icon: 'Database' };
 
 /* ---------- Presentation: list cells and record pages ---------- */
 
@@ -112,7 +113,7 @@ const requireReason = (reason: string) => { if (!reason) throw new AppError(422,
 const userResource: ResourceWithOptions = {
   resource: User,
   options: {
-    navigation: PEOPLE,
+    navigation: RESOURCES,
     sort: { sortBy: 'createdAt', direction: 'desc' },
     listProperties: ['profile.avatarUrl', 'displayName', 'username', 'email', 'role', 'status', 'strikes', 'lastSeenAt', 'createdAt'],
     filterProperties: ['username', 'email', 'displayName', 'role', 'status', 'createdAt'],
@@ -154,7 +155,7 @@ const hideContent = (type: string) => reasonAction('Hide', { icon: 'EyeOff', sub
 const contentResource = (resource: unknown, type: string, list: string[], listCells: Record<string, Cell>): ResourceWithOptions => ({
   resource,
   options: {
-    navigation: CONTENT,
+    navigation: RESOURCES,
     sort: { sortBy: 'createdAt', direction: 'desc' },
     listProperties: list,
     properties: (() => {
@@ -176,20 +177,20 @@ const caseResource: ResourceWithOptions = {
     sort: { sortBy: 'priority', direction: 'desc' },
     listProperties: ['mediaUrls', 'snippet', 'status', 'priority', 'targetType', 'authorId', 'source', 'categories', 'autoAction', 'reportCount', 'appeal.status', 'createdAt'],
     filterProperties: ['status', 'targetType', 'source', 'autoAction', 'appeal.status', 'authorId', 'createdAt'],
-    showProperties: ['status', 'targetType', 'targetId', 'authorId', 'snippet', 'mediaUrls', 'categories', 'scores', 'models', 'source', 'autoAction', 'reportCount', 'priority', 'appeal.status', 'appeal.message', 'appeal.at', 'decidedBy', 'decidedAt', 'decisionNote', 'createdAt'],
+    showProperties: ['status', 'targetType', 'targetId', 'authorId', 'snippet', 'mediaUrls', 'categories', 'scores', 'models', 'source', 'autoAction', 'reportCount', 'priority', 'appeal.status', 'appeal.message', 'appeal.at', 'appeal.note', 'decidedBy', 'decidedAt', 'decisionNote', 'createdAt'],
     properties: cells({ mediaUrls: 'thumb', snippet: 'text', authorId: 'person', status: 'pill', targetType: 'pill', source: 'pill', categories: 'pill', autoAction: 'pill', 'appeal.status': 'pill', createdAt: 'date' }),
     actions: {
       ...visual('case'),
-      uphold: reasonAction('Remove content', { icon: 'Trash2', submitLabel: 'Remove and record a strike', variant: 'danger', reasonLabel: 'Why this breaks the rules' },
+      uphold: reasonAction('Remove content', { icon: 'Trash2', submitLabel: 'Remove and record a strike', variant: 'danger', reasonLabel: 'Why this breaks the rules (the member sees this)' },
         recordAction(async (record, { reason }, actorId) => {
           const result = await decideCase(actorId, record.id(), 'uphold', requireReason(reason));
           return `Removed. Strike ${result.strikes}: ${result.consequence}.`;
         })),
-      dismiss: reasonAction('Keep content', { icon: 'Check', submitLabel: 'Keep and close', reasonLabel: 'Why this is fine' },
+      dismiss: reasonAction('Keep content', { icon: 'Check', submitLabel: 'Keep and close', reasonLabel: 'Why this is fine (the member sees this)' },
         recordAction(async (record, { reason }, actorId) => { await decideCase(actorId, record.id(), 'dismiss', requireReason(reason)); return 'Content kept.'; })),
-      grantAppeal: reasonAction('Grant appeal', { icon: 'RotateCcw', submitLabel: 'Restore content', reasonLabel: 'Note' },
+      grantAppeal: reasonAction('Grant appeal', { icon: 'RotateCcw', submitLabel: 'Restore content', reasonLabel: 'Note to the member' },
         recordAction(async (record, { reason }, actorId) => { await decideAppeal(actorId, record.id(), true, requireReason(reason)); return 'Appeal granted.'; })),
-      denyAppeal: reasonAction('Deny appeal', { icon: 'X', submitLabel: 'Keep the decision', reasonLabel: 'Note' },
+      denyAppeal: reasonAction('Deny appeal', { icon: 'X', submitLabel: 'Keep the decision', reasonLabel: 'Note to the member' },
         recordAction(async (record, { reason }, actorId) => { await decideAppeal(actorId, record.id(), false, requireReason(reason)); return 'Appeal denied.'; }))
     }
   }
@@ -297,7 +298,7 @@ export const adminResources: ResourceWithOptions[] = [
   {
     resource: Group,
     options: {
-      navigation: CONTENT, sort: { sortBy: 'createdAt', direction: 'desc' },
+      navigation: RESOURCES, sort: { sortBy: 'createdAt', direction: 'desc' },
       listProperties: ['coverUrl', 'name', 'privacy', 'groupType', 'memberCount', 'ownerId', 'createdAt'],
       properties: cells({ coverUrl: 'thumb', privacy: 'pill', groupType: 'pill', ownerId: 'person', createdAt: 'date' }),
       actions: { ...visual('group') }
@@ -317,7 +318,7 @@ export const adminResources: ResourceWithOptions[] = [
   {
     resource: AuditLog,
     options: {
-      navigation: SAFETY, sort: { sortBy: 'createdAt', direction: 'desc' },
+      navigation: false, sort: { sortBy: 'createdAt', direction: 'desc' },
       listProperties: ['action', 'actorId', 'targetType', 'targetId', 'createdAt'],
       properties: cells({ actorId: 'person', targetType: 'pill', createdAt: 'date' }),
       actions: { ...visual('audit') }

@@ -17,7 +17,7 @@ function Cache({ data }) {
     </Kpis>
     <Card>
       <CardTitle>Cache reads over time</CardTitle>
-      <BarChart series={c.series} value={(p) => p.hit + p.miss} danger={(p) => p.miss} dangerLabel="misses" color="#34C759" height={150} granularity={data.granularity} label="Cache reads over time, misses in red" />
+      <BarChart series={c.series} value={(p) => p.hit + p.miss} danger={(p) => p.miss} dangerLabel="misses" color="#4ADE80" height={150} granularity={data.granularity} label="Cache reads over time, misses in red" />
     </Card>
     <Card>
       <CardTitle>By key family ({num(c.families.length)})</CardTitle>
