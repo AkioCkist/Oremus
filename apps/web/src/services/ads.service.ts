@@ -4,16 +4,20 @@ import { redis } from '../config/database.js';
 import { env } from '../config/env.js';
 import { logger } from '../config/logger.js';
 import { AdAccount, AdCampaign, AdPreference, AdStatDaily, LedgerEntry, User } from '../models/index.js';
+import { detectTopics } from '../recommender/text.js';
 import { interestOption, INTEREST_KEYS } from '../shared/interests.js';
 import { AppError } from '../utils/errors.js';
 import { recordCache } from '../monitoring/instrument.js';
+import { behaviourTopics } from './activity.service.js';
 import { audit } from './audit.service.js';
 import { assertTextAllowed, requestScan } from './moderation.service.js';
 import { notifySystem } from './notification.service.js';
 import { feedExclusions } from './social.service.js';
 
-/** One sponsored card after every this many organic posts. */
+/** The first sponsored card comes after this many organic posts, then one after every AD_EVERY more. */
+export const FIRST_AD_AT = 3;
 export const AD_EVERY = 8;
+export const isAdSlot = (position: number) => position === FIRST_AD_AT || (position > FIRST_AD_AT && (position - FIRST_AD_AT) % AD_EVERY === 0);
 const FREQUENCY_CAP_PER_DAY = 3;
 const TOKEN_TTL_SECONDS = 6 * 3600;
 const ELIGIBLE_CACHE_KEY = 'cache:ads:eligible';
@@ -225,63 +229,118 @@ async function eligibleCampaigns(): Promise<any[]> {
 const dayKey = (campaignId: string) => `ads:day:${today()}:${campaignId}`;
 const frequencyKey = (userId: string, campaignId: string) => `ads:freq:${today()}:${userId}:${campaignId}`;
 
-/** Pure ranking and filtering, separated so the rules can be tested without Redis or MongoDB. */
-export function pickCampaigns(candidates: any[], context: { userId: string; excluded: Set<string>; preferences: any; interests: string[]; capped: Set<string>; spentToday: Map<string, number>; count: number; random?: () => number }) {
+export type AdReason = 'interest' | 'activity' | 'search' | null;
+export type AdPick = { ad: any; matched: string[]; reason: AdReason; preview: boolean };
+
+/**
+ * Pure ranking and filtering, separated so the rules can be tested without Redis or MongoDB.
+ * `interests` are the topics the viewer picked, `recent` the ones their activity points to; both are ignored when
+ * personalization is off. `onlyTopics` restricts the pick to ads about what was just searched for, which is not personal.
+ * An advertiser sees one of their own running campaigns first, as an uncharged preview.
+ */
+export function pickCampaigns(candidates: any[], context: { userId: string; excluded: Set<string>; preferences: any; interests: string[]; recent?: string[]; onlyTopics?: string[]; capped: Set<string>; spentToday: Map<string, number>; count: number; random?: () => number }): AdPick[] {
   const { preferences, random = Math.random } = context;
   const hidden = new Set((preferences.hiddenCampaignIds || []).map(String));
   const blockedAdvertisers = new Set((preferences.blockedAdvertiserIds || []).map(String));
   const blockedTopics = new Set(preferences.blockedTopics || []);
   const personalized = preferences.personalized !== false;
   const interests = new Set(personalized ? context.interests : []);
-  return candidates
-    .filter((ad) => {
-      const id = String(ad._id), advertiser = String(ad.advertiserId._id);
-      if (advertiser === context.userId || context.excluded.has(advertiser) || blockedAdvertisers.has(advertiser)) return false;
-      if (hidden.has(id) || context.capped.has(id)) return false;
-      if (ad.topics.some((topic: string) => blockedTopics.has(topic))) return false;
-      if ((ad.spent ?? 0) >= ad.totalBudget || (context.spentToday.get(id) ?? 0) >= ad.dailyBudget) return false;
-      return true;
-    })
+  const recent = new Set(personalized ? context.recent || [] : []);
+  const only = context.onlyTopics ? new Set(context.onlyTopics) : null;
+  const own: any[] = [];
+  const others = candidates.filter((ad) => {
+    const id = String(ad._id), advertiser = String(ad.advertiserId._id);
+    if (only && !ad.topics.some((topic: string) => only.has(topic))) return false;
+    if ((ad.spent ?? 0) >= ad.totalBudget) return false;
+    if (advertiser === context.userId) { own.push(ad); return false; }
+    if (context.excluded.has(advertiser) || blockedAdvertisers.has(advertiser)) return false;
+    if (hidden.has(id) || context.capped.has(id)) return false;
+    if (ad.topics.some((topic: string) => blockedTopics.has(topic))) return false;
+    if ((context.spentToday.get(id) ?? 0) >= ad.dailyBudget) return false;
+    return true;
+  });
+  const ranked = others
     .map((ad) => {
-      const matched = ad.topics.filter((topic: string) => interests.has(topic));
+      const declared = ad.topics.filter((topic: string) => interests.has(topic));
+      const behaviour = ad.topics.filter((topic: string) => recent.has(topic) && !interests.has(topic));
+      const matched: string[] = only ? ad.topics.filter((topic: string) => only.has(topic)) : [...declared, ...behaviour];
+      const reason: AdReason = only ? 'search' : declared.length ? 'interest' : behaviour.length ? 'activity' : null;
       // Random spread, so a slightly higher bid does not take every slot.
       const weight = ad.cpm * (matched.length ? INTEREST_BOOST : 1) * (0.5 + random());
-      return { ad, matched, weight };
+      return { pick: { ad, matched, reason, preview: false }, weight };
     })
     .sort((a, b) => b.weight - a.weight)
-    .slice(0, context.count);
+    .map((entry) => entry.pick);
+  const preview: AdPick[] = own.length ? [{ ad: own[Math.floor(random() * own.length)], matched: [], reason: null, preview: true }] : [];
+  return [...preview, ...ranked].slice(0, context.count);
 }
 
-const whyShown = (advertiser: string, matched: string[]) => (matched.length
-  ? `${advertiser} wants to reach people interested in ${interestOption(matched[0]!)?.label ?? matched[0]}, which you chose in your interests.`
-  : `${advertiser} is advertising to everyone on Oremus. Nothing about you was used.`);
+const topicName = (key: string) => interestOption(key)?.label ?? key;
+
+function whyShown(pick: AdPick): string {
+  const advertiser = pick.ad.advertiserId.displayName;
+  const topic = pick.matched[0];
+  if (pick.preview) return 'This is your campaign. Only you see this preview, and it is not counted or charged.';
+  if (pick.reason === 'search' && topic) return `${advertiser} wants to reach people looking for ${topicName(topic)}, which matches what you searched for.`;
+  if (pick.reason === 'interest' && topic) return `${advertiser} wants to reach people interested in ${topicName(topic)}, which you chose in your interests.`;
+  if (pick.reason === 'activity' && topic) return `${advertiser} wants to reach people interested in ${topicName(topic)}, which you recently searched for or viewed on Oremus.`;
+  return `${advertiser} is advertising to everyone on Oremus. Nothing about you was used.`;
+}
+
+const adCard = (pick: AdPick, viewerId: string) => ({
+  isAd: true, ...pick.ad, preview: pick.preview, token: signAdToken(String(pick.ad._id), viewerId), why: whyShown(pick),
+  topicLabels: pick.ad.topics.map((key: string) => ({ key, label: topicName(key) }))
+});
+
+/** Everything about the viewer that decides which candidates they may see. */
+async function viewerContext(viewerId: string, candidates: any[]) {
+  const [excluded, preferences] = await Promise.all([feedExclusions(viewerId), getPreferences(viewerId)]);
+  const ids = candidates.map((ad) => String(ad._id));
+  const [frequency, spent] = await Promise.all([redis.mGet(ids.map((id) => frequencyKey(viewerId, id))), redis.mGet(ids.map(dayKey))]);
+  return {
+    userId: viewerId, excluded: new Set(excluded), preferences,
+    capped: new Set(ids.filter((_id, index) => Number(frequency[index] ?? 0) >= FREQUENCY_CAP_PER_DAY)),
+    spentToday: new Map(ids.map((id, index) => [id, Number(spent[index] ?? 0)]))
+  };
+}
 
 /** Mixes sponsored cards into a feed page. Paging counts organic posts only, so ads can never shift it. */
 export async function withAds<T>(posts: T[], viewerId: string, offset: number, interests: string[] = []): Promise<Array<T | any>> {
   const slots: number[] = [];
-  posts.forEach((_post, index) => { if ((offset + index + 1) % AD_EVERY === 0) slots.push(index); });
+  posts.forEach((_post, index) => { if (isAdSlot(offset + index + 1)) slots.push(index); });
   if (!slots.length) return posts;
   // Ads must never break the feed: any failure just means a page without them.
   try {
     const candidates = await eligibleCampaigns();
     if (!candidates.length) return posts;
-    const [excluded, preferences] = await Promise.all([feedExclusions(viewerId), getPreferences(viewerId)]);
-    const ids = candidates.map((ad) => String(ad._id));
-    const [frequency, spent] = await Promise.all([redis.mGet(ids.map((id) => frequencyKey(viewerId, id))), redis.mGet(ids.map(dayKey))]);
-    const capped = new Set(ids.filter((_id, index) => Number(frequency[index] ?? 0) >= FREQUENCY_CAP_PER_DAY));
-    const spentToday = new Map(ids.map((id, index) => [id, Number(spent[index] ?? 0)]));
-    const picked = pickCampaigns(candidates, { userId: viewerId, excluded: new Set(excluded), preferences, interests, capped, spentToday, count: slots.length });
+    const [context, recent] = await Promise.all([viewerContext(viewerId, candidates), behaviourTopics(viewerId).catch(() => [])]);
+    const picked = pickCampaigns(candidates, { ...context, interests, recent, count: slots.length });
     const merged: Array<T | any> = [];
     posts.forEach((post, index) => {
       merged.push(post);
       const position = slots.indexOf(index);
       const pick = position === -1 ? undefined : picked[position];
-      if (pick) merged.push({ isAd: true, ...pick.ad, token: signAdToken(String(pick.ad._id), viewerId), why: whyShown(pick.ad.advertiserId.displayName, pick.matched), topicLabels: pick.ad.topics.map((key: string) => ({ key, label: interestOption(key)?.label || key })) });
+      if (pick) merged.push(adCard(pick, viewerId));
     });
     return merged;
   } catch (error) {
     logger.error({ error }, 'Could not load ads for the feed');
     return posts;
+  }
+}
+
+/** One sponsored card for a search whose words name an ad topic ("game" is Gaming), or null. */
+export async function adForSearch(query: string, viewerId: string): Promise<any | null> {
+  const topics = [...detectTopics([query]).keys()].filter((key) => interestOption(key));
+  if (!topics.length) return null;
+  try {
+    const candidates = await eligibleCampaigns();
+    if (!candidates.length) return null;
+    const [pick] = pickCampaigns(candidates, { ...(await viewerContext(viewerId, candidates)), interests: [], onlyTopics: topics, count: 1 });
+    return pick ? adCard(pick, viewerId) : null;
+  } catch (error) {
+    logger.error({ error }, 'Could not load an ad for search');
+    return null;
   }
 }
 
@@ -299,8 +358,9 @@ export async function recordImpression(token: string, viewerId: string): Promise
   if (!claims || claims.u !== viewerId) throw new AppError(400, 'Invalid ad token.', 'AD_TOKEN_INVALID');
   const first = await redis.set(`ads:seen:${claims.n}`, '1', { NX: true, EX: TOKEN_TTL_SECONDS });
   if (!first) return false;
-  const campaign: any = await AdCampaign.findById(claims.c).select('cpm').lean();
-  if (!campaign) return false;
+  const campaign: any = await AdCampaign.findById(claims.c).select('cpm advertiserId').lean();
+  // An advertiser's own preview is never counted or charged.
+  if (!campaign || String(campaign.advertiserId) === viewerId) return false;
   await Promise.all([
     redis.hIncrBy(PENDING_KEY, claims.c, 1),
     redis.incrByFloat(dayKey(claims.c), campaign.cpm / 1000),
@@ -315,8 +375,9 @@ export async function recordImpression(token: string, viewerId: string): Promise
 export async function recordClick(token: string): Promise<string | null> {
   const claims = verifyAdToken(token);
   if (!claims) return null;
-  const campaign: any = await AdCampaign.findById(claims.c).select('ctaUrl').lean();
+  const campaign: any = await AdCampaign.findById(claims.c).select('ctaUrl advertiserId').lean();
   if (!campaign?.ctaUrl || !campaign.ctaUrl.startsWith('https://')) return null;
+  if (String(campaign.advertiserId) === claims.u) return campaign.ctaUrl;
   const first = await redis.set(`ads:clicked:${claims.n}`, '1', { NX: true, EX: TOKEN_TTL_SECONDS });
   if (first) await Promise.all([countStat(claims.c, { clicks: 1 }), AdCampaign.updateOne({ _id: claims.c }, { $inc: { clicks: 1 } })]);
   return campaign.ctaUrl;

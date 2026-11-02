@@ -1,5 +1,5 @@
 /**
- * Sponsored cards in the feed (view counting, "why this ad", hide and block) and the /ads/manage page.
+ * Sponsored cards in the feed and search results (view counting, "why this ad", hide and block) and the /ads/manage page.
  * Cards arrive in later feed chunks too, so clicks are delegated and new cards are picked up by a MutationObserver.
  */
 const csrf = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content || '';
@@ -43,11 +43,10 @@ function watchCards(root: ParentNode = document) {
   });
 }
 
+// Cards on the page itself (search), then the feed's later chunks as they arrive.
+watchCards();
 const feed = document.querySelector('[data-infinite="feed"]');
-if (feed) {
-  watchCards(feed);
-  new MutationObserver(() => watchCards(feed)).observe(feed, { childList: true });
-}
+if (feed) new MutationObserver(() => watchCards(feed)).observe(feed, { childList: true });
 
 /* ---------- Clicks ---------- */
 

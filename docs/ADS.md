@@ -18,17 +18,26 @@ Changing a campaign sends it back to review.
 
 ## Serving
 
-`withAds` in `services/ads.service.ts` runs after `getFeed`, so ads stay out of the 45-second feed cache and each person gets fresh ones. One card goes after every 8 organic posts. The `o<n>` cursor counts organic posts only, so ads cannot shift paging. Any failure loading ads gives a page without them.
+Ads appear in two places. Any failure loading ads gives the page without them.
+
+- **Home feed:** `withAds` in `services/ads.service.ts` runs after `getFeed`, so ads stay out of the 45-second feed cache and each person gets fresh ones. The first card goes after the 3rd organic post, then one after every 8 more (11th, 19th, …). The `o<n>` cursor counts organic posts only, so ads cannot shift paging.
+- **Search:** `adForSearch` puts one card above the results when the search words name an ad topic ("game" is Gaming), on the All and Posts tabs. Only ads with that topic qualify. This uses the search itself, not anything stored about the person.
 
 An ad is left out when:
 
 - the viewer blocked its advertiser or any of its topics, or hid it;
 - the viewer and advertiser are blocked in either direction, or the viewer chose to see less of them;
-- it is the viewer's own;
 - it reached 3 views for that viewer today;
 - it hit its daily or total budget.
 
-Campaigns are ranked by bid, with a 1.5x boost when a topic matches the interests the viewer picked (dropped if they turned off "Use my interests"), plus some randomness. Topics come from the interest list in `shared/interests.ts`. There is no targeting by sensitive traits, age or location.
+Campaigns are ranked by bid, plus some randomness, with a 1.5x boost when a topic matches:
+
+- the interests the viewer picked in onboarding, or
+- topics from what they recently searched for, read and opened (`behaviourTopics` in `services/activity.service.ts`: the same decaying profile as suggestions, its top 3 topics, cached 5 minutes and dropped on every new signal).
+
+Both are dropped if the viewer turned off "Use my interests". "Why am I seeing this?" says which one matched. Topics come from the interest list in `shared/interests.ts`. There is no targeting by sensitive traits, age or location.
+
+**Advertisers see their own ads.** One of their own running campaigns takes the first slot, marked "Your preview". Its views and clicks are never counted or charged, and its menu has no hide, block or report.
 
 The ad card has no `data-post-id` and no `/posts/` link on purpose: the reading tracker and post viewer would otherwise treat it as a post.
 

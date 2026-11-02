@@ -14,7 +14,7 @@ vi.mock('../config/database.js', () => ({
 }));
 
 import { AdAccount, AdCampaign, LedgerEntry } from '../models/index.js';
-import { applyLedger, pickCampaigns, recordClick, recordImpression, signAdToken, verifyAdToken } from '../services/ads.service.js';
+import { applyLedger, isAdSlot, pickCampaigns, recordClick, recordImpression, signAdToken, verifyAdToken } from '../services/ads.service.js';
 import { adCampaignSchema } from '../validators/index.js';
 
 const id = (n: number) => String(n).padStart(24, 'a');
@@ -39,8 +39,12 @@ describe('who sees which ad', () => {
     expect(shown([ad(1)], { excluded: new Set([id(101)]) })).toEqual([]);
   });
 
-  it('does not show advertisers their own ads', () => {
-    expect(shown([ad(1)], { userId: id(101) })).toEqual([]);
+  it('shows advertisers one of their own running ads first, as a preview', () => {
+    const picks = pickCampaigns([ad(2), ad(1), ad(3, { advertiserId: { _id: id(101), displayName: 'A1' } })], context({ userId: id(101) }) as any);
+    expect(picks[0]).toMatchObject({ preview: true });
+    expect(picks.filter((pick) => pick.preview)).toHaveLength(1);
+    expect(picks.map((pick) => pick.ad._id)).toContain(id(2));
+    expect(shown([ad(1, { spent: 1000 })], { userId: id(101) })).toEqual([]);
   });
 
   it('stops at the frequency cap and at either budget', () => {
@@ -56,8 +60,30 @@ describe('who sees which ad', () => {
     expect(off.every((pick) => pick.matched.length === 0)).toBe(true);
   });
 
+  it('prefers topics from recent activity, and says so', () => {
+    const candidates = [ad(1, { topics: ['books'] }), ad(2, { topics: ['gaming'] })];
+    const [first] = pickCampaigns(candidates, context({ recent: ['gaming'] }) as any);
+    expect(first).toMatchObject({ reason: 'activity', matched: ['gaming'] });
+    expect(first!.ad._id).toBe(id(2));
+    const off = pickCampaigns(candidates, context({ recent: ['gaming'], preferences: { personalized: false } }) as any);
+    expect(off.every((pick) => pick.reason === null)).toBe(true);
+  });
+
+  it('only picks ads about the searched topic, even with personalization off', () => {
+    const candidates = [ad(1, { topics: ['books'] }), ad(2, { topics: ['gaming', 'tech'] })];
+    const picks = pickCampaigns(candidates, context({ onlyTopics: ['gaming'], preferences: { personalized: false } }) as any);
+    expect(picks.map((pick) => [pick.ad._id, pick.reason])).toEqual([[id(2), 'search']]);
+  });
+
   it('respects the number of open slots', () => {
     expect(shown([ad(1), ad(2), ad(3)], { count: 2 })).toHaveLength(2);
+  });
+});
+
+describe('where ads go in the feed', () => {
+  it('puts the first after the third post, then one every eight', () => {
+    const slots = Array.from({ length: 30 }, (_, index) => index + 1).filter(isAdSlot);
+    expect(slots).toEqual([3, 11, 19, 27]);
   });
 });
 
@@ -91,6 +117,11 @@ describe('impressions and clicks', () => {
     const token = signAdToken(id(1), id(2));
     expect(await recordImpression(token, id(2))).toBe(true);
     expect(await recordImpression(token, id(2))).toBe(false);
+  });
+
+  it("never counts an advertiser's own preview", async () => {
+    vi.spyOn(AdCampaign, 'findById').mockReturnValue({ select: () => ({ lean: async () => ({ cpm: 20_000, advertiserId: id(2) }) }) } as any);
+    expect(await recordImpression(signAdToken(id(1), id(2)), id(2))).toBe(false);
   });
 
   it('only redirects to the reviewed https link, never to anything in the request', async () => {

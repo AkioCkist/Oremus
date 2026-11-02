@@ -17,7 +17,7 @@ import { needsOnboarding, safeNext } from '../services/interest.service.js';
 import { INTEREST_OPTIONS, MIN_INTERESTS, KEYWORD_MAX_LENGTH, MAX_KEYWORDS } from '../shared/interests.js';
 import { DISCOVERABLE } from '../moderation/visibility.js';
 import { myCases } from '../services/moderation.service.js';
-import { getAccount, listCampaigns, preferencesForSettings, selfTopUpEnabled, withAds } from '../services/ads.service.js';
+import { adForSearch, getAccount, listCampaigns, preferencesForSettings, selfTopUpEnabled, withAds } from '../services/ads.service.js';
 import { paymentsEnabled } from '../services/payment.service.js';
 import { AD_CTA_LABELS, LedgerEntry } from '../models/index.js';
 
@@ -212,7 +212,9 @@ export async function search(req: Request, res: Response) {
   const friendStates = await getFriendshipStates(req.user!.id, userIds);
   const results = rawResults.map((item) => item.kind === 'user' ? { ...item, friendState: friendStates.get(String(item.id)) || 'none', isFollowing: followedIds.has(String(item.id)) } : item);
   const peopleWithState = people.map((person: any) => ({ ...person, friendState: friendStates.get(String(person._id)) || 'none', isFollowing: followedIds.has(String(person._id)) })).filter((person: any) => person.friendState !== 'friends');
-  res.render('search', { ...base(req, 'Search'), q, kind, results, people: peopleWithState });
+  // An ad only when the search names one of its topics, and never on the People or Groups tabs.
+  const ad = q.length >= 2 && (kind === 'all' || kind === 'post') ? await adForSearch(q, req.user!.id) : null;
+  res.render('search', { ...base(req, 'Search'), q, kind, results, people: peopleWithState, ad });
 }
 
 /** Suggestions never break a page: without them the page renders with empty "for you" sections. */

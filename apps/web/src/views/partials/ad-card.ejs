@@ -1,22 +1,25 @@
-<%# A sponsored card in the feed. Deliberately not a post: no data-post-id, and no /posts/ link, so reading activity and the post viewer ignore it. -%>
+<%# A sponsored card in the feed or search. Deliberately not a post: no data-post-id, and no /posts/ link, so reading activity and the post viewer ignore it.
+    `item.preview` is the advertiser seeing their own campaign: nothing to hide, block or report, and nothing is charged. -%>
 <% const advertiser = item.advertiserId || {}; const adId = String(item._id); -%>
 <article class="post" data-key="ad-<%= adId %>" data-ad data-ad-token="<%= item.token %>" aria-label="Sponsored by <%= advertiser.displayName %>">
   <header class="post-pad flex items-center gap-2.5 py-2.5">
     <a href="/profile/<%= advertiser.username %>" class="shrink-0" aria-label="<%= advertiser.displayName %>'s profile"><%- include('avatar', { person: advertiser, size: 'size-8 text-xs' }) %></a>
     <div class="min-w-0 flex-1 leading-tight">
       <a class="block truncate text-footnote font-semibold hover:text-muted" href="/profile/<%= advertiser.username %>"><%= advertiser.displayName %></a>
-      <p class="text-caption1 text-muted">Sponsored</p>
+      <p class="text-caption1 text-muted">Sponsored<%= item.preview ? ' · Your preview' : '' %></p>
     </div>
     <details class="relative" data-menu>
       <summary class="icon-btn-ghost -mr-2 cursor-pointer list-none text-ink" aria-label="Ad options"><svg class="icon"><use href="#i-more"/></svg></summary>
       <div class="menu right-0 top-10 w-72">
         <button type="button" class="menu-item" data-ad-why-toggle><span class="menu-icon"><svg class="icon"><use href="#i-info"/></svg></span>Why am I seeing this?</button>
+        <% if (!item.preview) { %>
         <button type="button" class="menu-item" data-ad-action="hide_campaign" data-ad-value="<%= adId %>"><span class="menu-icon"><svg class="icon"><use href="#i-x"/></svg></span>Hide this ad</button>
         <button type="button" class="menu-item" data-ad-action="block_advertiser" data-ad-value="<%= advertiser._id %>"><span class="menu-icon"><svg class="icon"><use href="#i-lock"/></svg></span>Stop ads from <%= advertiser.displayName %></button>
         <% item.topicLabels.forEach(function (topic) { %>
         <button type="button" class="menu-item" data-ad-action="block_topic" data-ad-value="<%= topic.key %>"><span class="menu-icon"><svg class="icon"><use href="#i-pause"/></svg></span>Fewer ads about <%= topic.label %></button>
         <% }) %>
         <button type="button" class="menu-item" data-report-type="AdCampaign" data-report-id="<%= adId %>" data-report-label="ad"><span class="menu-icon"><svg class="icon"><use href="#i-flag"/></svg></span>Report ad</button>
+        <% } %>
       </div>
     </details>
   </header>

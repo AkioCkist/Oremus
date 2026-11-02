@@ -2,9 +2,10 @@ import mongoose from 'mongoose';
 import { logger } from '../config/logger.js';
 import { Follow, Group, GroupMember, Interaction, Post, Story, User } from '../models/index.js';
 import { groupText, postText, queryText, storyText, userText } from '../recommender/documents.js';
-import { MIN_DWELL_MS, type Signal, type SignalType, type TargetType } from '../recommender/engine.js';
-import { analyze, topFeatures } from '../recommender/text.js';
-import { invalidateCacheKeys } from './cache.service.js';
+import { buildProfile, MIN_DWELL_MS, type Signal, type SignalType, type TargetType } from '../recommender/engine.js';
+import { analyze, isTopic, topFeatures, topicKey } from '../recommender/text.js';
+import { interestOption } from '../shared/interests.js';
+import { cacheGet, cacheSet, invalidateCacheKeys } from './cache.service.js';
 import { assertCanAccessPost } from './post.service.js';
 import { canViewStory } from './story.service.js';
 import { blockedUserIds } from './social.service.js';
@@ -27,6 +28,13 @@ const RECENT_POSTS = 10;
 const LABEL_LIMIT = 80;
 
 export const recommendationCacheKey = (userId: string) => `rec:${userId}`;
+const adTopicsCacheKey = (userId: string) => `ads:topics:${userId}`;
+/** Cache keys built from a person's signals, dropped whenever those change. */
+const signalCacheKeys = (userId: string) => [recommendationCacheKey(userId), adTopicsCacheKey(userId)];
+const AD_TOPICS = 3;
+/** A topic must be at least this share of the strongest one to count, so one stray read does not steer ads. */
+const AD_TOPIC_SHARE = 0.35;
+const AD_TOPICS_TTL_SECONDS = 300;
 const isId = (value: unknown): value is string => typeof value === 'string' && mongoose.isValidObjectId(value) && /^[a-f0-9]{24}$/i.test(value);
 const snippet = (text: string) => { const clean = String(text || '').replace(/\s+/g, ' ').trim(); return clean.length > LABEL_LIMIT ? `${clean.slice(0, LABEL_LIMIT - 1)}…` : clean; };
 
@@ -117,7 +125,7 @@ export async function recordSignal(userId: string, input: SignalInput): Promise<
     userId, type: input.type, targetType: input.targetType, targetId: input.targetType === 'query' ? null : input.targetId,
     authorId: resolved.authorId || null, groupId: resolved.groupId || null, label: resolved.label, durationMs, features: resolved.features
   });
-  await invalidateCacheKeys([recommendationCacheKey(userId)]);
+  await invalidateCacheKeys(signalCacheKeys(userId));
   return true;
 }
 
@@ -154,6 +162,21 @@ export async function loadSignals(userId: string): Promise<Signal[]> {
 
 export async function clearSignals(userId: string): Promise<number> {
   const result = await Interaction.deleteMany({ userId });
-  await invalidateCacheKeys([recommendationCacheKey(userId)]);
+  await invalidateCacheKeys(signalCacheKeys(userId));
   return result.deletedCount || 0;
+}
+
+/**
+ * Ad topics this person recently showed interest in by searching, reading and opening things, strongest first.
+ * Uses the same decaying profile as suggestions, but only its topics, and only those matching an ad topic.
+ */
+export async function behaviourTopics(userId: string): Promise<string[]> {
+  const cached = await cacheGet<string[]>(adTopicsCacheKey(userId));
+  if (cached) return cached;
+  const profile = buildProfile(await loadSignals(userId));
+  const topics = [...profile.terms].filter(([token]) => isTopic(token) && interestOption(topicKey(token))).sort((a, b) => b[1] - a[1]);
+  const strongest = topics[0]?.[1] ?? 0;
+  const result = topics.filter(([, weight]) => weight >= strongest * AD_TOPIC_SHARE).slice(0, AD_TOPICS).map(([token]) => topicKey(token));
+  await cacheSet(adTopicsCacheKey(userId), result, AD_TOPICS_TTL_SECONDS);
+  return result;
 }
