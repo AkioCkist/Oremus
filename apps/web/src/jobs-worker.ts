@@ -9,6 +9,7 @@ import { adsProcessor } from './jobs/ads.job.js';
 import { callsProcessor } from './jobs/calls.job.js';
 import { JOB_PREFIX, jobConnection, jobQueue, QUEUES } from './jobs/queues.js';
 import { setNotifier, setSessionTerminator } from './services/notification.service.js';
+import { recordException, recordJob, startProcessMonitoring, stopMonitoring } from './monitoring/index.js';
 
 /**
  * Background worker for everything except video transcoding. It holds no sockets of its own,
@@ -28,6 +29,13 @@ async function start() {
   moderation.on('failed', (job, error) => { onScanFailed(job, error).catch((failure) => logger.error({ failure }, 'Could not settle a failed scan')); });
   const workers = [moderation, new Worker(QUEUES.ads, adsProcessor, shared), new Worker(QUEUES.calls, callsProcessor, { ...shared, concurrency: 10 })];
   workers.forEach((worker) => worker.on('error', (error) => logger.error({ error }, 'Job worker error')));
+  startProcessMonitoring('jobs');
+  // Duration from pick-up to finish, per queue and job name, for the monitoring page.
+  const took = (job: { processedOn?: number; finishedOn?: number } | undefined) => (job?.processedOn ? (job.finishedOn ?? Date.now()) - job.processedOn : 0);
+  workers.forEach((worker) => {
+    worker.on('completed', (job) => recordJob(worker.name, job.name, took(job), false));
+    worker.on('failed', (job, error) => { recordJob(worker.name, job?.name ?? 'unknown', took(job), true); recordException(error, { source: `job ${worker.name}:${job?.name ?? '?'}` }); });
+  });
 
   await jobQueue(QUEUES.moderation).upsertJobScheduler('moderation-sweep', { every: 5 * 60_000 }, { name: 'sweep' });
   await jobQueue(QUEUES.ads).upsertJobScheduler('ads-settle', { every: 60_000 }, { name: 'settle' });
@@ -37,6 +45,7 @@ async function start() {
   const shutdown = async () => {
     logger.info('Jobs worker shutting down');
     await Promise.all(workers.map((worker) => worker.close()));
+    await stopMonitoring();
     await publisher.quit();
     await disconnectInfrastructure();
     process.exit(0);

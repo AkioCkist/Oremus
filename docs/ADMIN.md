@@ -9,10 +9,10 @@
 The first admin has to be made on the server, because nothing in the web app lets someone raise their own role:
 
 ```bash
-npm --workspace @oremus/web run grant-role -- someone@example.com admin
+docker compose exec web node dist/scripts/grant-role.js someone@example.com admin
 ```
 
-In production, inside the container: `docker compose exec web node dist/scripts/grant-role.js someone@example.com admin`.
+It runs inside the container because Compose keeps MongoDB and Redis off the host. The `grant-role` npm script is for when they are reachable from where you run it.
 
 | Can do | moderator | admin |
 |---|---|---|

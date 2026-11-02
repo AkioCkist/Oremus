@@ -32,11 +32,24 @@ export const adminHelmet = helmet({
  * Browsers always send Origin on POST and cannot be scripted to forge it.
  */
 export function sameOriginWrites(req: Request, _res: Response, next: NextFunction): void {
-  if (req.method === 'GET' || req.method === 'HEAD') return next();
+  if (req.method === 'GET' || req.method === 'HEAD') {
+    // One-click record actions (Approve, Reinstate...) reach the API as GET, so API reads must come from the panel itself
+    // (or be typed into the address bar), never from a link or image on another site.
+    if (String(req.path || '').startsWith('/api/') && !fromThisSite(req)) return next(new AppError(403, 'Cross-site admin requests are not allowed.', 'CSRF_INVALID'));
+    return next();
+  }
   const origin = req.get('origin');
   const sameHost = origin ? new URL(origin).host === req.get('host') : false;
   if (!origin || !(env.APP_ORIGIN.includes(origin) || sameHost)) return next(new AppError(403, 'Cross-origin admin requests are not allowed.', 'CSRF_INVALID'));
   next();
+}
+
+/** Fetch Metadata where the browser sends it (all current ones do); otherwise the Referer must be this host. */
+function fromThisSite(req: Request): boolean {
+  const site = req.get('sec-fetch-site');
+  if (site) return site === 'same-origin' || site === 'none';
+  const referer = req.get('referer');
+  try { return Boolean(referer) && new URL(referer!).host === req.get('host'); } catch { return false; }
 }
 
 /** AdminJS reads the signed-in admin from req.session; our JWT session is the only login, so it is filled in from there. */

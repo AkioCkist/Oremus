@@ -22,6 +22,7 @@ import { ADMIN_PATH, adminEntry, adminHelmet } from './admin/mount.js';
 import { vnpayIpn, vnpayReturn } from './controllers/ads.controller.js';
 import { livekitWebhook } from './controllers/call.controller.js';
 import { callsEnabled } from './services/call.service.js';
+import { requestMonitor } from './monitoring/instrument.js';
 
 // Built client bundles: served with ?v=<hash>, so they can be cached forever.
 const BUNDLES = ['styles.css', 'app.js', 'image-worker.js'];
@@ -58,6 +59,7 @@ export function createApp() {
   app.use(compression());
   app.use(pinoHttp({ logger }));
   app.use(requestContext);
+  app.use(requestMonitor);
   app.use(cookieParser());
   // Display preference (light | dark | system) is a per-device cookie so pages render in the right theme without a flash.
   app.use((req, res, next) => { const theme = req.cookies?.theme; res.locals.theme = ['light', 'dark', 'system'].includes(theme) ? theme : 'system'; next(); });

@@ -44,14 +44,23 @@ describe('/admin access', () => {
 });
 
 describe('sameOriginWrites', () => {
-  const check = (method: string, headers: Record<string, string>) => {
+  const check = (method: string, headers: Record<string, string>, path = '/resources/User') => {
     const next = vi.fn();
-    sameOriginWrites({ method, get: (name: string) => headers[name] } as any, {} as any, next);
+    sameOriginWrites({ method, path, get: (name: string) => headers[name] } as any, {} as any, next);
     return next.mock.calls[0]?.[0];
   };
 
-  it('lets reads through', () => {
+  it('lets page reads through', () => {
     expect(check('GET', {})).toBeUndefined();
+  });
+
+  it('only runs API reads (and one-click actions) for the panel itself', () => {
+    const api = '/api/resources/AdCampaign/records/1/approve';
+    expect(check('GET', { 'sec-fetch-site': 'same-origin' }, api)).toBeUndefined();
+    expect(check('GET', { 'sec-fetch-site': 'cross-site' }, api)?.status).toBe(403);
+    expect(check('GET', { 'sec-fetch-site': 'same-site' }, api)?.status).toBe(403);
+    expect(check('GET', { referer: 'https://oremus.test/admin', host: 'oremus.test' }, api)).toBeUndefined();
+    expect(check('GET', { host: 'oremus.test' }, api)?.status).toBe(403);
   });
 
   it('refuses writes from another site or with no origin', () => {

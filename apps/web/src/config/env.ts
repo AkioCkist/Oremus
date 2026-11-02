@@ -52,7 +52,13 @@ const schema = z.object({
   LIVEKIT_API_KEY: z.string().default(''),
   LIVEKIT_API_SECRET: z.string().default(''),
   /** How this server reaches LiveKit's API. Defaults to LIVEKIT_URL; Compose points it at the internal address. */
-  LIVEKIT_HOST: z.string().default('')
+  LIVEKIT_HOST: z.string().default(''),
+  /** Pulse-style monitoring in the admin panel (src/monitoring). Off in tests unless asked for. */
+  MONITORING_ENABLED: z.enum(['true', 'false']).optional(),
+  MONITORING_SLOW_REQUEST_MS: z.coerce.number().int().positive().default(1000),
+  MONITORING_SLOW_QUERY_MS: z.coerce.number().int().positive().default(100),
+  MONITORING_SLOW_JOB_MS: z.coerce.number().int().positive().default(2000),
+  MONITORING_SLOW_OUTGOING_MS: z.coerce.number().int().positive().default(1000)
 }).superRefine((value, ctx) => {
   if (value.NODE_ENV !== 'production') return;
   const placeholders = new Set([DEV_ACCESS_SECRET, DEV_REFRESH_SECRET, EXAMPLE_ACCESS_SECRET, EXAMPLE_REFRESH_SECRET]);

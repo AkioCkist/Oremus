@@ -66,7 +66,7 @@
             <div class="flex gap-2">
               <% if (campaign.status === 'active') { %><button type="button" class="btn-secondary" data-campaign-action="pause">Pause</button><% } %>
               <% if (campaign.status === 'paused' || campaign.status === 'exhausted') { %><button type="button" class="btn-secondary" data-campaign-action="resume">Resume</button><% } %>
-              <% if (campaign.status !== 'ended') { %><button type="button" class="btn-secondary" data-edit-campaign="<%= JSON.stringify({ id: campaign._id, name: campaign.name, headline: campaign.headline, body: campaign.body, ctaLabel: campaign.ctaLabel, ctaUrl: campaign.ctaUrl, topics: campaign.topics, dailyBudget: campaign.dailyBudget, totalBudget: campaign.totalBudget, cpm: campaign.cpm }) %>">Edit</button><button type="button" class="btn-secondary" data-campaign-action="end">End</button><% } %>
+              <% if (campaign.status !== 'ended') { %><button type="button" class="btn-secondary" data-edit-campaign="<%= JSON.stringify({ id: campaign._id, name: campaign.name, headline: campaign.headline, body: campaign.body, ctaLabel: campaign.ctaLabel, ctaUrl: campaign.ctaUrl, mediaUrl: campaign.mediaUrl, topics: campaign.topics, dailyBudget: campaign.dailyBudget, totalBudget: campaign.totalBudget, cpm: campaign.cpm }) %>">Edit</button><button type="button" class="btn-secondary" data-campaign-action="end">End</button><% } %>
             </div>
           </div>
           <% if (campaign.status === 'rejected' && campaign.rejectionReason) { %><p class="mt-2 text-15 text-ios-red"><%= campaign.rejectionReason %></p><% } %>
@@ -85,6 +85,25 @@
     <div><label class="label" for="campaign-headline">Headline</label><input class="input mt-1.5 w-full" id="campaign-headline" name="headline" maxlength="80" required></div>
     <div><label class="label" for="campaign-body">Text</label><textarea class="input mt-1.5 w-full" id="campaign-body" name="body" rows="3" maxlength="500"></textarea></div>
     <div><label class="label" for="campaign-image">Image (optional)</label><input class="input mt-1.5 w-full py-2" id="campaign-image" name="image" type="file" accept="image/*"></div>
+    <div>
+      <p class="label">Preview</p>
+      <% const me = locals.currentUser || {}; -%>
+      <article class="mt-1.5 overflow-hidden rounded-xl border border-line bg-surface" data-campaign-preview aria-label="Ad preview">
+        <header class="flex items-center gap-2.5 px-3 py-2.5">
+          <%- include('../partials/avatar', { person: me, size: 'size-8 text-xs' }) %>
+          <div class="min-w-0 flex-1 leading-tight">
+            <p class="truncate text-footnote font-semibold"><%= me.displayName %></p>
+            <p class="text-caption1 text-muted">Sponsored</p>
+          </div>
+        </header>
+        <p class="hidden whitespace-pre-wrap break-words px-3 pb-2 text-body" data-preview-body></p>
+        <img class="hidden max-h-[24rem] w-full bg-field object-cover" alt="" data-preview-image>
+        <div class="flex items-center justify-between gap-3 px-3 py-3">
+          <span class="min-w-0 truncate text-subheadline font-semibold" data-preview-headline></span>
+          <span class="btn-secondary pointer-events-none shrink-0" data-preview-cta><%= ctaLabels[0] %></span>
+        </div>
+      </article>
+    </div>
     <div class="grid gap-3 sm:grid-cols-2">
       <div><label class="label" for="campaign-cta-label">Button</label><select class="input mt-1.5 w-full" id="campaign-cta-label" name="ctaLabel"><% ctaLabels.forEach(function (label) { %><option><%= label %></option><% }) %></select></div>
       <div><label class="label" for="campaign-cta-url">Link (https)</label><input class="input mt-1.5 w-full" id="campaign-cta-url" name="ctaUrl" type="url" pattern="https://.*" placeholder="https://" required></div>

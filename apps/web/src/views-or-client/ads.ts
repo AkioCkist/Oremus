@@ -128,21 +128,67 @@ document.querySelector<HTMLInputElement>('[data-ad-personalized]')?.addEventList
 const dialog = document.querySelector<HTMLDialogElement>('#campaign-dialog');
 const form = dialog?.querySelector<HTMLFormElement>('[data-campaign-form]') ?? null;
 let editingId = '';
+let savedMediaUrl = '';
+let previewObjectUrl = '';
+
+/** Mirrors the feed's sponsored card so advertisers see the image and headline as people will. */
+function renderPreview() {
+  const preview = dialog?.querySelector<HTMLElement>('[data-campaign-preview]');
+  if (!preview || !form) return;
+  const value = (name: string) => {
+    const field = form.elements.namedItem(name);
+    return field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement ? field.value : '';
+  };
+  const headline = preview.querySelector<HTMLElement>('[data-preview-headline]');
+  if (headline) {
+    const text = value('headline').trim();
+    headline.textContent = text || 'Your headline';
+    headline.classList.toggle('text-muted', !text);
+  }
+  const body = preview.querySelector<HTMLElement>('[data-preview-body]');
+  if (body) {
+    const text = value('body').trim();
+    body.textContent = text;
+    body.classList.toggle('hidden', !text);
+  }
+  const cta = preview.querySelector<HTMLElement>('[data-preview-cta]');
+  if (cta) cta.textContent = value('ctaLabel');
+}
+
+function renderPreviewImage() {
+  const image = dialog?.querySelector<HTMLImageElement>('[data-preview-image]');
+  if (!image || !form) return;
+  const file = (form.elements.namedItem('image') as HTMLInputElement | null)?.files?.[0];
+  if (previewObjectUrl) { URL.revokeObjectURL(previewObjectUrl); previewObjectUrl = ''; }
+  if (file && file.type.startsWith('image/')) previewObjectUrl = URL.createObjectURL(file);
+  const src = previewObjectUrl || savedMediaUrl;
+  if (src) image.src = src; else image.removeAttribute('src');
+  image.classList.toggle('hidden', !src);
+}
+
+form?.addEventListener('input', renderPreview);
+form?.addEventListener('change', (event) => {
+  if ((event.target as HTMLInputElement).name === 'image') renderPreviewImage();
+  renderPreview();
+});
 
 function openCampaignDialog(campaign?: Record<string, any>) {
   if (!dialog || !form) return;
   form.reset();
   editingId = campaign?.id ? String(campaign.id) : '';
+  savedMediaUrl = campaign?.mediaUrl ? String(campaign.mediaUrl) : '';
   const title = dialog.querySelector('#campaign-title');
   if (title) title.textContent = campaign ? 'Edit campaign' : 'New campaign';
   form.querySelector('[data-form-error]')?.classList.add('hidden');
   if (campaign) {
     for (const [name, value] of Object.entries(campaign)) {
       const field = form.elements.namedItem(name);
-      if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement) field.value = String(value ?? '');
+      if ((field instanceof HTMLInputElement && field.type !== 'file') || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement) field.value = String(value ?? '');
     }
     form.querySelectorAll<HTMLInputElement>('[name="topics"]').forEach((box) => { box.checked = (campaign.topics || []).includes(box.value); });
   }
+  renderPreview();
+  renderPreviewImage();
   dialog.showModal();
 }
 

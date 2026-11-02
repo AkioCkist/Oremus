@@ -29,6 +29,14 @@ async function collect() {
     // A Redis problem should not take the whole dashboard down with it.
     queueHealth().catch((error) => { logger.warn({ error }, 'Queue health unavailable'); return {}; })
   ]);
+  // The first few items of each review queue, so the dashboard shows what is waiting instead of just a count.
+  const person = 'displayName username profile.avatarUrl';
+  const [topCases, waitingAds] = await Promise.all([
+    ModerationCase.find({ status: 'open' }).sort({ priority: -1, createdAt: 1 }).limit(5)
+      .select('targetType snippet mediaUrls categories priority reportCount source createdAt authorId').populate('authorId', person).lean(),
+    AdCampaign.find({ status: 'pending_review' }).sort({ createdAt: 1 }).limit(5)
+      .select('name headline mediaUrl totalBudget createdAt advertiserId').populate('advertiserId', person).lean()
+  ]);
   const callCount = (status: string) => callRows.find((row: any) => row._id === status)?.total ?? 0;
   return {
     generatedAt: new Date().toISOString(),
@@ -37,7 +45,8 @@ async function collect() {
     moderation: { openCases, openReports, openAppeals, removedThisWeek },
     ads: { pendingReview, active: activeAds, topUps: money.find((row: any) => row._id === 'topup')?.total ?? 0, spend: Math.abs(money.find((row: any) => row._id === 'spend')?.total ?? 0) },
     calls: { total: callRows.reduce((sum: number, row: any) => sum + row.total, 0), answered: callCount('ended') + callCount('accepted'), failed: callCount('failed') },
-    queues
+    queues,
+    waiting: { cases: topCases, ads: waitingAds }
   };
 }
 

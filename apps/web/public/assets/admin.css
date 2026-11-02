@@ -1,0 +1,51 @@
+/* Oremus look for the AdminJS panel: pill buttons, soft fields, large rounded cards and hairlines, as on the site
+   (src/views-or-client/styles.css). Colours and fonts come from the AdminJS theme in src/admin/index.ts.
+   AdminJS styles are generated classes, so shape overrides here need !important to win. */
+html, body { -webkit-font-smoothing: antialiased; }
+body { background: #F2F2F7; }
+
+/* Buttons and action buttons (rendered as <a> or <button>) */
+[data-css="app"] button,
+[data-css="app"] a[data-css$="-button"],
+[data-css="app"] [data-css$="-button"] > a,
+[data-css="app"] [data-css$="-button"] > button { border-radius: 9999px !important; }
+[data-css="app"] [data-css$="-button"] { border-radius: 9999px !important; }
+
+/* Fields */
+[data-css="app"] input:not([type="checkbox"]):not([type="radio"]),
+[data-css="app"] textarea,
+[data-css="app"] select,
+[data-css="drawer"] input:not([type="checkbox"]):not([type="radio"]),
+[data-css="drawer"] textarea { border-radius: 12px !important; border-color: transparent !important; background-color: #EFEFF0 !important; }
+[data-css="app"] input:focus,
+[data-css="app"] textarea:focus,
+[data-css="drawer"] input:focus { border-color: #0088FF !important; box-shadow: 0 0 0 3px rgba(0, 136, 255, 0.18) !important; background-color: #FFFFFF !important; }
+
+/* Shell */
+[data-css="sidebar"] { border-right: 1px solid #E5E5EA !important; }
+[data-css="sidebar"] a { border-radius: 12px !important; }
+[data-css="sidebar-logo"] { font-weight: 700; letter-spacing: -0.4px; }
+[data-css="topbar"] { box-shadow: 0 0.5px 0 rgba(0, 0, 0, 0.08) !important; border: 0 !important; }
+[data-css="app-content"] h1, [data-css="app-content"] h2 { letter-spacing: -0.4px; }
+
+/* Lists: rounded table card, roomy rows, hover */
+[data-css$="-list-table"], [data-css$="-table"] table { border-radius: 20px !important; overflow: hidden; }
+[data-css="app-content"] table { border-collapse: separate !important; border-spacing: 0; background: #FFFFFF; border-radius: 20px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06); }
+[data-css="app-content"] thead th { background: #FAFAFC !important; font-size: 12px !important; text-transform: none !important; color: #8A8A8E !important; font-weight: 600 !important; }
+[data-css="app-content"] tbody td { border-color: #EFEFF0 !important; vertical-align: middle !important; }
+[data-css="app-content"] tbody tr:hover td { background-color: #F7F7FA !important; }
+
+/* Default containers (forms, filter drawer, edit pages) */
+[data-css$="-content"], [data-css$="-form"] { border-radius: 24px !important; }
+[data-css="drawer"] { border-radius: 24px 0 0 24px !important; }
+[data-css="notice"] > * { border-radius: 16px !important; }
+
+/* Our own components */
+.oa-link { color: #0088FF; text-decoration: none; font-weight: 600; }
+.oa-link:hover { text-decoration: underline; }
+.oa-card-link { transition: box-shadow .15s ease, transform .15s ease; }
+.oa-card-link:hover { box-shadow: 0 0 0 1px rgba(0, 136, 255, 0.35), 0 6px 20px rgba(0, 0, 0, 0.06) !important; transform: translateY(-1px); }
+.oa-details > summary { cursor: pointer; list-style: none; }
+.oa-details > summary::-webkit-details-marker { display: none; }
+.oa-details[open] .oa-chevron { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { .oa-card-link { transition: none; } .oa-card-link:hover { transform: none; } }

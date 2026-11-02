@@ -6,6 +6,7 @@ import { logger } from '../config/logger.js';
 import { AdAccount, AdCampaign, AdPreference, AdStatDaily, LedgerEntry, User } from '../models/index.js';
 import { interestOption, INTEREST_KEYS } from '../shared/interests.js';
 import { AppError } from '../utils/errors.js';
+import { recordCache } from '../monitoring/instrument.js';
 import { audit } from './audit.service.js';
 import { assertTextAllowed, requestScan } from './moderation.service.js';
 import { notifySystem } from './notification.service.js';
@@ -210,6 +211,7 @@ export async function invalidateEligibleAds(): Promise<void> {
 
 async function eligibleCampaigns(): Promise<any[]> {
   const cached = await redis.get(ELIGIBLE_CACHE_KEY);
+  recordCache(ELIGIBLE_CACHE_KEY, Boolean(cached));
   if (cached) return JSON.parse(cached);
   const now = new Date();
   const rows: any[] = await AdCampaign.find({ status: 'active', $and: [{ $or: [{ startAt: null }, { startAt: { $lte: now } }] }, { $or: [{ endAt: null }, { endAt: { $gt: now } }] }] })

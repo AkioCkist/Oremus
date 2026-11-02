@@ -39,7 +39,13 @@ export default function ReasonAction({ action, resource, record, setTag }) {
 
   if (setTag) setTag(action.label);
   return (
-    <Box as="form" onSubmit={submit} variant="container" p="xl">
+    <Box as="form" onSubmit={submit} p="xl" style={{ background: '#fff', borderRadius: 24, boxShadow: '0 0 0 1px rgba(0,0,0,0.07), 0 2px 12px rgba(0,0,0,0.03)', maxWidth: 680 }}>
+      {record?.title ? (
+        <div style={{ marginBottom: 18, paddingBottom: 14, borderBottom: '1px solid #E5E5EA' }}>
+          <div style={{ fontSize: 12, color: '#8A8A8E' }}>{resource?.name}</div>
+          <div style={{ fontSize: 17, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{record.title}</div>
+        </div>
+      ) : null}
       {custom.warning ? <MessageBox mb="lg" message={custom.warning} variant="warning" /> : null}
       {custom.noReason ? null : (
         <FormGroup>
