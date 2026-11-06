@@ -24,7 +24,8 @@ flowchart LR
 |---|---|
 | `off` | Nothing is scanned or refused. The default. |
 | `shadow` | Everything is scanned and recorded in `ModerationScan`. Members notice nothing, even for a would-be refusal. |
-| `enforce` | Decisions apply. |
+| `enforce` | Decisions apply. Scores between `review` and `block`, and `block` scores in categories without `autoRemove`, are limited until a person decides. |
+| `auto` | The model's decision is final. At or above `block` the content is removed in every category, `autoRemove` or not. Between `review` and `block` it is published. Either way a case is opened so staff can reverse it afterwards, but nothing waits on them. Expect more wrong removals: the image model calls some ordinary portraits sexual. |
 
 Run `shadow` on real traffic first, and read `ModerationScan` in the admin panel before switching.
 

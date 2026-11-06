@@ -1,0 +1,12 @@
+# Publishes Mongo, Redis and the moderation models on localhost so scripts/test-moderation-ai.ps1 can run from the host.
+# Only for local testing: docker compose -f docker-compose.yml -f docker-compose.moderation-test.yml --profile moderation up -d mongo redis moderation
+services:
+  mongo:
+    ports:
+      - "127.0.0.1:27017:27017"
+  redis:
+    ports:
+      - "127.0.0.1:6379:6379"
+  moderation:
+    ports:
+      - "127.0.0.1:8010:8010"

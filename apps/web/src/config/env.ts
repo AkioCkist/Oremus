@@ -36,7 +36,7 @@ const schema = z.object({
   LOG_LEVEL: z.string().default('info'),
   FFMPEG_PATH: z.string().min(1).default('ffmpeg'),
   /** off: nothing scanned. shadow: scored and logged, no effect on users. enforce: decisions apply. */
-  MODERATION_MODE: z.enum(['off', 'shadow', 'enforce']).default('off'),
+  MODERATION_MODE: z.enum(['off', 'shadow', 'enforce', 'auto']).default('off'),
   MODERATION_URL: z.string().url().default('http://localhost:8010'),
   MODERATION_SECRET: z.string().default(''),
   // Signs ad impression and click tokens. Falls back to a key derived from the access secret.

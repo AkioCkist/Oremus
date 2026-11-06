@@ -21,6 +21,10 @@ const STATUS_MODELS: Partial<Record<TargetType, any>> = { Post, Comment, Story }
 
 /* ---------- Writing content ---------- */
 
+/** `enforce` and `auto` both apply decisions; `auto` also lets the model make them without waiting for a person. */
+export const isEnforcing = () => env.MODERATION_MODE === 'enforce' || env.MODERATION_MODE === 'auto';
+export const isAutonomous = () => env.MODERATION_MODE === 'auto';
+
 /** Refuses text with an unambiguous threat before it is stored. Everything else is decided after the write. */
 export function assertTextAllowed(...texts: Array<string | null | undefined>): void {
   if (env.MODERATION_MODE === 'off') return;
@@ -36,7 +40,7 @@ export function assertTextAllowed(...texts: Array<string | null | undefined>): v
 
 /** Status for new or edited content. Media stays private to its author until scanned; text shows right away. */
 export function initialStatus(hasNewMedia: boolean): string {
-  if (env.MODERATION_MODE !== 'enforce') return 'approved';
+  if (!isEnforcing()) return 'approved';
   return hasNewMedia ? 'held' : 'pending';
 }
 
@@ -76,16 +80,22 @@ export async function loadPolicy() {
 
 type PolicyRow = { category: string; review: number; block: number; autoRemove?: boolean };
 
-/** Applies thresholds to scores. Removal also needs autoRemove: categories where models misread context only go to a person. */
-export function decide(scores: Scores, policy: PolicyRow[]): { decision: Decision; categories: string[] } {
+/**
+ * Applies thresholds to scores. Removal also needs autoRemove: categories where models misread context only go to a person.
+ *
+ * With `autonomous` (MODERATION_MODE=auto) the model's call is final and nothing waits for a person:
+ * at or above `block` the content is removed whatever autoRemove says, and between `review` and `block` it is published.
+ * The categories still come back, so the caller can open a case for staff to look at afterwards.
+ */
+export function decide(scores: Scores, policy: PolicyRow[], autonomous = false): { decision: Decision; categories: string[] } {
   let decision: Decision = 'approved';
   const categories: string[] = [];
   for (const row of policy) {
     const score = scores[row.category] ?? 0;
     if (score < row.review) continue;
     categories.push(row.category);
-    if (score >= row.block && row.autoRemove) decision = 'removed';
-    else if (decision === 'approved') decision = 'limited';
+    if (score >= row.block && (row.autoRemove || autonomous)) decision = 'removed';
+    else if (!autonomous && decision === 'approved') decision = 'limited';
   }
   return { decision, categories };
 }
@@ -207,7 +217,9 @@ export async function applyScan(targetType: TargetType, targetId: string, result
   if (!target) return;
   const hasStatus = !!STATUS_MODELS[targetType];
   if (result.decision === 'approved') {
-    if (hasStatus) await setStatus(targetType, targetId, 'approved', ['pending', 'held']);
+    if (hasStatus && !(await setStatus(targetType, targetId, 'approved', ['pending', 'held']))) return;
+    // Published by the model in auto mode despite a borderline score: staff can still look, but nobody waits on them.
+    if (isAutonomous() && result.categories.length) await openCase({ targetType, targetId, source: result.source, categories: result.categories, scores: result.scores, models: result.models, autoAction: 'approved', priority: 1 });
     return;
   }
   const canRemove = hasStatus && result.decision === 'removed';

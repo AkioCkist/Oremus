@@ -1,0 +1,103 @@
+# Keyword moderation - nguồn: apps/web/src/moderation/rules.ts
+# Chỉ có hiệu lực khi MODERATION_MODE=enforce (shadow = chỉ log, off = tắt).
+# Không có auto-ban. Ban chỉ do staff quyết định sau strike >= 4.
+#
+# Thang action (nhẹ -> nặng):
+#   0  Không làm gì          - không trúng keyword, điểm AI dưới ngưỡng review
+#   1  FLAG                  - bài thành "limited", mở case cho mod (keyword FLAG nâng điểm lên >= 0.75)
+#   2  Tự gỡ (removed)       - chỉ harassment, điểm AI >= 0.97 (keyword đơn thuần không đủ)
+#   3  BLOCK khi đăng (422)  - keyword BLOCK, bài không được lưu
+#   4  Strike 1: cảnh cáo    - mod uphold case
+#   5  Strike 2: khoá 1 ngày
+#   6  Strike 3: khoá 7 ngày
+#   7  Strike >= 4: đề xuất ban (staff ban tay)
+#
+# Cách khớp: bắt leetspeak (l0n), kéo dài chữ (nguuuu), chữ cách rời (đ m, d.c.m).
+# Keyword không dấu cũng bắt bản có dấu; keyword có dấu chỉ khớp đúng như viết.
+# Khớp nguyên từ: "dm" trong "admin" không tính.
+
+# ===== MỨC 3 - BLOCK (chặn khi đăng) =====
+
+## violence
+tao sẽ giết mày
+tao giết mày
+tao giet may
+tao se giet may
+giết cả nhà mày
+giet ca nha may
+tao đâm chết mày
+tao dam chet may
+i will kill you
+i'll kill you
+
+## self_harm
+mày đi chết đi
+may di chet di
+tự tử đi
+tu tu di
+kill yourself
+go kill yourself
+
+# ===== MỨC 1 - FLAG (limited + mở case) =====
+
+## harassment
+đm
+dm
+đmm
+dmm
+dcm
+đcm
+cmm
+clm
+vcl
+vkl
+vãi lồn
+vai lon
+địt
+đụ
+đéo
+lồn
+cặc
+óc chó
+oc cho
+thằng chó
+con chó này
+đồ chó
+súc vật
+suc vat
+fuck you
+bitch
+asshole
+motherfucker
+
+## hate
+mọi rợ
+bắc kỳ
+bac ky cho
+nam kỳ
+tàu khựa
+tau khua
+đồ pê đê
+bọn đồng tính
+nigger
+faggot
+
+## sexual
+ấu dâm
+au dam
+ảnh nóng trẻ em
+clip sex
+bán dâm
+mua dâm
+gái gọi
+
+## spam
+nhận thưởng ngay
+nhan thuong ngay
+kiếm tiền online
+vay tiền online
+lãi suất 0%
+click vào link
+free crypto
+double your bitcoin
+# + bài có hơn 4 link (http://, https://, www.)

@@ -432,7 +432,7 @@ const moderationCaseSchema = new Schema({
   scores: { type: Schema.Types.Mixed, default: {} },
   models: { type: [String], default: [] },
   // What was already done without a person: nothing, limited reach, or removal.
-  autoAction: { type: String, enum: ['none', 'limited', 'removed'], default: 'none' },
+  autoAction: { type: String, enum: ['none', 'approved', 'limited', 'removed'], default: 'none' },
   reportCount: { type: Number, default: 0 },
   // A copy, so a reviewer can still read content that has since been edited or taken down.
   snippet: { type: String, maxlength: 1000, default: '' },

@@ -33,6 +33,20 @@ describe('rule layer', () => {
     expect(checkRules('b1tch').verdict).toBe('flag');
   });
 
+  it('blocks threats however the words are spaced or punctuated', () => {
+    for (const text of ['t a o g i e t m a y', 'tao g i e t m a y', 'taogietmay', 'tao.giet.may', 't-a-o g-i-e-t m-a-y', 'T A O   G I 3 T   M A Y', 'k i l l y o u r s e l f']) {
+      expect(checkRules(text).verdict, text).toBe('block');
+    }
+  });
+
+  it('only joins words whose letters spell the whole term', () => {
+    expect(checkRules('tao giet mayo').verdict).toBe('ok');
+    expect(checkRules('bạn đi học đm').verdict).toBe('flag');
+    expect(checkRules('admin dm itri').verdict).toBe('flag');
+    expect(checkRules('adm in').verdict).toBe('ok');
+    expect(checkRules('vitamin D, M size').verdict).toBe('ok');
+  });
+
   it('flags posts stuffed with links as spam', () => {
     const result = checkRules('https://a.co https://b.co https://c.co https://d.co https://e.co');
     expect(result.categories).toContain('spam');
@@ -64,6 +78,12 @@ describe('policy decisions', () => {
 
   it('keeps the harsher outcome across categories', () => {
     expect(decide({ harassment: 0.7, hate: 0.95 }, policy).decision).toBe('removed');
+  });
+
+  it('lets the model decide alone in auto mode', () => {
+    expect(decide({ harassment: 0.99 }, policy, true).decision).toBe('removed');
+    expect(decide({ hate: 0.7 }, policy, true)).toEqual({ decision: 'approved', categories: ['hate'] });
+    expect(decide({ hate: 0.4 }, policy, true)).toEqual({ decision: 'approved', categories: [] });
   });
 
   it('ignores scores without a policy row', () => {

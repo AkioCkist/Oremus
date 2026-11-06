@@ -9,6 +9,7 @@
     "lint": "npm --workspace @oremus/web run lint",
     "typecheck": "npm --workspace @oremus/web run typecheck",
     "test": "npm --workspace @oremus/web run test",
+    "test:moderation-ai": "powershell -ExecutionPolicy Bypass -File scripts/test-moderation-ai.ps1",
     "seed": "docker compose run --rm --build seed",
     "seed:local": "npm --workspace @oremus/web run seed",
     "seed:photos": "npm --workspace @oremus/web run seed:photos",

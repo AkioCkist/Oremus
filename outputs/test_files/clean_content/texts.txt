@@ -1,0 +1,21 @@
+# Bài bình thường, phải được duyệt (approved). Bài nào bị flag là false positive.
+# Nhiều câu cố ý chứa từ trùng mặt chữ với keyword khi bỏ dấu.
+
+# ===== OK =====
+
+## ok
+Uống một lon bia cho mát
+Con chó nhà mình rất ngoan
+Giết thời gian trên xe buýt
+Tôi sẽ đi học vào ngày mai
+Admin ơi cho mình hỏi lịch họp
+Hôm nay trời đẹp, đi cà phê với bạn bè
+Bộ phim này hay quá, mọi người nên xem
+Chúc mừng sinh nhật bạn, tuổi mới nhiều niềm vui
+Mình mới nấu món canh chua cá lóc
+Ai biết chỗ sửa xe uy tín ở quận 3 không?
+Đọc xong cuốn sách này thấy có động lực hẳn
+Đội tuyển đá hay quá, thắng 3-0
+Mẹ mình vừa trồng thêm mấy chậu hoa
+Thanks everyone for the birthday wishes
+Lãi suất ngân hàng tháng này tăng nhẹ

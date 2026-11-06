@@ -1,0 +1,40 @@
+# Biến thể của keyword.txt: viết hoa, leetspeak, kéo dài chữ, chữ cách rời, keyword nằm trong câu.
+# Cùng định dạng với keyword.txt: "# ===== ... BLOCK/FLAG" chọn mức, "## category" chọn nhóm, mỗi dòng là một bài.
+
+# ===== MỨC 3 - BLOCK =====
+
+## violence
+TAO SẼ GIẾT MÀY
+Mai gặp ngoài đường thì tao giết mày luôn
+t a o g i e t m a y
+I'll kill you tomorrow
+
+## self_harm
+Mày đi chết đi cho rảnh
+tự tửửửử đi
+go kill yourself loser
+
+# ===== MỨC 1 - FLAG =====
+
+## harassment
+đ m thằng này ngu thật
+Nhìn mặt là biết óc chó rồi
+vcllll luôn á
+đồ súc vật
+d.c.m
+you are a bitch
+
+## hate
+Bọn tàu khựa cút về nước
+Lũ mọi rợ không biết gì
+Bắc kỳ chó thì ai chơi
+
+## sexual
+Ai có clip sex inbox mình
+Nhận bán dâm giá rẻ
+
+## spam
+NHẬN THƯỞNG NGAY 500k cho 100 người đầu tiên
+Vay tiền online không cần thế chấp
+Free crypto, click vào link bên dưới
+Xem ngay https://a.example https://b.example https://c.example https://d.example https://e.example

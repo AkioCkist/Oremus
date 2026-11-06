@@ -18,6 +18,7 @@
     "lint": "eslint src --max-warnings=0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run src/tests",
+    "test:moderation-ai": "tsx src/scripts/moderation-ai-test.ts",
     "seed": "tsx src/scripts/seed.ts",
     "seed:photos": "tsx src/scripts/seed-photos-build.ts",
     "seed:stories": "tsx src/scripts/seed-stories.ts",

@@ -1,0 +1,1958 @@
+{
+  "mode": "shadow",
+  "ranAt": "2026-11-04T08:17:52.727Z",
+  "passed": 106,
+  "total": 108,
+  "results": [
+    {
+      "source": "clean_content/texts.txt",
+      "level": "ok",
+      "category": "ok",
+      "text": "Uống một lon bia cho mát",
+      "action": "would be approved",
+      "problems": [],
+      "ruleMatches": [],
+      "scores": {
+        "hate": 0.0592,
+        "harassment": 0.2547
+      },
+      "categories": []
+    },
+    {
+      "source": "clean_content/texts.txt",
+      "level": "ok",
+      "category": "ok",
+      "text": "Con chó nhà mình rất ngoan",
+      "action": "would be approved",
+      "problems": [],
+      "ruleMatches": [],
+      "scores": {
+        "hate": 0.0067,
+        "harassment": 0.0183
+      },
+      "categories": []
+    },
+    {
+      "source": "clean_content/texts.txt",
+      "level": "ok",
+      "category": "ok",
+      "text": "Giết thời gian trên xe buýt",
+      "action": "would be approved",
+      "problems": [],
+      "ruleMatches": [],
+      "scores": {
+        "hate": 0.033,
+        "harassment": 0.336
+      },
+      "categories": []
+    },
+    {
+      "source": "clean_content/texts.txt",
+      "level": "ok",
+      "category": "ok",
+      "text": "Tôi sẽ đi học vào ngày mai",
+      "action": "would be approved",
+      "problems": [],
+      "ruleMatches": [],
+      "scores": {
+        "hate": 0.0002,
+        "harassment": 0.0015
+      },
+      "categories": []
+    },
+    {
+      "source": "clean_content/texts.txt",
+      "level": "ok",
+      "category": "ok",
+      "text": "Admin ơi cho mình hỏi lịch họp",
+      "action": "would be approved",
+      "problems": [],
+      "ruleMatches": [],
+      "scores": {
+        "hate": 0,
+        "harassment": 0.0002
+      },
+      "categories": []
+    },
+    {
+      "source": "clean_content/texts.txt",
+      "level": "ok",
+      "category": "ok",
+      "text": "Hôm nay trời đẹp, đi cà phê với bạn bè",
+      "action": "would be approved",
+      "problems": [],
+      "ruleMatches": [],
+      "scores": {
+        "hate": 0.0001,
+        "harassment": 0.0014
+      },
+      "categories": []
+    },
+    {
+      "source": "clean_content/texts.txt",
+      "level": "ok",
+      "category": "ok",
+      "text": "Bộ phim này hay quá, mọi người nên xem",
+      "action": "would be approved",
+      "problems": [],
+      "ruleMatches": [],
+      "scores": {
+        "hate": 0.0001,
+        "harassment": 0.0004
+      },
+      "categories": []
+    },
+    {
+      "source": "clean_content/texts.txt",
+      "level": "ok",
+      "category": "ok",
+      "text": "Chúc mừng sinh nhật bạn, tuổi mới nhiều niềm vui",
+      "action": "would be approved",
+      "problems": [],
+      "ruleMatches": [],
+      "scores": {
+        "hate": 0,
+        "harassment": 0.0001
+      },
+      "categories": []
+    },
+    {
+      "source": "clean_content/texts.txt",
+      "level": "ok",
+      "category": "ok",
+      "text": "Mình mới nấu món canh chua cá lóc",
+      "action": "would be approved",
+      "problems": [],
+      "ruleMatches": [],
+      "scores": {
+        "hate": 0,
+        "harassment": 0.0013
+      },
+      "categories": []
+    },
+    {
+      "source": "clean_content/texts.txt",
+      "level": "ok",
+      "category": "ok",
+      "text": "Ai biết chỗ sửa xe uy tín ở quận 3 không?",
+      "action": "would be approved",
+      "problems": [],
+      "ruleMatches": [],
+      "scores": {
+        "hate": 0.0004,
+        "harassment": 0.0023
+      },
+      "categories": []
+    },
+    {
+      "source": "clean_content/texts.txt",
+      "level": "ok",
+      "category": "ok",
+      "text": "Đọc xong cuốn sách này thấy có động lực hẳn",
+      "action": "would be approved",
+      "problems": [],
+      "ruleMatches": [],
+      "scores": {
+        "hate": 0.0001,
+        "harassment": 0.0026
+      },
+      "categories": []
+    },
+    {
+      "source": "clean_content/texts.txt",
+      "level": "ok",
+      "category": "ok",
+      "text": "Đội tuyển đá hay quá, thắng 3-0",
+      "action": "would be approved",
+      "problems": [],
+      "ruleMatches": [],
+      "scores": {
+        "hate": 0.0004,
+        "harassment": 0.0017
+      },
+      "categories": []
+    },
+    {
+      "source": "clean_content/texts.txt",
+      "level": "ok",
+      "category": "ok",
+      "text": "Mẹ mình vừa trồng thêm mấy chậu hoa",
+      "action": "would be approved",
+      "problems": [],
+      "ruleMatches": [],
+      "scores": {
+        "hate": 0.0001,
+        "harassment": 0.0006
+      },
+      "categories": []
+    },
+    {
+      "source": "clean_content/texts.txt",
+      "level": "ok",
+      "category": "ok",
+      "text": "Thanks everyone for the birthday wishes",
+      "action": "would be approved",
+      "problems": [],
+      "ruleMatches": [],
+      "scores": {
+        "harassment": 0.0004
+      },
+      "categories": []
+    },
+    {
+      "source": "clean_content/texts.txt",
+      "level": "ok",
+      "category": "ok",
+      "text": "Lãi suất ngân hàng tháng này tăng nhẹ",
+      "action": "would be approved",
+      "problems": [],
+      "ruleMatches": [],
+      "scores": {
+        "hate": 0.0001,
+        "harassment": 0.001
+      },
+      "categories": []
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "block",
+      "category": "violence",
+      "text": "tao sẽ giết mày",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "tao sẽ giết mày",
+        "tao se giet may"
+      ],
+      "scores": {
+        "hate": 0.0988,
+        "harassment": 0.3487,
+        "violence": 0.75
+      },
+      "categories": [
+        "violence"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "block",
+      "category": "violence",
+      "text": "tao giết mày",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "tao giết mày",
+        "tao giet may"
+      ],
+      "scores": {
+        "hate": 0.3137,
+        "harassment": 0.8287,
+        "violence": 0.75
+      },
+      "categories": [
+        "harassment",
+        "violence"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "block",
+      "category": "violence",
+      "text": "tao giet may",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "tao giet may"
+      ],
+      "scores": {
+        "hate": 0.0193,
+        "harassment": 0.4019,
+        "violence": 0.75
+      },
+      "categories": [
+        "violence"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "block",
+      "category": "violence",
+      "text": "tao se giet may",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "tao se giet may"
+      ],
+      "scores": {
+        "hate": 0.0155,
+        "harassment": 0.1901,
+        "violence": 0.75
+      },
+      "categories": [
+        "violence"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "block",
+      "category": "violence",
+      "text": "giết cả nhà mày",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "giết cả nhà mày",
+        "giet ca nha may"
+      ],
+      "scores": {
+        "hate": 0.6632,
+        "harassment": 0.9456,
+        "violence": 0.75
+      },
+      "categories": [
+        "hate",
+        "harassment",
+        "violence"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "block",
+      "category": "violence",
+      "text": "giet ca nha may",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "giet ca nha may"
+      ],
+      "scores": {
+        "hate": 0.0641,
+        "harassment": 0.178,
+        "violence": 0.75
+      },
+      "categories": [
+        "violence"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "block",
+      "category": "violence",
+      "text": "tao đâm chết mày",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "tao đâm chết mày",
+        "tao dam chet may"
+      ],
+      "scores": {
+        "hate": 0.173,
+        "harassment": 0.6716,
+        "violence": 0.75
+      },
+      "categories": [
+        "harassment",
+        "violence"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "block",
+      "category": "violence",
+      "text": "tao dam chet may",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "tao dam chet may"
+      ],
+      "scores": {
+        "hate": 0.671,
+        "harassment": 0.9436,
+        "violence": 0.75
+      },
+      "categories": [
+        "hate",
+        "harassment",
+        "violence"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "block",
+      "category": "violence",
+      "text": "i will kill you",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "i will kill you"
+      ],
+      "scores": {
+        "harassment": 0.9882,
+        "violence": 0.75
+      },
+      "categories": [
+        "harassment",
+        "violence"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "block",
+      "category": "violence",
+      "text": "i'll kill you",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "i'll kill you"
+      ],
+      "scores": {
+        "harassment": 0.9906,
+        "violence": 0.75
+      },
+      "categories": [
+        "harassment",
+        "violence"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "block",
+      "category": "self_harm",
+      "text": "mày đi chết đi",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "mày đi chết đi",
+        "may di chet di"
+      ],
+      "scores": {
+        "hate": 0.5666,
+        "harassment": 0.7402,
+        "self_harm": 0.75
+      },
+      "categories": [
+        "harassment",
+        "self_harm"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "block",
+      "category": "self_harm",
+      "text": "may di chet di",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "may di chet di"
+      ],
+      "scores": {
+        "hate": 0.5378,
+        "harassment": 0.8659,
+        "self_harm": 0.75
+      },
+      "categories": [
+        "harassment",
+        "self_harm"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "block",
+      "category": "self_harm",
+      "text": "tự tử đi",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "tự tử đi",
+        "tu tu di"
+      ],
+      "scores": {
+        "hate": 0.0026,
+        "harassment": 0.0356,
+        "self_harm": 0.75
+      },
+      "categories": [
+        "self_harm"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "block",
+      "category": "self_harm",
+      "text": "tu tu di",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "tu tu di"
+      ],
+      "scores": {
+        "harassment": 0.2455,
+        "self_harm": 0.75
+      },
+      "categories": [
+        "self_harm"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "block",
+      "category": "self_harm",
+      "text": "kill yourself",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "kill yourself"
+      ],
+      "scores": {
+        "harassment": 0.9501,
+        "self_harm": 0.75
+      },
+      "categories": [
+        "harassment",
+        "self_harm"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "block",
+      "category": "self_harm",
+      "text": "go kill yourself",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "kill yourself",
+        "go kill yourself"
+      ],
+      "scores": {
+        "harassment": 0.985,
+        "self_harm": 0.75
+      },
+      "categories": [
+        "harassment",
+        "self_harm"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "đm",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "đm",
+        "dm"
+      ],
+      "scores": {
+        "hate": 0.0279,
+        "harassment": 0.9978
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "dm",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "dm"
+      ],
+      "scores": {
+        "hate": 0.0345,
+        "harassment": 0.9983
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "đmm",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "đmm",
+        "dmm"
+      ],
+      "scores": {
+        "hate": 0.148,
+        "harassment": 0.9975
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "dmm",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "dmm"
+      ],
+      "scores": {
+        "harassment": 0.75
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "dcm",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "dcm"
+      ],
+      "scores": {
+        "hate": 0.0179,
+        "harassment": 0.9756
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "đcm",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "dcm",
+        "đcm"
+      ],
+      "scores": {
+        "hate": 0.053,
+        "harassment": 0.998
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "cmm",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "cmm"
+      ],
+      "scores": {
+        "hate": 0.0632,
+        "harassment": 0.9988
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "clm",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "clm"
+      ],
+      "scores": {
+        "hate": 0.0211,
+        "harassment": 0.9993
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "vcl",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "vcl"
+      ],
+      "scores": {
+        "hate": 0.0009,
+        "harassment": 0.9809
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "vkl",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "vkl"
+      ],
+      "scores": {
+        "harassment": 0.75
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "vãi lồn",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "vãi lồn",
+        "vai lon",
+        "lồn"
+      ],
+      "scores": {
+        "hate": 0.0031,
+        "harassment": 0.9837
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "vai lon",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "vai lon"
+      ],
+      "scores": {
+        "hate": 0.1261,
+        "harassment": 0.9988
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "địt",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "địt"
+      ],
+      "scores": {
+        "hate": 0.0738,
+        "harassment": 0.9926
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "đụ",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "đụ"
+      ],
+      "scores": {
+        "hate": 0.0223,
+        "harassment": 0.9939
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "đéo",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "đéo"
+      ],
+      "scores": {
+        "hate": 0.0102,
+        "harassment": 0.9475
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "lồn",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "lồn"
+      ],
+      "scores": {
+        "hate": 0.1648,
+        "harassment": 0.9976
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "cặc",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "cặc"
+      ],
+      "scores": {
+        "hate": 0.0162,
+        "harassment": 0.9988
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "óc chó",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "óc chó",
+        "oc cho"
+      ],
+      "scores": {
+        "harassment": 0.75
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "oc cho",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "oc cho"
+      ],
+      "scores": {
+        "hate": 0.0441,
+        "harassment": 0.9737
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "thằng chó",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "thằng chó"
+      ],
+      "scores": {
+        "hate": 0.7657,
+        "harassment": 0.9965
+      },
+      "categories": [
+        "hate",
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "con chó này",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "con chó này"
+      ],
+      "scores": {
+        "harassment": 0.75
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "đồ chó",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "đồ chó"
+      ],
+      "scores": {
+        "hate": 0.1871,
+        "harassment": 0.9949
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "súc vật",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "súc vật",
+        "suc vat"
+      ],
+      "scores": {
+        "hate": 0.0668,
+        "harassment": 0.993
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "suc vat",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "suc vat"
+      ],
+      "scores": {
+        "harassment": 0.75
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "fuck you",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "fuck you"
+      ],
+      "scores": {
+        "harassment": 0.9954
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "bitch",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "bitch"
+      ],
+      "scores": {
+        "harassment": 0.9617
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "asshole",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "asshole"
+      ],
+      "scores": {
+        "harassment": 0.9808
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "motherfucker",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "motherfucker"
+      ],
+      "scores": {
+        "harassment": 0.996
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "hate",
+      "text": "mọi rợ",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "mọi rợ"
+      ],
+      "scores": {
+        "hate": 0.75,
+        "harassment": 0.1455
+      },
+      "categories": [
+        "hate"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "hate",
+      "text": "bắc kỳ",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "bắc kỳ"
+      ],
+      "scores": {
+        "hate": 0.75,
+        "harassment": 0.8899
+      },
+      "categories": [
+        "hate",
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "hate",
+      "text": "bac ky cho",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "bac ky cho"
+      ],
+      "scores": {
+        "hate": 0.75,
+        "harassment": 0.0259
+      },
+      "categories": [
+        "hate"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "hate",
+      "text": "nam kỳ",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "nam kỳ"
+      ],
+      "scores": {
+        "hate": 0.75,
+        "harassment": 0.0032
+      },
+      "categories": [
+        "hate"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "hate",
+      "text": "tàu khựa",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "tàu khựa",
+        "tau khua"
+      ],
+      "scores": {
+        "hate": 0.75,
+        "harassment": 0.868
+      },
+      "categories": [
+        "hate",
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "hate",
+      "text": "tau khua",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "tau khua"
+      ],
+      "scores": {
+        "harassment": 0.0187,
+        "hate": 0.75
+      },
+      "categories": [
+        "hate"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "hate",
+      "text": "đồ pê đê",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "đồ pê đê"
+      ],
+      "scores": {
+        "hate": 0.75,
+        "harassment": 0.5189
+      },
+      "categories": [
+        "hate"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "hate",
+      "text": "bọn đồng tính",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "bọn đồng tính"
+      ],
+      "scores": {
+        "hate": 0.8916,
+        "harassment": 0.9135
+      },
+      "categories": [
+        "hate",
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "hate",
+      "text": "nigger",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "nigger"
+      ],
+      "scores": {
+        "harassment": 0.9556,
+        "hate": 0.75
+      },
+      "categories": [
+        "hate",
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "hate",
+      "text": "faggot",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "faggot"
+      ],
+      "scores": {
+        "harassment": 0.9205,
+        "hate": 0.75
+      },
+      "categories": [
+        "hate",
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "sexual",
+      "text": "ấu dâm",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "ấu dâm",
+        "au dam"
+      ],
+      "scores": {
+        "hate": 0.029,
+        "harassment": 0.8887,
+        "sexual": 0.75
+      },
+      "categories": [
+        "harassment",
+        "sexual"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "sexual",
+      "text": "au dam",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "au dam"
+      ],
+      "scores": {
+        "harassment": 0.0694,
+        "sexual": 0.75
+      },
+      "categories": [
+        "sexual"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "sexual",
+      "text": "ảnh nóng trẻ em",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "ảnh nóng trẻ em"
+      ],
+      "scores": {
+        "hate": 0,
+        "harassment": 0.0001,
+        "sexual": 0.75
+      },
+      "categories": [
+        "sexual"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "sexual",
+      "text": "clip sex",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "clip sex"
+      ],
+      "scores": {
+        "harassment": 0.6228,
+        "sexual": 0.75
+      },
+      "categories": [
+        "harassment",
+        "sexual"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "sexual",
+      "text": "bán dâm",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "bán dâm"
+      ],
+      "scores": {
+        "harassment": 0.061,
+        "sexual": 0.75
+      },
+      "categories": [
+        "sexual"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "sexual",
+      "text": "mua dâm",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "mua dâm"
+      ],
+      "scores": {
+        "harassment": 0.061,
+        "sexual": 0.75
+      },
+      "categories": [
+        "sexual"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "sexual",
+      "text": "gái gọi",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "gái gọi"
+      ],
+      "scores": {
+        "hate": 0.0001,
+        "harassment": 0.0135,
+        "sexual": 0.75
+      },
+      "categories": [
+        "sexual"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "spam",
+      "text": "nhận thưởng ngay",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "nhận thưởng ngay",
+        "nhan thuong ngay"
+      ],
+      "scores": {
+        "hate": 0,
+        "harassment": 0.0015,
+        "spam": 0.75
+      },
+      "categories": [
+        "spam"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "spam",
+      "text": "nhan thuong ngay",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "nhan thuong ngay"
+      ],
+      "scores": {
+        "harassment": 0.0538,
+        "spam": 0.75
+      },
+      "categories": [
+        "spam"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "spam",
+      "text": "kiếm tiền online",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "kiếm tiền online"
+      ],
+      "scores": {
+        "hate": 0.0003,
+        "harassment": 0.0333,
+        "spam": 0.75
+      },
+      "categories": [
+        "spam"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "spam",
+      "text": "vay tiền online",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "vay tiền online"
+      ],
+      "scores": {
+        "hate": 0.0004,
+        "harassment": 0.0176,
+        "spam": 0.75
+      },
+      "categories": [
+        "spam"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "spam",
+      "text": "lãi suất 0%",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "lãi suất 0%"
+      ],
+      "scores": {
+        "hate": 0.0001,
+        "harassment": 0.0203,
+        "spam": 0.75
+      },
+      "categories": [
+        "spam"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "spam",
+      "text": "click vào link",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "click vào link"
+      ],
+      "scores": {
+        "harassment": 0.0021,
+        "spam": 0.75
+      },
+      "categories": [
+        "spam"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "spam",
+      "text": "free crypto",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "free crypto"
+      ],
+      "scores": {
+        "harassment": 0.0031,
+        "spam": 0.75
+      },
+      "categories": [
+        "spam"
+      ]
+    },
+    {
+      "source": "hate_content/keyword.txt",
+      "level": "flag",
+      "category": "spam",
+      "text": "double your bitcoin",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "double your bitcoin"
+      ],
+      "scores": {
+        "harassment": 0.038,
+        "spam": 0.75
+      },
+      "categories": [
+        "spam"
+      ]
+    },
+    {
+      "source": "hate_content/variants.txt",
+      "level": "block",
+      "category": "violence",
+      "text": "TAO SẼ GIẾT MÀY",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "tao sẽ giết mày",
+        "tao se giet may"
+      ],
+      "scores": {
+        "hate": 0.0988,
+        "harassment": 0.3487,
+        "violence": 0.75
+      },
+      "categories": [
+        "violence"
+      ]
+    },
+    {
+      "source": "hate_content/variants.txt",
+      "level": "block",
+      "category": "violence",
+      "text": "Mai gặp ngoài đường thì tao giết mày luôn",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "tao giết mày",
+        "tao giet may"
+      ],
+      "scores": {
+        "hate": 0.1335,
+        "harassment": 0.4953,
+        "violence": 0.75
+      },
+      "categories": [
+        "violence"
+      ]
+    },
+    {
+      "source": "hate_content/variants.txt",
+      "level": "block",
+      "category": "violence",
+      "text": "t a o g i e t m a y",
+      "action": "would be limited",
+      "problems": [
+        "no keyword matched",
+        "would be limited, categories [harassment]"
+      ],
+      "ruleMatches": [],
+      "scores": {
+        "harassment": 0.8005
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/variants.txt",
+      "level": "block",
+      "category": "violence",
+      "text": "I'll kill you tomorrow",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "i'll kill you"
+      ],
+      "scores": {
+        "harassment": 0.9872,
+        "violence": 0.75
+      },
+      "categories": [
+        "harassment",
+        "violence"
+      ]
+    },
+    {
+      "source": "hate_content/variants.txt",
+      "level": "block",
+      "category": "self_harm",
+      "text": "Mày đi chết đi cho rảnh",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "mày đi chết đi",
+        "may di chet di"
+      ],
+      "scores": {
+        "hate": 0.7064,
+        "harassment": 0.8579,
+        "self_harm": 0.75
+      },
+      "categories": [
+        "hate",
+        "harassment",
+        "self_harm"
+      ]
+    },
+    {
+      "source": "hate_content/variants.txt",
+      "level": "block",
+      "category": "self_harm",
+      "text": "tự tửửửử đi",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "tự tử đi",
+        "tu tu di"
+      ],
+      "scores": {
+        "hate": 0.0021,
+        "harassment": 0.0149,
+        "self_harm": 0.75
+      },
+      "categories": [
+        "self_harm"
+      ]
+    },
+    {
+      "source": "hate_content/variants.txt",
+      "level": "block",
+      "category": "self_harm",
+      "text": "go kill yourself loser",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "kill yourself",
+        "go kill yourself"
+      ],
+      "scores": {
+        "harassment": 0.9954,
+        "self_harm": 0.75
+      },
+      "categories": [
+        "harassment",
+        "self_harm"
+      ]
+    },
+    {
+      "source": "hate_content/variants.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "đ m thằng này ngu thật",
+      "action": "would be removed",
+      "problems": [
+        "no keyword matched"
+      ],
+      "ruleMatches": [],
+      "scores": {
+        "hate": 0.9976,
+        "harassment": 0.9995
+      },
+      "categories": [
+        "hate",
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/variants.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "Nhìn mặt là biết óc chó rồi",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "óc chó",
+        "oc cho"
+      ],
+      "scores": {
+        "hate": 0.5288,
+        "harassment": 0.9911
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/variants.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "vcllll luôn á",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "vcl"
+      ],
+      "scores": {
+        "harassment": 0.75
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/variants.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "đồ súc vật",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "súc vật",
+        "suc vat"
+      ],
+      "scores": {
+        "hate": 0.476,
+        "harassment": 0.995
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/variants.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "d.c.m",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "dcm"
+      ],
+      "scores": {
+        "harassment": 0.75
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/variants.txt",
+      "level": "flag",
+      "category": "harassment",
+      "text": "you are a bitch",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "bitch"
+      ],
+      "scores": {
+        "harassment": 0.9932
+      },
+      "categories": [
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/variants.txt",
+      "level": "flag",
+      "category": "hate",
+      "text": "Bọn tàu khựa cút về nước",
+      "action": "would be removed",
+      "problems": [],
+      "ruleMatches": [
+        "tàu khựa",
+        "tau khua"
+      ],
+      "scores": {
+        "hate": 0.9654,
+        "harassment": 0.9806
+      },
+      "categories": [
+        "hate",
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/variants.txt",
+      "level": "flag",
+      "category": "hate",
+      "text": "Lũ mọi rợ không biết gì",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "mọi rợ"
+      ],
+      "scores": {
+        "hate": 0.75,
+        "harassment": 0.8947
+      },
+      "categories": [
+        "hate",
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/variants.txt",
+      "level": "flag",
+      "category": "hate",
+      "text": "Bắc kỳ chó thì ai chơi",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "bắc kỳ",
+        "bac ky cho"
+      ],
+      "scores": {
+        "hate": 0.75,
+        "harassment": 0.7628
+      },
+      "categories": [
+        "hate",
+        "harassment"
+      ]
+    },
+    {
+      "source": "hate_content/variants.txt",
+      "level": "flag",
+      "category": "sexual",
+      "text": "Ai có clip sex inbox mình",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "clip sex"
+      ],
+      "scores": {
+        "harassment": 0.4701,
+        "sexual": 0.75
+      },
+      "categories": [
+        "sexual"
+      ]
+    },
+    {
+      "source": "hate_content/variants.txt",
+      "level": "flag",
+      "category": "sexual",
+      "text": "Nhận bán dâm giá rẻ",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "bán dâm"
+      ],
+      "scores": {
+        "hate": 0.0662,
+        "harassment": 0.7985,
+        "sexual": 0.75
+      },
+      "categories": [
+        "harassment",
+        "sexual"
+      ]
+    },
+    {
+      "source": "hate_content/variants.txt",
+      "level": "flag",
+      "category": "spam",
+      "text": "NHẬN THƯỞNG NGAY 500k cho 100 người đầu tiên",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "nhận thưởng ngay",
+        "nhan thuong ngay"
+      ],
+      "scores": {
+        "hate": 0.0002,
+        "harassment": 0.0072,
+        "spam": 0.75
+      },
+      "categories": [
+        "spam"
+      ]
+    },
+    {
+      "source": "hate_content/variants.txt",
+      "level": "flag",
+      "category": "spam",
+      "text": "Vay tiền online không cần thế chấp",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "vay tiền online"
+      ],
+      "scores": {
+        "hate": 0.0018,
+        "harassment": 0.0509,
+        "spam": 0.75
+      },
+      "categories": [
+        "spam"
+      ]
+    },
+    {
+      "source": "hate_content/variants.txt",
+      "level": "flag",
+      "category": "spam",
+      "text": "Free crypto, click vào link bên dưới",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "click vào link",
+        "free crypto"
+      ],
+      "scores": {
+        "hate": 0,
+        "harassment": 0.0015,
+        "spam": 0.75
+      },
+      "categories": [
+        "spam"
+      ]
+    },
+    {
+      "source": "hate_content/variants.txt",
+      "level": "flag",
+      "category": "spam",
+      "text": "Xem ngay https://a.example https://b.example https://c.example https://d.example https://e.example",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [
+        "many links"
+      ],
+      "scores": {
+        "harassment": 0.0005,
+        "spam": 0.75
+      },
+      "categories": [
+        "spam"
+      ]
+    },
+    {
+      "source": "sexual_content/HVMNNLDbgAAc0v0-topaz-face-upscale-2.8x.jpeg",
+      "level": "media",
+      "category": "sexual",
+      "text": "",
+      "media": "HVMNNLDbgAAc0v0-topaz-face-upscale-2.8x.jpeg",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [],
+      "scores": {
+        "sexual": 0.9856
+      },
+      "categories": [
+        "sexual"
+      ]
+    },
+    {
+      "source": "sexual_content/Ngoài capwall thì cũng coá F.S viết tayy (bằng apple pen 🐧🫰) #hinatan....mp4",
+      "level": "media",
+      "category": "sexual",
+      "text": "",
+      "media": "Ngoài capwall thì cũng coá F.S viết tayy (bằng apple pen 🐧🫰) #hinatan....mp4",
+      "action": "would be limited",
+      "problems": [],
+      "ruleMatches": [],
+      "scores": {
+        "sexual": 0.9963
+      },
+      "categories": [
+        "sexual"
+      ]
+    }
+  ]
+}

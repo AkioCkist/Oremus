@@ -432,13 +432,14 @@ Admin có thể chỉnh các ngưỡng này trong trang quản trị.
 - Tác giả được **kháng cáo** một lần trong phần Cài đặt.
 - Nếu AI lỗi mãi không quét được, bài vẫn được hiện (không bị kẹt), còn bài có ảnh/video thì chuyển cho người kiểm tra.
 
-### Ba chế độ chạy (`MODERATION_MODE`)
+### Bốn chế độ chạy (`MODERATION_MODE`)
 
 | Chế độ | Ý nghĩa |
 |---|---|
 | `off` | Tắt (mặc định). |
 | `shadow` | Quét và ghi kết quả, nhưng người dùng không bị ảnh hưởng. Dùng để thử trước. |
-| `enforce` | Áp dụng thật. |
+| `enforce` | Áp dụng thật. Điểm lưng chừng, hoặc loại vi phạm không bật tự gỡ, thì bị hạn chế chờ người duyệt. |
+| `auto` | AI tự quyết luôn, không chờ người: từ ngưỡng `block` trở lên thì gỡ (mọi loại), giữa `review` và `block` thì đăng. Vẫn mở case để admin xem lại và đảo ngược sau. Dễ gỡ nhầm hơn, vì model ảnh từng chấm ảnh chân dung bình thường là nhạy cảm. |
 
 ### Giới hạn (nên nói thật khi trình bày)
 

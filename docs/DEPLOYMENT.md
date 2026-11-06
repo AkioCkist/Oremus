@@ -72,7 +72,7 @@ Set in `.env` (see `.env.example`). Docker Compose overrides the database hosts 
 | `FFMPEG_PATH` | `ffmpeg` | media | Path to the ffmpeg binary |
 | `LOG_LEVEL` | `info` | web, media | pino log level |
 | `COMPOSE_PROFILES` | none | compose | Optional services to run: `moderation`, `calls` |
-| `MODERATION_MODE` | `off` | web, jobs | `off`, `shadow` or `enforce`. See [Moderation](MODERATION.md) |
+| `MODERATION_MODE` | `off` | web, jobs | `off`, `shadow`, `enforce` or `auto`. See [Moderation](MODERATION.md) |
 | `MODERATION_SECRET` | none | web, jobs, moderation | Shared secret for the AI service. Without it the service refuses everything |
 | `MODERATION_THREADS` / `MODERATION_MEMORY` | `2` / `3g` | moderation | CPU threads and memory limit |
 | `AD_TOKEN_SECRET` | derived | web | Signs ad view and click tokens |

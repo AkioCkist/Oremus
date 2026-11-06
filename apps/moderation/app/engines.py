@@ -11,7 +11,7 @@ from transformers import (
     AutoTokenizer,
 )
 
-from .language import route_language, split_chunks
+from .language import deobfuscate, route_language, split_chunks
 from .scoring import from_nsfw, from_toxicity, from_vihate, merge_max
 
 # Pinned so a model can only change with a deliberate code change (and a new evaluation run).
@@ -62,18 +62,27 @@ class Engines:
         logits = self.toxicity(**encoded).logits[0]
         return torch.sigmoid(logits[0]).item()
 
-    def score_text(self, text: str) -> dict:
+    def _score_variant(self, text: str, results: list[dict[str, float]], models: list[str]) -> str:
         route = route_language(text)
         chunks = split_chunks(text) or [""]
-        results: list[dict[str, float]] = []
-        models: list[str] = []
         if route in ("vi", "both"):
             results += [from_vihate(self._vihate_chunk(chunk)) for chunk in chunks]
             models.append(model_version(VIHATE))
         if route in ("other", "both"):
             results += [from_toxicity(self._toxicity_chunk(chunk)) for chunk in chunks]
             models.append(model_version(TOXICITY))
-        return {"categories": merge_max(*results), "language": route, "models": models}
+        return route
+
+    def score_text(self, text: str) -> dict:
+        results: list[dict[str, float]] = []
+        models: list[str] = []
+        route = self._score_variant(text, results, models)
+        # Letter-by-letter spelling ("t a o g i e t m a y") reads as noise to the models, so the rejoined text is
+        # scored as well and the worse of the two counts.
+        readable = deobfuscate(text)
+        if readable != text:
+            route = self._score_variant(readable, results, models)
+        return {"categories": merge_max(*results), "language": route, "models": list(dict.fromkeys(models))}
 
     @torch.inference_mode()
     def score_image(self, data: bytes) -> dict:

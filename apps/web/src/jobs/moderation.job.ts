@@ -11,7 +11,7 @@ import { sweepQuarantine } from '../moderation/quarantine.js';
 import { checkRules } from '../moderation/rules.js';
 import { Comment, Post, Story } from '../models/index.js';
 import { addJob, QUEUES } from './queues.js';
-import { applyScan, decide, failOpen, loadPolicy, loadTarget, recordScan, SCAN_JOB, type TargetType } from '../services/moderation.service.js';
+import { applyScan, decide, failOpen, isAutonomous, isEnforcing, loadPolicy, loadTarget, recordScan, SCAN_JOB, type TargetType } from '../services/moderation.service.js';
 
 const UPLOADS = path.resolve(process.cwd(), 'uploads');
 const MODEL_INPUT_PX = 384;
@@ -70,8 +70,8 @@ export async function scanTarget({ targetType, targetId }: ScanJob): Promise<voi
   }
   const rules = checkRules(target.text);
   for (const category of rules.categories) scores[category] = Math.max(scores[category] ?? 0, RULE_FLOOR);
-  const { decision, categories } = decide(scores, await loadPolicy());
-  const shadow = env.MODERATION_MODE !== 'enforce';
+  const { decision, categories } = decide(scores, await loadPolicy(), isAutonomous());
+  const shadow = !isEnforcing();
   await recordScan({ targetType, targetId, authorId: target.authorId, scores, decision, categories, models: [...models], ruleMatches: rules.matches, shadow });
   if (shadow) return;
   await applyScan(targetType, targetId, { decision, categories, scores, models: [...models], source: rules.categories.length ? 'rule' : 'ai' });

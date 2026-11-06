@@ -1,7 +1,8 @@
 fastapi==0.115.*
 uvicorn[standard]==0.34.*
 transformers==4.57.*
-sentencepiece==0.2.*
-protobuf==5.*
+sentencepiece==0.2.3
+# sentencepiece wheels are generated with protobuf 7 and refuse an older runtime.
+protobuf==7.36.*
 tiktoken==0.9.*
 pillow==11.*
