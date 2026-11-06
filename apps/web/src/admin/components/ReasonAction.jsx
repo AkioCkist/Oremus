@@ -7,7 +7,7 @@ const api = new ApiClient();
 
 /**
  * Generic form for record actions that need a written reason, and optionally a duration in days.
- * The action declares which it wants through `custom`: { reasonLabel, days, submitLabel, variant }.
+ * The action declares which it wants through `custom`: { reasonLabel, optional, days, submitLabel, variant, warning }.
  */
 export default function ReasonAction({ action, resource, record, setTag }) {
   const addNotice = useNotice();
@@ -50,8 +50,8 @@ export default function ReasonAction({ action, resource, record, setTag }) {
       {custom.warning ? <MessageBox mb="lg" message={custom.warning} variant="warning" /> : null}
       {custom.noReason ? null : (
         <FormGroup>
-          <Label required htmlFor="reason">{custom.reasonLabel || 'Reason'}</Label>
-          <TextArea id="reason" width={1} rows={4} required maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} />
+          <Label required={!custom.optional} htmlFor="reason">{custom.reasonLabel || 'Reason'}</Label>
+          <TextArea id="reason" width={1} rows={4} required={!custom.optional} maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} />
         </FormGroup>
       )}
       {custom.days ? (

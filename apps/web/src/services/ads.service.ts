@@ -3,7 +3,8 @@ import mongoose from 'mongoose';
 import { redis } from '../config/database.js';
 import { env } from '../config/env.js';
 import { logger } from '../config/logger.js';
-import { AdAccount, AdCampaign, AdPreference, AdStatDaily, LedgerEntry, User } from '../models/index.js';
+import { AdAccount, AdCampaign, AdPreference, AdStatDaily, LedgerEntry, ModerationCase, Report, User } from '../models/index.js';
+import { quarantineFiles } from '../moderation/quarantine.js';
 import { detectTopics } from '../recommender/text.js';
 import { interestOption, INTEREST_KEYS } from '../shared/interests.js';
 import { AppError } from '../utils/errors.js';
@@ -148,6 +149,29 @@ export async function reviewCampaign(actorId: string, campaignId: string, approv
   await notifySystem({ recipientId: String(campaign.advertiserId), type: 'ad_status', entityType: 'AdCampaign', entityId: campaign.id, text: approve ? `approved your campaign "${campaign.name}". It is running now.`.slice(0, 180) : `did not approve your campaign "${campaign.name}": ${reason}`.slice(0, 180) });
   await audit(approve ? 'ads.approve' : 'ads.reject', actorId, 'AdCampaign', campaignId, { reason });
   return campaign;
+}
+
+/**
+ * Deletes a campaign for good, from the admin panel. Only campaigns that never spent anything: the ledger and the
+ * advertiser's statements point at campaigns that ran, so those are ended instead and kept.
+ */
+export async function deleteCampaign(actorId: string, campaignId: string, reason: string) {
+  const campaign: any = await AdCampaign.findOneAndDelete({ _id: campaignId, spent: 0, impressions: 0, clicks: 0 }).lean();
+  if (!campaign) {
+    const exists = await AdCampaign.exists({ _id: campaignId });
+    throw exists
+      ? new AppError(409, 'This campaign has already run and spent money, so it is kept for the ledger. End it instead.', 'CAMPAIGN_STATE')
+      : new AppError(404, 'This campaign no longer exists.', 'NOT_FOUND');
+  }
+  await Promise.all([
+    AdStatDaily.deleteMany({ campaignId }),
+    ModerationCase.updateMany({ targetType: 'AdCampaign', targetId: campaignId, status: 'open' }, { status: 'dismissed', decidedBy: actorId, decidedAt: new Date(), decisionNote: 'Campaign deleted.' }),
+    Report.updateMany({ targetType: 'AdCampaign', targetId: campaignId, status: 'open' }, { status: 'actioned' }),
+    campaign.mediaUrl ? quarantineFiles([campaign.mediaUrl]) : undefined
+  ]);
+  await invalidateEligibleAds();
+  await notifySystem({ recipientId: String(campaign.advertiserId), type: 'ad_status', entityType: 'User', entityId: String(campaign.advertiserId), text: `deleted your campaign "${campaign.name}"${reason ? `: ${reason}` : '.'}`.slice(0, 180) });
+  await audit('ads.delete', actorId, 'AdCampaign', campaignId, { name: campaign.name, status: campaign.status, reason });
 }
 
 /* ---------- What each person allows ---------- */

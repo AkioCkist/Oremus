@@ -1,6 +1,6 @@
 import { populator, type ActionContext, type ActionRequest, type ActionResponse, type ResourceWithOptions } from 'adminjs';
 import { AdAccount, AdCampaign, AuditLog, Call, Comment, Conversation, Group, LedgerEntry, ModerationCase, PaymentOrder, ModerationPolicy, ModerationScan, Post, Report, Story, User } from '../models/index.js';
-import { adjustBalance, reviewCampaign } from '../services/ads.service.js';
+import { adjustBalance, deleteCampaign, reviewCampaign } from '../services/ads.service.js';
 import { decideAppeal, decideCase } from '../services/moderation.service.js';
 import { banUser, reinstateUser, setUserRole, suspendUser, warnUser } from '../services/account.service.js';
 import { audit } from '../services/audit.service.js';
@@ -107,6 +107,35 @@ const directAction = (label: string, icon: string, work: Parameters<typeof recor
   isAccessible,
   handler: recordAction(work, { direct: true })
 });
+
+/** Only offered while a campaign waits for review: approving or rejecting anything else is refused anyway. */
+const inReview = (context: ActionContext) => context.record?.param('status') === 'pending_review';
+
+/** Deleting removes the record, so the panel goes back to the list rather than to a record page that is gone. */
+const deleteCampaignAction = {
+  actionType: 'record' as const,
+  label: 'Delete',
+  icon: 'Trash2',
+  variant: 'danger' as const,
+  component: components.ReasonAction,
+  custom: { icon: 'Trash2', submitLabel: 'Delete for good', variant: 'danger', reasonLabel: 'What the advertiser will be told (optional)', optional: true,
+    warning: 'The campaign, its image and its stats are deleted for good. This cannot be undone.' },
+  isAccessible: adminOnly,
+  // A campaign that has spent money stays for the ledger; it can only be ended.
+  isVisible: (context: ActionContext) => !Number(context.record?.param('spent')) && !Number(context.record?.param('impressions')),
+  handler: async (request: ActionRequest, _response: unknown, context: ActionContext): Promise<ActionResponse> => {
+    const record = context.record!;
+    if (request.method !== 'post') return { record: record.toJSON(context.currentAdmin) };
+    const reason = String(request.payload?.reason || '').trim().slice(0, 300);
+    try {
+      await deleteCampaign(String(context.currentAdmin?.id), record.id(), reason);
+    } catch (error) {
+      if (error instanceof AppError) return { record: record.toJSON(context.currentAdmin), notice: { message: error.message, type: 'error' } };
+      throw error;
+    }
+    return { record: record.toJSON(context.currentAdmin), redirectUrl: context.h.resourceUrl({ resourceId: context.resource.id() }), notice: { message: 'Campaign deleted.', type: 'success' } };
+  }
+};
 
 const requireReason = (reason: string) => { if (!reason) throw new AppError(422, 'A reason is required.', 'VALIDATION_ERROR'); return reason; };
 
@@ -228,10 +257,11 @@ const campaignResource: ResourceWithOptions = {
     actions: {
       // Reviewers judge an ad by how it will look, so the record page renders the feed card next to budget and results.
       ...visual('campaign', staff, { topicLabels, money: ['cpm', 'dailyBudget', 'totalBudget', 'spent'] }),
-      approve: directAction('Approve', 'Check',
-        async (record, _input, actorId) => { await reviewCampaign(actorId, record.id(), true, ''); return 'Campaign approved.'; }, adminOnly),
-      reject: reasonAction('Reject', { icon: 'X', submitLabel: 'Reject', variant: 'danger', reasonLabel: 'What the advertiser will be told' },
-        recordAction(async (record, { reason }, actorId) => { await reviewCampaign(actorId, record.id(), false, requireReason(reason)); return 'Campaign rejected.'; }), adminOnly)
+      approve: { ...directAction('Approve', 'Check',
+        async (record, _input, actorId) => { await reviewCampaign(actorId, record.id(), true, ''); return 'Campaign approved.'; }, adminOnly), isVisible: inReview },
+      reject: { ...reasonAction('Reject', { icon: 'X', submitLabel: 'Reject', variant: 'danger', reasonLabel: 'What the advertiser will be told' },
+        recordAction(async (record, { reason }, actorId) => { await reviewCampaign(actorId, record.id(), false, requireReason(reason)); return 'Campaign rejected.'; }), adminOnly), isVisible: inReview },
+      remove: deleteCampaignAction
     }
   }
 };
