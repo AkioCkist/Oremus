@@ -129,6 +129,7 @@ function loadLiveKit(): Promise<LiveKit> {
 function mediaError(error: any): string {
   if (error?.name === 'NotAllowedError') return 'Oremus needs permission to use your microphone or camera. Allow it in your browser and try again.';
   if (error?.name === 'NotFoundError') return 'No microphone or camera was found on this device.';
+  if (error?.name === 'NotReadableError') return 'Your microphone or camera is being used by another app or tab. Close it and try again.';
   return 'The call could not connect. Check your connection and try again.';
 }
 
@@ -168,10 +169,15 @@ async function connect(join: Join) {
 
     await current.connect(join.url, join.token);
     await current.localParticipant.setMicrophoneEnabled(true);
-    if (join.kind === 'video') await current.localParticipant.setCameraEnabled(true);
+    if (join.kind === 'video') {
+      // A camera that fails (busy, blocked) should not end a call that already has sound.
+      try { await current.localParticipant.setCameraEnabled(true); }
+      catch (error) { console.error('[calls] camera failed', error); setNotice(mediaError(error).replace('microphone or camera', 'camera')); }
+    }
     if (current.remoteParticipants.size > 0) markLive();
     else setStatus('Waiting for them to join…');
   } catch (error) {
+    console.error('[calls] connect failed', error);
     toast(mediaError(error));
     hangUp();
   }

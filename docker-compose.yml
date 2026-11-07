@@ -4,6 +4,9 @@ services:
     restart: unless-stopped
     expose:
       - "27017"
+    ports:
+      # This machine only, for MongoDB Compass and running the web app outside Docker.
+      - "127.0.0.1:${MONGO_PORT:-27017}:27017"
     volumes:
       - mongo-data:/data/db
     healthcheck:
@@ -72,7 +75,7 @@ services:
       # The container's filesystem is read-only; AdminJS bundles its client here at startup.
       ADMIN_JS_TMP_DIR: /tmp/adminjs
     ports:
-      - "127.0.0.1:${WEB_PORT:-3000}:3000"
+      - "${WEB_BIND:-127.0.0.1}:${WEB_PORT:-3000}:3000"
     volumes:
       - uploads:/app/apps/web/uploads
     init: true
@@ -212,7 +215,7 @@ services:
           urls:
             - http://web:3000/webhooks/livekit
     ports:
-      - "127.0.0.1:7880:7880"
+      - "${LIVEKIT_BIND:-127.0.0.1}:7880:7880"
       - "7881:7881"
       - "50000-50200:50000-50200/udp"
       - "3478:3478/udp"
